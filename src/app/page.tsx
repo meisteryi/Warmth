@@ -14,7 +14,7 @@ import { soundEngine } from '@/lib/audio';
 const INITIAL_DIARY: DiaryData = {
   diaryId: 'diary-demo-01',
   authorId: 'UID_B',
-  authorName: '지은',
+  authorName: '유라',
   recipientId: 'UID_A',
   recipientName: '주형',
   title: '서촌 골목길을 걷다가',
@@ -95,7 +95,7 @@ export default function HomePage() {
     };
     setDiary(updated);
     setUiState('VIEW_WAITING');
-    showToast('📮 일기가 왁스로 단단히 봉인되어 지은 님에게 전달되었습니다!');
+    showToast('📮 일기가 왁스로 단단히 봉인되어 유라 님에게 전달되었습니다!');
   };
 
   // 상태 수동 전환 시 일관성 유지
@@ -150,8 +150,8 @@ export default function HomePage() {
         {/* 1. VIEW_WAITING: 상대방 턴 진행 중 */}
         {uiState === 'VIEW_WAITING' && (
           <WaitingLetter
-            partnerName="지은"
-            onSendKnock={() => showToast('🔔 지은 님에게 은은한 노크 알림을 보냈습니다.')}
+            partnerName="유라"
+            onSendKnock={() => showToast('🔔 유라 님에게 은은한 노크 알림을 보냈습니다.')}
           />
         )}
 
@@ -198,7 +198,7 @@ export default function HomePage() {
         onClose={() => setIsWriteModalOpen(false)}
         onSaveDiary={handleSaveDiary}
         currentUserName="주형"
-        partnerName="지은"
+        partnerName="유라"
       />
 
       {/* 푸터 */}

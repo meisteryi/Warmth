@@ -43,7 +43,7 @@ export default function RoomHeader({
             <div className="flex items-center gap-1 text-[11px] text-stone-500 font-sans-ui">
               <span>주형</span>
               <Heart className="w-2.5 h-2.5 text-rose-500 fill-current" />
-              <span>지은 (매칭 완료)</span>
+              <span>유라 (매칭 완료)</span>
             </div>
           </div>
         </div>

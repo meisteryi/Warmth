@@ -127,7 +127,7 @@
   "members": ["UID_A", "UID_B"],
   "memberInfo": {
     "UID_A": { "nickname": "주형", "role": "CREATOR" },
-    "UID_B": { "nickname": "지은", "role": "PARTNER" }
+    "UID_B": { "nickname": "유라", "role": "PARTNER" }
   },
   "currentTurn": "UID_A",
   "latestDiaryId": "DIARY_DOC_ID",
