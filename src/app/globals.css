@@ -1,26 +1,116 @@
+@import url('https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&family=Maru+Buri:wght@300;400;600;700&family=Noto+Serif+KR:wght@300;400;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --bg-cream: #FDFBF7;
+  --bg-linen: #F4EFEA;
+  --surface-paper: #FFFDF9;
+  --border-antique: #E6DDD2;
+  --wax-burgundy: #6B1724;
+  --wax-gold: #B8860B;
+  --wax-green: #2E473B;
+  --ink-charcoal: #2C2A29;
+  --ink-sub: #78716C;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg-cream);
+  color: var(--ink-charcoal);
+  font-family: 'Gowun Batang', 'Noto Serif KR', serif;
+  background-image: 
+    radial-gradient(ellipse at 50% 10%, rgba(245, 235, 220, 0.6) 0%, rgba(244, 239, 234, 0) 70%),
+    radial-gradient(circle at 10% 20%, rgba(230, 220, 205, 0.4) 0%, transparent 40%);
+  min-height: 100vh;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 감성 폰트 유틸리티 */
+.font-serif-warm {
+  font-family: 'Gowun Batang', 'Maru Buri', serif;
+}
+
+.font-sans-ui {
+  font-family: 'Gowun Dodum', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* 서재 종이 질감 효과 */
+.paper-texture {
+  background-color: #FFFDF9;
+  box-shadow: 
+    0 1px 3px rgba(44, 42, 41, 0.05),
+    0 12px 30px -10px rgba(70, 45, 30, 0.15),
+    0 0 0 1px rgba(230, 221, 210, 0.8) inset;
+}
+
+.envelope-shadow {
+  box-shadow: 
+    0 15px 35px -10px rgba(50, 30, 20, 0.18),
+    0 5px 15px rgba(50, 30, 20, 0.08),
+    0 0 0 1px rgba(220, 205, 190, 0.5);
+}
+
+/* 3초 롱프레스 시 미세 진동 (iOS/Web) */
+@keyframes warm-shake {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  20% { transform: translate(-1px, 1px) rotate(-0.5deg); }
+  40% { transform: translate(1px, -1px) rotate(0.5deg); }
+  60% { transform: translate(-1.5px, 0.5px) rotate(-0.3deg); }
+  80% { transform: translate(1.5px, -0.5px) rotate(0.3deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+.anim-shake {
+  animation: warm-shake 0.12s infinite;
+}
+
+/* 왁스 인장 빛나는 펄스 */
+@keyframes wax-pulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 4px 10px rgba(107, 23, 36, 0.35));
+  }
+  50% {
+    transform: scale(1.03);
+    filter: drop-shadow(0 6px 16px rgba(107, 23, 36, 0.55));
+  }
+}
+
+.anim-wax-pulse {
+  animation: wax-pulse 2.2s ease-in-out infinite;
+}
+
+/* 편지지 줄노트 배경 */
+.lined-paper {
+  background-color: #FFFDF9;
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 31px,
+    #EFE7DD 31px,
+    #EFE7DD 32px
+  );
+  line-height: 32px;
+}
+
+/* 폴라로이드 사진 프레임 */
+.polaroid-frame {
+  background: #FFFDF8;
+  padding: 10px 10px 32px 10px;
+  box-shadow: 0 4px 12px rgba(44, 42, 41, 0.12), 0 0 0 1px #EADECE;
+}
+
+/* 커스텀 스크롤바 */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F4EFEA;
+}
+::-webkit-scrollbar-thumb {
+  background: #D8CEBE;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #C4B7A2;
 }
