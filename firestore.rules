@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 개발 및 초기 테스트 단계: 모든 읽기/쓰기 허용 (향후 PRD 규칙으로 전환)
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import RoomHeader from '@/components/RoomHeader';
+import OnboardingView from '@/components/OnboardingView';
 import Envelope from '@/components/Envelope';
 import MissionModal from '@/components/MissionModal';
 import OpenedLetter from '@/components/OpenedLetter';
@@ -9,8 +10,13 @@ import WaitingLetter from '@/components/WaitingLetter';
 import WriteDiaryModal from '@/components/WriteDiaryModal';
 import { DiaryData, UIState, WaxColor } from '@/types/diary';
 import { soundEngine } from '@/lib/audio';
+import { 
+  saveDiaryToFirestore, 
+  updateMissionInFirestore, 
+  unsealDiaryInFirestore 
+} from '@/lib/roomService';
 
-// 초기 PRD 스펙 기반 목업 일기 데이터
+// 초기 PRD 스펙 기반 일기 데이터
 const INITIAL_DIARY: DiaryData = {
   diaryId: 'diary-demo-01',
   authorId: 'UID_B',
@@ -44,7 +50,10 @@ const INITIAL_DIARY: DiaryData = {
 };
 
 export default function HomePage() {
-  const [uiState, setUiState] = useState<UIState>('VIEW_SEALED_LETTER');
+  const [uiState, setUiState] = useState<UIState>('VIEW_ONBOARDING');
+  const [roomCode, setRoomCode] = useState('829104');
+  const [userName, setUserName] = useState('주형');
+  const [partnerName, setPartnerName] = useState('유라');
   const [diary, setDiary] = useState<DiaryData>(INITIAL_DIARY);
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false);
   const [isWriteModalOpen, setIsWriteModalOpen] = useState(false);
@@ -55,8 +64,22 @@ export default function HomePage() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // 1. 미션 통과 처리 -> VIEW_WAX_READY
-  const handlePassMission = (submissionText: string) => {
+  // 0. 초대코드 매칭 완료 처리
+  const handleMatched = (code: string, me: string, partner: string) => {
+    setRoomCode(code);
+    setUserName(me);
+    setPartnerName(partner);
+    setDiary((prev) => ({
+      ...prev,
+      authorName: partner,
+      recipientName: me,
+    }));
+    setUiState('VIEW_SEALED_LETTER');
+    showToast(`🎉 ${partner} 님과 일기장이 성공적으로 연결되었습니다! (방 번호: #${code})`);
+  };
+
+  // 1. 미션 통과 처리 -> Firestore 동기화 & VIEW_WAX_READY
+  const handlePassMission = async (submissionText: string) => {
     setDiary((prev) => ({
       ...prev,
       mission: {
@@ -70,10 +93,16 @@ export default function HomePage() {
     }));
     setUiState('VIEW_WAX_READY');
     showToast('✨ 미션을 완료했습니다! 이제 실링 왁스를 3초 동안 눌러 봉인을 풀어보세요.');
+
+    try {
+      await updateMissionInFirestore(roomCode, diary.diaryId, submissionText);
+    } catch (e) {
+      console.warn('Firestore update mission sync:', e);
+    }
   };
 
-  // 2. 3초 실링 왁스 해제 완료 -> VIEW_OPENED_DIARY
-  const handleUnsealComplete = () => {
+  // 2. 3초 실링 왁스 해제 완료 -> Firestore 동기화 & VIEW_OPENED_DIARY
+  const handleUnsealComplete = async () => {
     soundEngine.playPaperRustle();
     setDiary((prev) => ({
       ...prev,
@@ -82,10 +111,16 @@ export default function HomePage() {
     }));
     setUiState('VIEW_OPENED_DIARY');
     showToast('📬 편지 봉인이 해제되었습니다. 정성스레 적은 일기를 읽어보세요.');
+
+    try {
+      await unsealDiaryInFirestore(roomCode, diary.diaryId);
+    } catch (e) {
+      console.warn('Firestore unseal sync:', e);
+    }
   };
 
-  // 3. 새 일기 작성 완료 -> VIEW_WAITING (상대방 턴으로 전환)
-  const handleSaveDiary = (newDiaryPart: Partial<DiaryData>) => {
+  // 3. 새 일기 작성 완료 -> Firestore 저장 & VIEW_WAITING (상대방 턴으로 전환)
+  const handleSaveDiary = async (newDiaryPart: Partial<DiaryData>) => {
     const updated: DiaryData = {
       ...diary,
       ...newDiaryPart,
@@ -95,7 +130,13 @@ export default function HomePage() {
     };
     setDiary(updated);
     setUiState('VIEW_WAITING');
-    showToast('📮 일기가 왁스로 단단히 봉인되어 유라 님에게 전달되었습니다!');
+    showToast(`📮 일기가 왁스로 단단히 봉인되어 ${partnerName} 님에게 전달되었습니다!`);
+
+    try {
+      await saveDiaryToFirestore(roomCode, updated);
+    } catch (e) {
+      console.warn('Firestore save diary sync:', e);
+    }
   };
 
   // 상태 수동 전환 시 일관성 유지
@@ -124,8 +165,8 @@ export default function HomePage() {
 
   const handleResetDemo = () => {
     setDiary(INITIAL_DIARY);
-    setUiState('VIEW_SEALED_LETTER');
-    showToast('데모 상태가 초기화되었습니다.');
+    setUiState('VIEW_ONBOARDING');
+    showToast('초기 매칭(온보딩) 상태로 전환되었습니다.');
   };
 
   return (
@@ -136,6 +177,9 @@ export default function HomePage() {
         onSelectState={handleSelectState}
         onOpenWriteModal={() => setIsWriteModalOpen(true)}
         onResetDemo={handleResetDemo}
+        roomCode={roomCode}
+        userName={userName}
+        partnerName={partnerName}
       />
 
       {/* 메인 뷰 컨테이너 */}
@@ -147,11 +191,16 @@ export default function HomePage() {
           </div>
         )}
 
+        {/* 0. VIEW_ONBOARDING: 방 생성(6자리 코드 발급) 및 1:1 초대코드 매칭 */}
+        {uiState === 'VIEW_ONBOARDING' && (
+          <OnboardingView onMatched={handleMatched} />
+        )}
+
         {/* 1. VIEW_WAITING: 상대방 턴 진행 중 */}
         {uiState === 'VIEW_WAITING' && (
           <WaitingLetter
-            partnerName="유라"
-            onSendKnock={() => showToast('🔔 유라 님에게 은은한 노크 알림을 보냈습니다.')}
+            partnerName={partnerName}
+            onSendKnock={() => showToast(`🔔 ${partnerName} 님에게 은은한 노크 알림을 보냈습니다.`)}
           />
         )}
 
@@ -197,8 +246,8 @@ export default function HomePage() {
         isOpen={isWriteModalOpen}
         onClose={() => setIsWriteModalOpen(false)}
         onSaveDiary={handleSaveDiary}
-        currentUserName="주형"
-        partnerName="유라"
+        currentUserName={userName}
+        partnerName={partnerName}
       />
 
       {/* 푸터 */}

@@ -1,4 +1,5 @@
 export type UIState = 
+  | 'VIEW_ONBOARDING'     // 초기 방 생성 / 초대코드 입력 & 매칭 화면
   | 'VIEW_WAITING'        // 상대방이 일기 작성 중
   | 'VIEW_SEALED_LETTER'  // 새 일기 도착, 미션 미완수
   | 'VIEW_WAX_READY'      // 미션 완료, 실링 왁스 봉인 해제 대기 (3초 롱프레스 가능)
