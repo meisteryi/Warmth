@@ -4,20 +4,10 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MissionData } from '@/types/diary';
 import { soundEngine } from '@/lib/audio';
+import confetti from 'canvas-confetti';
+import { Puzzle, Stamp, HelpCircle, X, Sparkles, Lightbulb, CheckCircle2 } from 'lucide-react';
 import PhotoSlidingPuzzle from './PhotoSlidingPuzzle';
 import StampJigsawPuzzle from './StampJigsawPuzzle';
-import { 
-  X, 
-  HelpCircle, 
-  RefreshCw, 
-  Sparkles, 
-  CheckCircle2, 
-  HeartHandshake, 
-  Puzzle, 
-  Stamp, 
-  PenTool, 
-  Heart 
-} from 'lucide-react';
 
 interface MissionModalProps {
   isOpen: boolean;
@@ -36,41 +26,31 @@ export default function MissionModal({
   diaryPhoto = 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=600&q=80',
   partnerName = '유라',
 }: MissionModalProps) {
-  // 모달 탭 모드: 기본적으로 미션 타입에 맞추되 사용자가 자유롭게 전환 가능
-  const initialMode = mission.type === 'PUZZLE_PHOTO' 
-    ? 'PHOTO_PUZZLE' 
-    : mission.type === 'PUZZLE_STAMP' 
-    ? 'STAMP_PUZZLE' 
-    : 'PHOTO_PUZZLE'; // 사진 퍼즐을 기본 게임으로 노출!
+  // 모달 초기 탭: 일기 작성자가 지정한 미션에 맞추되, 언제든 3가지 중 자유롭게 전환 가능
+  const initialMode =
+    mission.type === 'PUZZLE_STAMP'
+      ? 'STAMP_PUZZLE'
+      : mission.type === 'QUIZ'
+      ? 'SURPRISE_QUIZ'
+      : 'PHOTO_PUZZLE';
 
-  const [activeTab, setActiveTab] = useState<'PHOTO_PUZZLE' | 'STAMP_PUZZLE' | 'TEXT_NOTE'>(initialMode);
-  const [inputText, setInputText] = useState('');
-  const [selectedEmotion, setSelectedEmotion] = useState<string | null>(null);
-  const [changeCount, setChangeCount] = useState(1);
-  const [currentPrompt, setCurrentPrompt] = useState(mission.prompt);
+  const [activeTab, setActiveTab] = useState<'PHOTO_PUZZLE' | 'STAMP_PUZZLE' | 'SURPRISE_QUIZ'>(initialMode);
+  const [quizInput, setQuizInput] = useState('');
+  const [showHint, setShowHint] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
   const [wrongCount, setWrongCount] = useState(0);
 
-  const fallbackMissions = [
-    '오늘 하루 고생한 나 또는 상대방에게 20자 이상의 다정한 한 줄 쪽지를 남겨주세요.',
-    '오늘 있었던 일 중 가장 작지만 소소하게 웃음 지었던 순간을 한 줄로 적어보세요.',
-    '오늘 떠오르는 상대방의 가장 사랑스러운 모습 한 가지를 전해보세요.',
-  ];
-
-  const handleShuffleMission = () => {
-    if (changeCount <= 0) return;
-    setChangeCount((prev) => prev - 1);
-    const nextIdx = Math.floor(Math.random() * fallbackMissions.length);
-    setCurrentPrompt(fallbackMissions[nextIdx]);
-    setErrorMsg('');
-  };
+  // 퀴즈 문제 및 정답 (작성자가 지정한 값 또는 기본값)
+  const quizPrompt = mission.prompt || `${partnerName}가 낸 깜짝 퀴즈: 오늘 내가 가장 행복했던 순간은 언제였을까요?`;
+  const quizAnswer = mission.quizAnswer || '너랑 통화할 때';
+  const quizHint = mission.quizHint || '매일 밤 네 목소리가 들리는 시간이야!';
 
   // 1. 사진 퍼즐 클리어
   const handlePhotoPuzzleSolved = () => {
     setIsSuccess(true);
     setTimeout(() => {
-      onPassMission('🧩 유라의 하루 사진 퍼즐을 성공적으로 맞췄습니다!');
+      onPassMission(`🧩 ${partnerName}의 하루 사진 조각을 성공적으로 맞췄습니다!`);
       setIsSuccess(false);
       onClose();
     }, 1000);
@@ -80,52 +60,51 @@ export default function MissionModal({
   const handleStampPuzzleSolved = () => {
     setIsSuccess(true);
     setTimeout(() => {
-      onPassMission('📮 빈티지 우표 퍼즐을 완성하고 소인을 찍었습니다!');
+      onPassMission(`📮 찢어진 우표 조각 4개를 완벽하게 복원하고 소인을 찍었습니다!`);
       setIsSuccess(false);
       onClose();
     }, 1000);
   };
 
-  // 3. 텍스트 쪽지 / 퀴즈 제출
-  const handleSubmit = (e: React.FormEvent) => {
+  // 3. 깜짝 퀴즈 정답 검증 및 제출
+  const handleQuizSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
 
-    if (mission.type === 'QUIZ' && mission.quizAnswer) {
-      if (inputText.trim().toLowerCase() !== mission.quizAnswer.trim().toLowerCase()) {
-        const nextWrong = wrongCount + 1;
-        setWrongCount(nextWrong);
-        if (nextWrong >= 3) {
-          setErrorMsg(`힌트: ${mission.quizHint || '작성자와의 소중한 추억을 떠올려보세요!'}`);
-        } else {
-          setErrorMsg(`정답이 아닙니다. (${nextWrong}/3회 시도)`);
-        }
-        return;
-      }
-    } else {
-      if (inputText.trim().length < 10 && !selectedEmotion) {
-        setErrorMsg('마음을 담아 10자 이상 정성스럽게 적어주세요.');
-        return;
-      }
+    if (!quizInput.trim()) {
+      setErrorMsg('정답을 입력해주세요.');
+      return;
     }
 
+    // 공백 및 대소문자 무시 비교
+    const normalizedInput = quizInput.trim().replace(/\s+/g, '').toLowerCase();
+    const normalizedAnswer = quizAnswer.trim().replace(/\s+/g, '').toLowerCase();
+
+    if (normalizedInput !== normalizedAnswer) {
+      const nextCount = wrongCount + 1;
+      setWrongCount(nextCount);
+      setErrorMsg(`정답이 아닙니다. (${nextCount}회 시도)`);
+      setShowHint(true); // 오답 시 자동으로 힌트 노출
+      soundEngine.playTileSlideSound();
+      return;
+    }
+
+    // 정답 통과!
     setIsSuccess(true);
     soundEngine.playMissionPassChime();
+    confetti({
+      particleCount: 50,
+      spread: 60,
+      origin: { y: 0.6 },
+      colors: ['#6B1724', '#B8860B', '#FDFBF7'],
+    });
 
     setTimeout(() => {
-      onPassMission(selectedEmotion ? `[감정: ${selectedEmotion}] ${inputText}` : inputText);
+      onPassMission(`💡 깜짝 퀴즈 정답 통과: "${quizAnswer}"`);
       setIsSuccess(false);
       onClose();
     }, 1200);
   };
-
-  const emotions = [
-    { label: '설렘', icon: '🌸' },
-    { label: '평온', icon: '☕' },
-    { label: '고단함', icon: '🌙' },
-    { label: '보고픔', icon: '💌' },
-    { label: '감사함', icon: '🌿' },
-  ];
 
   return (
     <AnimatePresence>
@@ -160,45 +139,45 @@ export default function MissionModal({
               </div>
             </div>
 
-            {/* 3가지 관문 선택 탭 */}
+            {/* 3가지 관문 선택 탭 (사진 퍼즐 / 우표 맞추기 / 깜짝 퀴즈) */}
             <div className="flex bg-[#F4EFEA] p-1 rounded-xl mb-5 text-xs font-sans-ui">
               <button
                 type="button"
                 onClick={() => setActiveTab('PHOTO_PUZZLE')}
-                className={`flex-1 py-1.5 rounded-lg font-medium transition-all flex items-center justify-center gap-1 ${
+                className={`flex-1 py-1.5 rounded-lg font-medium transition-all flex items-center justify-center gap-1.5 ${
                   activeTab === 'PHOTO_PUZZLE'
                     ? 'bg-white shadow-xs text-stone-900 font-bold'
                     : 'text-stone-500 hover:text-stone-800'
                 }`}
               >
                 <Puzzle className="w-3.5 h-3.5 text-[#6B1724]" />
-                <span>사진 조각 퍼즐</span>
+                <span>사진 퍼즐</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveTab('STAMP_PUZZLE')}
-                className={`flex-1 py-1.5 rounded-lg font-medium transition-all flex items-center justify-center gap-1 ${
+                className={`flex-1 py-1.5 rounded-lg font-medium transition-all flex items-center justify-center gap-1.5 ${
                   activeTab === 'STAMP_PUZZLE'
                     ? 'bg-white shadow-xs text-stone-900 font-bold'
                     : 'text-stone-500 hover:text-stone-800'
                 }`}
               >
                 <Stamp className="w-3.5 h-3.5 text-amber-800" />
-                <span>우표 퍼즐</span>
+                <span>우표 맞추기</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => setActiveTab('TEXT_NOTE')}
-                className={`flex-1 py-1.5 rounded-lg font-medium transition-all flex items-center justify-center gap-1 ${
-                  activeTab === 'TEXT_NOTE'
+                onClick={() => setActiveTab('SURPRISE_QUIZ')}
+                className={`flex-1 py-1.5 rounded-lg font-medium transition-all flex items-center justify-center gap-1.5 ${
+                  activeTab === 'SURPRISE_QUIZ'
                     ? 'bg-white shadow-xs text-stone-900 font-bold'
                     : 'text-stone-500 hover:text-stone-800'
                 }`}
               >
-                <PenTool className="w-3.5 h-3.5 text-stone-600" />
-                <span>다정 쪽지 쓰기</span>
+                <HelpCircle className="w-3.5 h-3.5 text-rose-700" />
+                <span>깜짝 퀴즈</span>
               </button>
             </div>
 
@@ -219,62 +198,53 @@ export default function MissionModal({
               />
             )}
 
-            {/* 모드 3: 텍스트 쪽지 작성 / 퀴즈 */}
-            {activeTab === 'TEXT_NOTE' && (
-              <div>
-                <div className="my-4 p-4 rounded-xl bg-[#FAF6EE] border border-[#EADECE]">
-                  <p className="font-serif-warm text-sm sm:text-base text-stone-800 leading-relaxed font-semibold">
-                    &ldquo;{currentPrompt}&rdquo;
+            {/* 모드 3: 깜짝 퀴즈 풀기 */}
+            {activeTab === 'SURPRISE_QUIZ' && (
+              <div className="space-y-4">
+                {/* 퀴즈 문제 카드 */}
+                <div className="p-4 sm:p-5 rounded-2xl bg-[#FAF5EE] border border-[#E8DEC8] shadow-xs">
+                  <div className="flex items-center gap-1.5 text-xs text-[#8C2131] font-semibold mb-2">
+                    <Lightbulb className="w-4 h-4 text-amber-600" />
+                    <span>{partnerName} 님이 남긴 깜짝 퀴즈</span>
+                  </div>
+                  <p className="font-serif-warm text-base sm:text-lg text-stone-800 font-bold leading-snug">
+                    &ldquo;{quizPrompt}&rdquo;
                   </p>
-                  {!mission.isCustom && changeCount > 0 && (
-                    <div className="mt-2 pt-2 border-t border-[#EADECE] flex items-center justify-between text-[11px] text-stone-500 font-sans-ui">
-                      <span>다른 미션을 원하시나요?</span>
+
+                  {/* 힌트 토글 영역 */}
+                  <div className="mt-3 pt-3 border-t border-[#E8DEC8]/80 flex items-center justify-between text-xs font-sans-ui text-stone-500">
+                    {showHint ? (
+                      <div className="flex items-center gap-1 text-amber-800 font-medium bg-amber-50 px-2 py-1 rounded-lg border border-amber-200">
+                        <span>💡 힌트: {quizHint}</span>
+                      </div>
+                    ) : (
                       <button
                         type="button"
-                        onClick={handleShuffleMission}
-                        className="inline-flex items-center gap-1 text-amber-800 hover:underline font-medium"
+                        onClick={() => setShowHint(true)}
+                        className="text-amber-800 hover:underline inline-flex items-center gap-1 font-medium"
                       >
-                        <RefreshCw className="w-3 h-3" />
-                        <span>변경 ({changeCount}회)</span>
+                        <Lightbulb className="w-3.5 h-3.5 text-amber-600" />
+                        <span>힌트 확인하기</span>
                       </button>
-                    </div>
-                  )}
+                    )}
+                    {wrongCount > 0 && (
+                      <span className="text-stone-400 text-[11px]">시도 {wrongCount}회</span>
+                    )}
+                  </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-sans-ui text-stone-600 mb-1.5">
-                      오늘의 감정 스탬프
-                    </label>
-                    <div className="flex gap-1.5">
-                      {emotions.map((em) => (
-                        <button
-                          key={em.label}
-                          type="button"
-                          onClick={() => setSelectedEmotion(em.label === selectedEmotion ? null : em.label)}
-                          className={`flex-1 py-1.5 px-1 rounded-xl text-center border text-[11px] font-sans-ui transition-all ${
-                            selectedEmotion === em.label
-                              ? 'border-[#6B1724] bg-[#6B1724]/10 text-[#6B1724] font-bold shadow-xs'
-                              : 'border-stone-200 bg-white/70 text-stone-600'
-                          }`}
-                        >
-                          <span className="block text-sm mb-0.5">{em.icon}</span>
-                          <span>{em.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
+                {/* 정답 입력 폼 */}
+                <form onSubmit={handleQuizSubmit} className="space-y-3">
                   <div>
                     <label className="block text-xs font-sans-ui text-stone-600 mb-1">
-                      다정한 한 줄 쪽지 (10자 이상)
+                      퀴즈 정답 입력
                     </label>
-                    <textarea
-                      value={inputText}
-                      onChange={(e) => setInputText(e.target.value)}
-                      placeholder="마음을 담아 적어보세요..."
-                      rows={3}
-                      className="w-full p-3 rounded-xl border border-stone-300 bg-white/80 font-serif-warm text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724]"
+                    <input
+                      type="text"
+                      value={quizInput}
+                      onChange={(e) => setQuizInput(e.target.value)}
+                      placeholder="정답을 입력하세요..."
+                      className="w-full p-3 rounded-xl border border-stone-300 bg-white font-serif-warm text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724]"
                     />
                   </div>
 
@@ -290,8 +260,17 @@ export default function MissionModal({
                     disabled={isSuccess}
                     className="w-full py-3 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] active:scale-[0.99] text-amber-50 font-serif-warm font-semibold text-sm shadow-md transition-all flex items-center justify-center gap-2"
                   >
-                    <Sparkles className="w-4 h-4 text-amber-200" />
-                    <span>쪽지 남기고 봉인 풀기</span>
+                    {isSuccess ? (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                        <span>정답입니다! 봉인 해제 중...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 text-amber-200" />
+                        <span>정답 확인하고 봉인 풀기</span>
+                      </>
+                    )}
                   </button>
                 </form>
               </div>

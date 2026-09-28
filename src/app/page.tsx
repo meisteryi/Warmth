@@ -8,7 +8,6 @@ import MissionModal from '@/components/MissionModal';
 import OpenedLetter from '@/components/OpenedLetter';
 import WaitingLetter from '@/components/WaitingLetter';
 import WriteDiaryModal from '@/components/WriteDiaryModal';
-import MissionCatalogModal from '@/components/MissionCatalogModal';
 import { DiaryData, UIState, WaxColor } from '@/types/diary';
 import { soundEngine } from '@/lib/audio';
 import { 
@@ -58,7 +57,6 @@ export default function HomePage() {
   const [diary, setDiary] = useState<DiaryData>(INITIAL_DIARY);
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false);
   const [isWriteModalOpen, setIsWriteModalOpen] = useState(false);
-  const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -178,7 +176,6 @@ export default function HomePage() {
         currentState={uiState}
         onSelectState={handleSelectState}
         onOpenWriteModal={() => setIsWriteModalOpen(true)}
-        onOpenMissionCatalog={() => setIsCatalogOpen(true)}
         onResetDemo={handleResetDemo}
         roomCode={roomCode}
         userName={userName}
@@ -253,12 +250,6 @@ export default function HomePage() {
         onSaveDiary={handleSaveDiary}
         currentUserName={userName}
         partnerName={partnerName}
-      />
-
-      {/* 데일리 미션 도감/모음집 모달 */}
-      <MissionCatalogModal
-        isOpen={isCatalogOpen}
-        onClose={() => setIsCatalogOpen(false)}
       />
 
       {/* 푸터 */}

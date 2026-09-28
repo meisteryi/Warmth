@@ -216,7 +216,7 @@ export default function WriteDiaryModal({
                 <label className="block text-xs font-sans-ui text-stone-600 mb-2">
                   상대방이 풀 관문 선택
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-stone-100 p-1 rounded-xl text-[11px] font-sans-ui mb-3">
+                <div className="grid grid-cols-3 gap-1.5 bg-stone-100 p-1 rounded-xl text-[11px] font-sans-ui mb-3">
                   <button
                     type="button"
                     onClick={() => setMissionType('PUZZLE_PHOTO')}
@@ -239,16 +239,6 @@ export default function WriteDiaryModal({
 
                   <button
                     type="button"
-                    onClick={() => setMissionType('SYSTEM')}
-                    className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 ${
-                      missionType === 'SYSTEM' ? 'bg-white shadow-xs font-bold text-stone-900' : 'text-stone-500 hover:text-stone-800'
-                    }`}
-                  >
-                    <span>💌 다정 쪽지</span>
-                  </button>
-
-                  <button
-                    type="button"
                     onClick={() => setMissionType('CUSTOM')}
                     className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 ${
                       missionType === 'CUSTOM' ? 'bg-white shadow-xs font-bold text-stone-900' : 'text-stone-500 hover:text-stone-800'
@@ -267,12 +257,6 @@ export default function WriteDiaryModal({
                 {missionType === 'PUZZLE_STAMP' && (
                   <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs font-serif-warm text-stone-700">
                     📮 <strong>빈티지 우표 맞추기</strong>: 편지 봉투의 우표 조각 4개를 순서대로 맞춰 소인 도장을 찍으면 일기가 개봉됩니다.
-                  </div>
-                )}
-
-                {missionType === 'SYSTEM' && (
-                  <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs font-serif-warm text-stone-700">
-                    💡 <strong>오늘의 요일 미션</strong>: &ldquo;오늘 고생한 나 또는 서로에게 다정한 한 줄 쪽지를 남겨주세요 (10자 이상)&rdquo;
                   </div>
                 )}
 

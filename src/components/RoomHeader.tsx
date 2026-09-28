@@ -8,7 +8,6 @@ interface RoomHeaderProps {
   currentState: UIState;
   onSelectState: (state: UIState) => void;
   onOpenWriteModal: () => void;
-  onOpenMissionCatalog: () => void;
   onResetDemo: () => void;
   roomCode: string;
   userName: string;
@@ -19,7 +18,6 @@ export default function RoomHeader({
   currentState,
   onSelectState,
   onOpenWriteModal,
-  onOpenMissionCatalog,
   onResetDemo,
   roomCode,
   userName,
@@ -93,16 +91,6 @@ export default function RoomHeader({
             className="p-1.5 rounded-lg border border-stone-300 text-stone-600 hover:bg-stone-100 text-xs"
           >
             <RotateCcw className="w-4 h-4" />
-          </button>
-
-          {/* 데일리 미션 모음집 버튼 */}
-          <button
-            onClick={onOpenMissionCatalog}
-            title="데일리 미션 12가지 도감 확인하기"
-            className="px-2.5 py-1.5 rounded-xl border border-amber-900/20 bg-amber-50 hover:bg-amber-100 text-stone-800 text-xs font-serif-warm font-medium shadow-xs transition-all flex items-center gap-1.5 active:scale-95 whitespace-nowrap"
-          >
-            <Scroll className="w-3.5 h-3.5 text-amber-800" />
-            <span>미션 모음</span>
           </button>
 
           {isMatched && (
