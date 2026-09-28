@@ -40,7 +40,7 @@ export const WAX_COLORS: WaxOption[] = [
 ];
 
 export interface MissionData {
-  type: 'TEXT' | 'PHOTO' | 'QUIZ' | 'VOICE';
+  type: 'TEXT' | 'PHOTO' | 'QUIZ' | 'VOICE' | 'PUZZLE_PHOTO' | 'PUZZLE_STAMP';
   prompt: string;
   quizAnswer?: string | null;
   quizHint?: string | null;

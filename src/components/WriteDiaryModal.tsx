@@ -24,7 +24,7 @@ export default function WriteDiaryModal({
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [selectedColor, setSelectedColor] = useState<WaxColor>('#6B1724');
-  const [missionType, setMissionType] = useState<'SYSTEM' | 'CUSTOM'>('SYSTEM');
+  const [missionType, setMissionType] = useState<'PUZZLE_PHOTO' | 'PUZZLE_STAMP' | 'SYSTEM' | 'CUSTOM'>('PUZZLE_PHOTO');
   const [customPrompt, setCustomPrompt] = useState('');
   const [customQuizAnswer, setCustomQuizAnswer] = useState('');
   const [customQuizHint, setCustomQuizHint] = useState('');
@@ -44,24 +44,45 @@ export default function WriteDiaryModal({
 
     soundEngine.playWaxCrackSound();
 
-    const mission: MissionData = missionType === 'CUSTOM'
-      ? {
-          type: 'QUIZ',
-          prompt: customPrompt || '내가 오늘 가장 맛있게 먹었던 음식은 무엇일까요?',
-          quizAnswer: customQuizAnswer || '된장찌개',
-          quizHint: customQuizHint || '구수한 국물 요리야!',
-          isCustom: true,
-          submission: null,
-          isPassed: false,
-        }
-      : {
-          type: 'TEXT',
-          prompt: '오늘 고생한 나 또는 서로에게 다정한 한 줄 응원을 남겨주세요 (10자 이상)',
-          quizAnswer: null,
-          isCustom: false,
-          submission: null,
-          isPassed: false,
-        };
+    let mission: MissionData;
+    if (missionType === 'PUZZLE_PHOTO') {
+      mission = {
+        type: 'PUZZLE_PHOTO',
+        prompt: `${partnerName} 님이 남긴 오늘의 한 컷 조각 퍼즐 맞추기`,
+        quizAnswer: null,
+        isCustom: false,
+        submission: null,
+        isPassed: false,
+      };
+    } else if (missionType === 'PUZZLE_STAMP') {
+      mission = {
+        type: 'PUZZLE_STAMP',
+        prompt: '편지 봉투의 빈티지 우표 조각 4개를 맞추고 소인 찍기',
+        quizAnswer: null,
+        isCustom: false,
+        submission: null,
+        isPassed: false,
+      };
+    } else if (missionType === 'CUSTOM') {
+      mission = {
+        type: 'QUIZ',
+        prompt: customPrompt || '내가 오늘 가장 맛있게 먹었던 음식은 무엇일까요?',
+        quizAnswer: customQuizAnswer || '된장찌개',
+        quizHint: customQuizHint || '구수한 국물 요리야!',
+        isCustom: true,
+        submission: null,
+        isPassed: false,
+      };
+    } else {
+      mission = {
+        type: 'TEXT',
+        prompt: '오늘 고생한 나 또는 서로에게 다정한 한 줄 응원을 남겨주세요 (10자 이상)',
+        quizAnswer: null,
+        isCustom: false,
+        submission: null,
+        isPassed: false,
+      };
+    }
 
     onSaveDiary({
       title,
@@ -190,37 +211,72 @@ export default function WriteDiaryModal({
                 </div>
               </div>
 
-              {/* 미션 설정 (시스템 데일리 vs 커스텀 퀴즈) */}
+              {/* 미션 설정 (사진 퍼즐, 우표 퍼즐, 시스템 데일리, 커스텀 퀴즈) */}
               <div className="pt-2 border-t border-stone-200">
-                <label className="block text-xs font-sans-ui text-stone-600 mb-2 flex items-center justify-between">
-                  <span>상대방이 풀 미션 관문 설정</span>
-                  <div className="flex gap-1 bg-stone-100 p-0.5 rounded-lg text-[11px]">
-                    <button
-                      type="button"
-                      onClick={() => setMissionType('SYSTEM')}
-                      className={`px-2 py-0.5 rounded-md ${
-                        missionType === 'SYSTEM' ? 'bg-white shadow-xs font-bold text-stone-800' : 'text-stone-500'
-                      }`}
-                    >
-                      오늘의 시스템 미션
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setMissionType('CUSTOM')}
-                      className={`px-2 py-0.5 rounded-md ${
-                        missionType === 'CUSTOM' ? 'bg-white shadow-xs font-bold text-stone-800' : 'text-stone-500'
-                      }`}
-                    >
-                      내 깜짝 퀴즈 내기
-                    </button>
-                  </div>
+                <label className="block text-xs font-sans-ui text-stone-600 mb-2">
+                  상대방이 풀 관문 선택
                 </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-stone-100 p-1 rounded-xl text-[11px] font-sans-ui mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setMissionType('PUZZLE_PHOTO')}
+                    className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 ${
+                      missionType === 'PUZZLE_PHOTO' ? 'bg-white shadow-xs font-bold text-stone-900' : 'text-stone-500 hover:text-stone-800'
+                    }`}
+                  >
+                    <span>🧩 사진 퍼즐</span>
+                  </button>
 
-                {missionType === 'SYSTEM' ? (
+                  <button
+                    type="button"
+                    onClick={() => setMissionType('PUZZLE_STAMP')}
+                    className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 ${
+                      missionType === 'PUZZLE_STAMP' ? 'bg-white shadow-xs font-bold text-stone-900' : 'text-stone-500 hover:text-stone-800'
+                    }`}
+                  >
+                    <span>📮 우표 맞추기</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setMissionType('SYSTEM')}
+                    className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 ${
+                      missionType === 'SYSTEM' ? 'bg-white shadow-xs font-bold text-stone-900' : 'text-stone-500 hover:text-stone-800'
+                    }`}
+                  >
+                    <span>💌 다정 쪽지</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setMissionType('CUSTOM')}
+                    className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 ${
+                      missionType === 'CUSTOM' ? 'bg-white shadow-xs font-bold text-stone-900' : 'text-stone-500 hover:text-stone-800'
+                    }`}
+                  >
+                    <span>❓ 깜짝 퀴즈</span>
+                  </button>
+                </div>
+
+                {missionType === 'PUZZLE_PHOTO' && (
+                  <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs font-serif-warm text-stone-700">
+                    🧩 <strong>사진 조각 퍼즐</strong>: 내가 첨부한 사진이 3×3 슬라이딩 조각으로 분리되어, {partnerName} 님이 조각을 맞추면 일기가 개봉됩니다.
+                  </div>
+                )}
+
+                {missionType === 'PUZZLE_STAMP' && (
+                  <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs font-serif-warm text-stone-700">
+                    📮 <strong>빈티지 우표 맞추기</strong>: 편지 봉투의 우표 조각 4개를 순서대로 맞춰 소인 도장을 찍으면 일기가 개봉됩니다.
+                  </div>
+                )}
+
+                {missionType === 'SYSTEM' && (
                   <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs font-serif-warm text-stone-700">
                     💡 <strong>오늘의 요일 미션</strong>: &ldquo;오늘 고생한 나 또는 서로에게 다정한 한 줄 쪽지를 남겨주세요 (10자 이상)&rdquo;
                   </div>
-                ) : (
+                )}
+
+                {missionType === 'CUSTOM' && (
                   <div className="space-y-2 p-3 bg-amber-50/50 rounded-xl border border-amber-200/60">
                     <input
                       type="text"
