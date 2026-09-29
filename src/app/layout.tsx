@@ -4,6 +4,14 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "온기 (Warmth) — 둘만의 비밀 교환일기",
   description: "서재 책상 위에 놓인 가죽 양장 다이어리와 편지 봉투. 하루걸러 쓰는 턴제 교환일기 서비스 온기.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "온기",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export const viewport: Viewport = {
@@ -11,6 +19,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: "cover",
+  themeColor: "#FAF7F2",
 };
 
 export default function RootLayout({
@@ -20,7 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className="h-full antialiased">
-      <body className="min-h-full flex flex-col font-serif-warm">
+      <body className="min-h-full flex flex-col font-serif-warm bg-[#FAF7F2] text-[#2C2A29] selection:bg-[#6B1724]/20 selection:text-[#6B1724]">
         {children}
       </body>
     </html>

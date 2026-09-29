@@ -90,13 +90,22 @@ export default function WaxSeal({
     // 마우스 우클릭 등 방지
     if (e.button !== 0) return;
 
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {}
+
     setIsPressing(true);
     pressStartTime.current = Date.now();
     soundEngine.startMeltHum();
     animationFrameId.current = requestAnimationFrame(handleTick);
   };
 
-  const handlePointerUpOrLeave = () => {
+  const handlePointerUpOrLeave = (e?: React.PointerEvent) => {
+    if (e) {
+      try {
+        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch {}
+    }
     if (!isPressing || isCracking) return;
     setIsPressing(false);
     pressStartTime.current = null;
@@ -118,7 +127,7 @@ export default function WaxSeal({
   const strokeDashoffset = 2 * Math.PI * 52 * (1 - progress);
 
   return (
-    <div className="relative inline-flex items-center justify-center select-none touch-none">
+    <div className="relative inline-flex items-center justify-center select-none touch-none touch-callout-none">
       {/* 3초 롱프레스 프로그레스 원형 게이지 */}
       {!isLocked && !isCracking && (
         <svg
@@ -165,7 +174,7 @@ export default function WaxSeal({
         onPointerUp={handlePointerUpOrLeave}
         onPointerLeave={handlePointerUpOrLeave}
         onPointerCancel={handlePointerUpOrLeave}
-        className={`relative cursor-pointer transition-transform ${
+        className={`relative cursor-pointer transition-transform touch-none touch-callout-none ${
           isPressing && progress > 0.3 ? 'anim-shake' : ''
         } ${!isLocked && !isPressing && !isCracking ? 'anim-wax-pulse' : ''}`}
         style={{

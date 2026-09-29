@@ -109,31 +109,31 @@ export default function MissionModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-stone-900/60 backdrop-blur-sm overflow-y-auto overscroll-contain">
           <motion.div
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="relative w-full max-w-lg my-8 bg-[#FFFDF9] rounded-2xl p-6 sm:p-8 paper-texture border border-[#E8DFC8] shadow-2xl text-stone-900"
+            className="relative w-full max-w-lg my-auto bg-[#FFFDF9] rounded-2xl p-4 sm:p-7 paper-texture border border-[#E8DFC8] shadow-2xl text-stone-900 max-h-[92dvh] overflow-y-auto pb-[max(env(safe-area-inset-bottom),1.25rem)]"
           >
             {/* 닫기 버튼 */}
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 p-2 text-stone-400 hover:text-stone-700 rounded-full hover:bg-stone-100 transition-colors"
+              className="absolute top-3 right-3 sm:top-4 sm:right-4 p-2 text-stone-400 hover:text-stone-700 rounded-full hover:bg-stone-100 transition-colors z-10 min-h-[40px] min-w-[40px] flex items-center justify-center"
             >
               <X className="w-5 h-5" />
             </button>
 
             {/* 헤더 */}
-            <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-9 h-9 rounded-full bg-[#6B1724]/10 border border-[#6B1724]/20 flex items-center justify-center text-[#6B1724]">
+            <div className="flex items-center gap-2.5 mb-3.5 pr-8">
+              <div className="w-9 h-9 rounded-full bg-[#6B1724]/10 border border-[#6B1724]/20 flex items-center justify-center text-[#6B1724] shrink-0">
                 <Puzzle className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-[11px] font-sans-ui text-[#6B1724] font-semibold tracking-wider uppercase">
+                <span className="text-[10px] font-sans-ui text-[#6B1724] font-semibold tracking-wider uppercase">
                   DAILY UNLOCK GATE
                 </span>
-                <h3 className="font-serif-warm text-lg sm:text-xl font-bold text-stone-900">
+                <h3 className="font-serif-warm text-base sm:text-xl font-bold text-stone-900">
                   봉인을 풀기 위한 관문
                 </h3>
               </div>

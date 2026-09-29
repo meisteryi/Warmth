@@ -170,7 +170,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FDFBF7] text-[#2C2A29] selection:bg-[#6B1724]/20 selection:text-[#6B1724]">
+    <div className="min-h-screen min-h-dvh flex flex-col bg-[#FDFBF7] text-[#2C2A29] selection:bg-[#6B1724]/20 selection:text-[#6B1724]">
       {/* 서재 상단 바 */}
       <RoomHeader
         currentState={uiState}
@@ -183,10 +183,10 @@ export default function HomePage() {
       />
 
       {/* 메인 뷰 컨테이너 */}
-      <main className="flex-1 flex flex-col items-center justify-center p-4 relative">
+      <main className="flex-1 flex flex-col items-center justify-center p-3 sm:p-4 relative">
         {/* 토스트 알림 */}
         {toastMessage && (
-          <div className="fixed bottom-6 z-50 px-4 py-2.5 rounded-full bg-stone-900/90 text-amber-100 text-xs sm:text-sm font-sans-ui shadow-2xl backdrop-blur-md animate-fade-in border border-amber-900/40">
+          <div className="fixed bottom-[max(env(safe-area-inset-bottom),1.5rem)] z-50 px-4 py-2.5 rounded-full bg-stone-900/90 text-amber-100 text-xs sm:text-sm font-sans-ui shadow-2xl backdrop-blur-md animate-fade-in border border-amber-900/40 max-w-[90vw] text-center">
             {toastMessage}
           </div>
         )}
@@ -253,7 +253,7 @@ export default function HomePage() {
       />
 
       {/* 푸터 */}
-      <footer className="py-4 text-center text-[11px] text-stone-500 font-serif-warm border-t border-[#EAE1D5]/60 bg-[#FAF7F2]/50">
+      <footer className="py-4 pb-[max(env(safe-area-inset-bottom),1rem)] text-center text-[11px] text-stone-500 font-serif-warm border-t border-[#EAE1D5]/60 bg-[#FAF7F2]/50 px-4">
         <p>온기 (Warmth) · 하루걸러 띄우는 우리 둘만의 아날로그 비밀 교환일기</p>
       </footer>
     </div>

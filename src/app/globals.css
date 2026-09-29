@@ -11,6 +11,15 @@
   --wax-green: #2E473B;
   --ink-charcoal: #2C2A29;
   --ink-sub: #78716C;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+html, body {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 body {
@@ -21,9 +30,12 @@ body {
     radial-gradient(ellipse at 50% 10%, rgba(245, 235, 220, 0.6) 0%, rgba(244, 239, 234, 0) 70%),
     radial-gradient(circle at 10% 20%, rgba(230, 220, 205, 0.4) 0%, transparent 40%);
   min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
 }
 
 /* 감성 폰트 유틸리티 */
@@ -113,4 +125,29 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #C4B7A2;
+}
+
+/* iOS Safari 터치 최적화 유틸리티 */
+.touch-callout-none {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* iOS Safari 인풋 포커스 시 자동 확대 방지 (최소 16px 보장) */
+@media screen and (max-width: 640px) {
+  input[type="text"],
+  input[type="password"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
 }

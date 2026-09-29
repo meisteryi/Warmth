@@ -102,25 +102,25 @@ export default function WriteDiaryModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-stone-900/60 backdrop-blur-sm overflow-y-auto overscroll-contain">
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-xl my-8 bg-[#FFFDF9] rounded-2xl p-6 sm:p-8 paper-texture border border-[#E8DFC8] shadow-2xl text-stone-900"
+            className="relative w-full max-w-xl my-auto bg-[#FFFDF9] rounded-2xl p-4 sm:p-8 paper-texture border border-[#E8DFC8] shadow-2xl text-stone-900 max-h-[92dvh] overflow-y-auto pb-[max(env(safe-area-inset-bottom),1.5rem)]"
           >
             {/* 닫기 버튼 */}
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 p-2 text-stone-400 hover:text-stone-700 rounded-full hover:bg-stone-100 transition-colors"
+              className="absolute top-3 right-3 sm:top-4 sm:right-4 p-2 text-stone-400 hover:text-stone-700 rounded-full hover:bg-stone-100 transition-colors z-10 min-h-[40px] min-w-[40px] flex items-center justify-center"
             >
               <X className="w-5 h-5" />
             </button>
 
             {/* 헤더 */}
-            <div className="flex items-center gap-2 mb-6">
-              <Feather className="w-5 h-5 text-[#6B1724]" />
-              <h2 className="font-serif-warm text-xl font-bold text-stone-900">
+            <div className="flex items-center gap-2 mb-5 pr-8">
+              <Feather className="w-5 h-5 text-[#6B1724] shrink-0" />
+              <h2 className="font-serif-warm text-lg sm:text-xl font-bold text-stone-900">
                 새 교환일기 쓰기
               </h2>
               <span className="text-xs text-stone-500 font-sans-ui ml-auto">
@@ -128,7 +128,7 @@ export default function WriteDiaryModal({
               </span>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
               {/* 제목 입력 */}
               <div>
                 <label className="block text-xs font-sans-ui text-stone-600 mb-1">
@@ -140,7 +140,7 @@ export default function WriteDiaryModal({
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="예: 서촌 골목길을 걷다가 문득..."
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-sm text-stone-900"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-base sm:text-sm text-stone-900"
                 />
               </div>
 
@@ -151,11 +151,11 @@ export default function WriteDiaryModal({
                 </label>
                 <textarea
                   required
-                  rows={6}
+                  rows={5}
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   placeholder="오늘 하루 나누고 싶었던 둘만의 소소하고 따뜻한 이야기를 적어보세요..."
-                  className="w-full p-3.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-sm leading-relaxed text-stone-900 placeholder:text-stone-400"
+                  className="w-full p-3.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-base sm:text-sm leading-relaxed text-stone-900 placeholder:text-stone-400"
                 />
               </div>
 

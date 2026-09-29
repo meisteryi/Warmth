@@ -11,12 +11,12 @@ interface StampJigsawPuzzleProps {
   partnerName?: string;
 }
 
-const STAMP_WIDTH = 170;
-const STAMP_HEIGHT = 215;
-const BOARD_WIDTH = 340;
-const BOARD_HEIGHT = 490;
-const TARGET_X = (BOARD_WIDTH - STAMP_WIDTH) / 2; // 85px
-const TARGET_Y = 12; // 12px from top
+const STAMP_WIDTH = 154;
+const STAMP_HEIGHT = 196;
+const BOARD_WIDTH = 308;
+const BOARD_HEIGHT = 455;
+const TARGET_X = (BOARD_WIDTH - STAMP_WIDTH) / 2; // 77px
+const TARGET_Y = 10; // 10px from top
 
 interface TornData {
   midX: number;
@@ -398,16 +398,16 @@ export default function StampJigsawPuzzle({
     { width: STAMP_WIDTH - midX, height: STAMP_HEIGHT - midY, originX: midX, originY: midY }, // 3: 우하단
   ];
 
-  // 4개 조각이 작업대(하단 2x2)에서 화면 밖으로 절대 나가지 않고 서로 겹치지 않는 시작 위치
+  // 4개 조각이 작업대(하단 2x2)에서 화면 밖으로 절대 나가지 않고 서로 겹치지 않는 시작 위치 (모바일 308px 최적화)
   const initialPositions = [
-    { x: 35, y: 255 }, // 0: 작업대 좌상단
-    { x: 215, y: 255 }, // 1: 작업대 우상단
-    { x: 35, y: 375 }, // 2: 작업대 좌하단
-    { x: 215, y: 375 }, // 3: 작업대 우하단
+    { x: 18, y: 228 }, // 0: 작업대 좌상단
+    { x: 168, y: 228 }, // 1: 작업대 우상단
+    { x: 18, y: 338 }, // 2: 작업대 좌하단
+    { x: 168, y: 338 }, // 3: 작업대 우하단
   ];
 
   return (
-    <div className="flex flex-col items-center select-none w-full max-w-sm mx-auto">
+    <div className="flex flex-col items-center select-none w-full max-w-sm mx-auto touch-none">
       {/* 가이드 안내 (스포일러 없이 직관적인 퍼즐 규칙 안내) */}
       <div className="text-center mb-2">
         <p className="text-stone-800 font-serif-warm text-sm font-semibold flex items-center justify-center gap-1.5">
@@ -422,7 +422,7 @@ export default function StampJigsawPuzzle({
       {/* 퍼즐 작업대 (화면 밖 이탈 방지 안전 영역) */}
       <div
         ref={boardRef}
-        className="relative bg-[#F5EFE6] rounded-2xl border-2 border-[#C4B29A] shadow-inner overflow-hidden"
+        className="relative bg-[#F5EFE6] rounded-2xl border-2 border-[#C4B29A] shadow-inner overflow-hidden touch-none select-none"
         style={{ width: BOARD_WIDTH, height: BOARD_HEIGHT }}
       >
         {/* 상단 타겟: 우표 결합 틀 */}
@@ -525,7 +525,7 @@ export default function StampJigsawPuzzle({
         </div>
 
         {/* 구분선 (작업대 라벨) */}
-        <div className="absolute top-[236px] inset-x-3 flex items-center gap-2 pointer-events-none opacity-40">
+        <div className="absolute top-[214px] inset-x-3 flex items-center gap-2 pointer-events-none opacity-40">
           <div className="h-px flex-1 bg-stone-400 border-t border-dashed border-stone-500" />
           <span className="text-[9px] font-mono text-stone-600">조각 작업대</span>
           <div className="h-px flex-1 bg-stone-400 border-t border-dashed border-stone-500" />
