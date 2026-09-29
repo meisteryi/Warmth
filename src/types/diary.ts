@@ -89,6 +89,7 @@ export interface RoomData {
     };
   };
   latestDiary?: DiaryData;
+  latestDiaryId?: string;
   latestKnock?: KnockData | null;
 }
 

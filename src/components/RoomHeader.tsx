@@ -2,13 +2,14 @@
 
 import React from 'react';
 import { UIState } from '@/types/diary';
-import { Heart, PenLine, RotateCcw, Scroll } from 'lucide-react';
+import { Heart, PenLine, RotateCcw, Scroll, Users, ArrowLeftRight } from 'lucide-react';
 
 interface RoomHeaderProps {
   currentState: UIState;
   onSelectState: (state: UIState) => void;
   onOpenWriteModal: () => void;
   onResetDemo: () => void;
+  onSwitchUser?: () => void;
   roomCode: string;
   userName: string;
   partnerName: string;
@@ -19,6 +20,7 @@ export default function RoomHeader({
   onSelectState,
   onOpenWriteModal,
   onResetDemo,
+  onSwitchUser,
   roomCode,
   userName,
   partnerName,
@@ -52,12 +54,19 @@ export default function RoomHeader({
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-stone-500 font-sans-ui leading-tight">
+              <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-stone-500 font-sans-ui leading-tight mt-0.5">
                 {isMatched ? (
                   <>
-                    <span>{userName}</span>
-                    <Heart className="w-2.5 h-2.5 text-rose-500 fill-current" />
-                    <span>{partnerName}</span>
+                    <button
+                      type="button"
+                      onClick={onSwitchUser}
+                      title="클릭하여 상대방 시점으로 전환 (2인 시뮬레이션)"
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-stone-100 hover:bg-amber-100/80 border border-stone-200 hover:border-amber-300 text-stone-700 hover:text-amber-900 transition-all active:scale-95 text-[10px] font-medium"
+                    >
+                      <span className="font-bold text-[#6B1724]">👤 {userName} 시점</span>
+                      <ArrowLeftRight className="w-2.5 h-2.5 text-stone-400" />
+                      <span className="text-stone-500">{partnerName}</span>
+                    </button>
                   </>
                 ) : (
                   <span className="text-amber-800 font-medium">새 일기장 페어링 대기 중</span>

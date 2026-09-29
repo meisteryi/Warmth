@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { soundEngine } from '@/lib/audio';
-import { createRoomInFirestore, joinRoomInFirestore } from '@/lib/roomService';
+import { createRoomInFirestore, joinRoomInFirestore, subscribeRoom } from '@/lib/roomService';
 import { 
   KeyRound, 
   Copy, 
@@ -23,14 +23,55 @@ interface OnboardingViewProps {
 }
 
 export default function OnboardingView({ onMatched }: OnboardingViewProps) {
-  const [activeTab, setActiveTab] = useState<'CREATE' | 'JOIN'>('CREATE');
-  const [myName, setMyName] = useState('주형');
+  const [activeTab, setActiveTab] = useState<'CREATE' | 'JOIN'>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const param = new URLSearchParams(window.location.search).get('user');
+        if (param === 'yura') return 'JOIN';
+      } catch {}
+    }
+    return 'CREATE';
+  });
+
+  const [myName, setMyName] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const param = new URLSearchParams(window.location.search).get('user');
+        if (param === 'yura') return '유라';
+        if (param === 'joohyoung') return '주형';
+      } catch {}
+    }
+    return '주형';
+  });
+
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [inputCode, setInputCode] = useState('');
   const [isWaitingPartner, setIsWaitingPartner] = useState(false);
   const [joinError, setJoinError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Firestore 실시간 구독: 상대방이 방에 입장하면 자동으로 매칭 축하 및 입장 처리
+  useEffect(() => {
+    if (!generatedCode || !isWaitingPartner) return;
+
+    const unsubscribe = subscribeRoom(generatedCode, (room) => {
+      if (room.status === 'MATCHED' && room.members.length >= 2) {
+        let partner = '유라';
+        if (room.memberInfo) {
+          const otherKey = Object.keys(room.memberInfo).find(
+            (k) => room.memberInfo[k]?.role === 'PARTNER'
+          );
+          if (otherKey && room.memberInfo[otherKey]) {
+            partner = room.memberInfo[otherKey].nickname;
+          }
+        }
+        triggerMatchCelebration(generatedCode, myName, partner);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [generatedCode, isWaitingPartner, myName]);
 
   // 1. 6자리 난수 코드 발급 및 실제 Firestore에 방 저장
   const handleGenerateCode = async () => {

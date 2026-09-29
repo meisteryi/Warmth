@@ -19,6 +19,8 @@ import {
   subscribeRoom,
   getOrCreateUserId
 } from '@/lib/roomService';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 // 초기 PRD 스펙 기반 일기 데이터
 const INITIAL_DIARY: DiaryData = {
@@ -42,10 +44,11 @@ const INITIAL_DIARY: DiaryData = {
   waxColor: '#6B1724' as WaxColor,
   createdAt: '2026-09-28T21:00:00.000Z',
   mission: {
-    type: 'TEXT',
-    prompt: '오늘 하루도 정말 고생 많았을 서로에게 20자 이상의 다정한 한 줄 쪽지를 남겨주세요.',
-    quizAnswer: null,
-    isCustom: false,
+    type: 'QUIZ',
+    prompt: '오늘 내가 가장 행복했던 순간은 언제였을까요?',
+    quizAnswer: '너랑 통화할 때',
+    quizHint: '매일 밤 네 목소리가 들리는 시간이야!',
+    isCustom: true,
     submission: null,
     isPassed: false,
   },
@@ -56,8 +59,24 @@ const INITIAL_DIARY: DiaryData = {
 export default function HomePage() {
   const [uiState, setUiState] = useState<UIState>('VIEW_ONBOARDING');
   const [roomCode, setRoomCode] = useState('829104');
-  const [userName, setUserName] = useState('주형');
-  const [partnerName, setPartnerName] = useState('유라');
+  const [userName, setUserName] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const param = new URLSearchParams(window.location.search).get('user');
+        if (param === 'yura') return '유라';
+      } catch {}
+    }
+    return '주형';
+  });
+  const [partnerName, setPartnerName] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const param = new URLSearchParams(window.location.search).get('user');
+        if (param === 'yura') return '주형';
+      } catch {}
+    }
+    return '유라';
+  });
   const [diary, setDiary] = useState<DiaryData>(INITIAL_DIARY);
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false);
   const [isWriteModalOpen, setIsWriteModalOpen] = useState(false);
@@ -67,24 +86,24 @@ export default function HomePage() {
   const [receivedKnock, setReceivedKnock] = useState<KnockData | null>(null);
   const [isKnockModalOpen, setIsKnockModalOpen] = useState(false);
   const handledKnockTimeRef = useRef<string | null>(null);
+  const handledDiaryIdRef = useRef<string | null>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // 실시간 Firestore 룸 구독 (상대방의 노크 감지 및 실시간 상태 동기화)
+  // 실시간 Firestore 룸 및 일기 구독 (상대방의 노크 및 새 일기 실시간 감지)
   useEffect(() => {
-    if (!roomCode) return;
+    if (!roomCode || uiState === 'VIEW_ONBOARDING') return;
     const myUid = getOrCreateUserId();
 
-    const unsubscribe = subscribeRoom(roomCode, (room) => {
+    const unsubscribe = subscribeRoom(roomCode, async (room) => {
       // 1. 방에 상대방이 보낸 새 노크가 있는지 실시간 감지
       if (room.latestKnock) {
         const knock = room.latestKnock;
         const isFromPartner = knock.senderUid !== myUid;
         const isNewKnock = knock.knockedAt !== handledKnockTimeRef.current;
-        // 10분 이내의 노크만 활성화
         const isRecent = Date.now() - new Date(knock.knockedAt).getTime() < 10 * 60 * 1000;
 
         if (isFromPartner && isNewKnock && isRecent) {
@@ -94,10 +113,40 @@ export default function HomePage() {
           setIsKnockModalOpen(true);
         }
       }
+
+      // 2. 방에 최신 일기(latestDiaryId)가 업데이트되었을 때 실시간 동기화
+      if (room.latestDiaryId && room.latestDiaryId !== handledDiaryIdRef.current) {
+        handledDiaryIdRef.current = room.latestDiaryId;
+        try {
+          const diaryRef = doc(db, 'rooms', roomCode, 'diaries', room.latestDiaryId);
+          const snap = await getDoc(diaryRef);
+          if (snap.exists()) {
+            const latestDiary = snap.data() as DiaryData;
+            setDiary(latestDiary);
+
+            // 작성자인지 수신자인지에 따른 UI 상태 결정
+            if (latestDiary.authorName === userName) {
+              setUiState(latestDiary.isWaxBroken ? 'VIEW_OPENED_DIARY' : 'VIEW_WAITING');
+            } else {
+              soundEngine.playPaperRustle();
+              if (latestDiary.isWaxBroken) {
+                setUiState('VIEW_OPENED_DIARY');
+              } else if (latestDiary.mission?.isPassed) {
+                setUiState('VIEW_WAX_READY');
+              } else {
+                setUiState('VIEW_SEALED_LETTER');
+              }
+              showToast(`📬 ${latestDiary.authorName} 님에게서 새 일기가 도착했습니다!`);
+            }
+          }
+        } catch (err) {
+          console.warn('Failed to fetch latest diary:', err);
+        }
+      }
     });
 
     return () => unsubscribe();
-  }, [roomCode]);
+  }, [roomCode, uiState, userName]);
 
   // 0. 초대코드 매칭 완료 처리
   const handleMatched = (code: string, me: string, partner: string) => {
@@ -111,6 +160,35 @@ export default function HomePage() {
     }));
     setUiState('VIEW_SEALED_LETTER');
     showToast(`🎉 ${partner} 님과 일기장이 성공적으로 연결되었습니다! (방 번호: #${code})`);
+  };
+
+  // 시점 전환 (주형 ⇄ 유라 2인 시뮬레이션 지원)
+  const handleSwitchUser = () => {
+    soundEngine.playTileSlideSound();
+    const nextUser = userName === '주형' ? '유라' : '주형';
+    const nextPartner = nextUser === '주형' ? '유라' : '주형';
+
+    setUserName(nextUser);
+    setPartnerName(nextPartner);
+
+    // 새 사용자의 시점에 맞추어 UI 상태 자동 갱신
+    if (uiState !== 'VIEW_ONBOARDING') {
+      if (diary.authorName === nextUser) {
+        // 내가 쓴 일기 -> 상대방 턴 대기 화면
+        setUiState(diary.isWaxBroken ? 'VIEW_OPENED_DIARY' : 'VIEW_WAITING');
+      } else {
+        // 상대방이 내게 보낸 일기 -> 미션/봉인 상태에 따라 표시
+        if (diary.isWaxBroken) {
+          setUiState('VIEW_OPENED_DIARY');
+        } else if (diary.mission?.isPassed) {
+          setUiState('VIEW_WAX_READY');
+        } else {
+          setUiState('VIEW_SEALED_LETTER');
+        }
+      }
+    }
+
+    showToast(`👤 시점이 전환되었습니다: ${nextUser} 님의 시점`);
   };
 
   // 1. 미션 통과 처리 -> Firestore 동기화 & VIEW_WAX_READY
@@ -223,6 +301,7 @@ export default function HomePage() {
         onSelectState={handleSelectState}
         onOpenWriteModal={() => setIsWriteModalOpen(true)}
         onResetDemo={handleResetDemo}
+        onSwitchUser={handleSwitchUser}
         roomCode={roomCode}
         userName={userName}
         partnerName={partnerName}

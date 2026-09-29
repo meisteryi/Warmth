@@ -11,15 +11,39 @@ import {
 import { db } from './firebase';
 import { DiaryData, RoomData } from '@/types/diary';
 
-// 사용자 고유 클라이언트 ID 생성/가져오기 (로컬 스토리지 기반)
-export function getOrCreateUserId(): string {
+// 사용자 고유 클라이언트 ID 생성/가져오기 (역할 및 URL 파라미터 기반 분리 지원)
+export function getOrCreateUserId(userRoleKey?: string): string {
   if (typeof window === 'undefined') return 'user_ssr';
-  let uid = localStorage.getItem('warmth_user_uid');
+  let role = userRoleKey;
+  if (!role) {
+    try {
+      const param = new URLSearchParams(window.location.search).get('user');
+      role = param || 'default';
+    } catch {
+      role = 'default';
+    }
+  }
+  const storageKey = `warmth_user_uid_${role}`;
+  let uid = localStorage.getItem(storageKey);
   if (!uid) {
-    uid = 'user_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36);
-    localStorage.setItem('warmth_user_uid', uid);
+    uid = `user_${role}_` + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36);
+    localStorage.setItem(storageKey, uid);
   }
   return uid;
+}
+
+// 0. 특정 일기 실시간 구독 (onSnapshot)
+export function subscribeDiary(
+  roomCode: string,
+  diaryId: string,
+  onUpdate: (diary: DiaryData) => void
+): Unsubscribe {
+  const diaryRef = doc(db, 'rooms', roomCode, 'diaries', diaryId);
+  return onSnapshot(diaryRef, (snapshot) => {
+    if (snapshot.exists()) {
+      onUpdate(snapshot.data() as DiaryData);
+    }
+  });
 }
 
 // 1. 방 생성 (6자리 난수 코드 발급 및 Firestore 저장)
