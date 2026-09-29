@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { soundEngine } from '@/lib/audio';
 import confetti from 'canvas-confetti';
-import { Sparkles, RotateCcw, Stamp, RotateCw, Hand } from 'lucide-react';
+import { Sparkles, RotateCcw, Stamp, Hand, Palette } from 'lucide-react';
 
 interface StampJigsawPuzzleProps {
   onSolve: () => void;
@@ -14,9 +14,403 @@ interface StampJigsawPuzzleProps {
 const STAMP_WIDTH = 154;
 const STAMP_HEIGHT = 196;
 const BOARD_WIDTH = 308;
-const BOARD_HEIGHT = 455;
+const BOARD_HEIGHT = 410;
 const TARGET_X = (BOARD_WIDTH - STAMP_WIDTH) / 2; // 77px
-const TARGET_Y = 10; // 10px from top
+const TARGET_Y = 12; // 12px from top
+
+export interface StampTheme {
+  id: string;
+  name: string;
+  badgeLabel: string;
+  bgGradStart: string;
+  bgGradMid: string;
+  bgGradEnd: string;
+  primaryColor: string;
+  secondaryColor: string;
+  accentGold: string;
+  perforateColor: string;
+  innerBg: string;
+  topHeaderHanzi: string;
+  topHeaderSub: string;
+  centerTitle: string;
+  denomWon: string;
+  denomYear: string;
+  bottomMotto: string;
+  sealColor: string;
+  renderSymbol: (theme: StampTheme) => React.ReactNode;
+}
+
+export const STAMP_THEMES: StampTheme[] = [
+  {
+    id: 'classic-burgundy',
+    name: '버건디 깃펜',
+    badgeLabel: '버건디 깃펜',
+    bgGradStart: '#FFFDF9',
+    bgGradMid: '#F9F3EA',
+    bgGradEnd: '#F2E8D8',
+    primaryColor: '#8C2131',
+    secondaryColor: '#54121C',
+    accentGold: '#B8860B',
+    perforateColor: '#C4A882',
+    innerBg: '#FAF5ED',
+    topHeaderHanzi: '大韓 溫氣 郵便',
+    topHeaderSub: 'SPECIAL CORRESPONDENCE',
+    centerTitle: '온기 · 溫氣',
+    denomWon: '42',
+    denomYear: '1926',
+    bottomMotto: '★ TWO SOULS UNITED ★',
+    sealColor: '#6B1724',
+    renderSymbol: (theme) => (
+      <g transform={`translate(${STAMP_WIDTH / 2 - 14}, ${STAMP_HEIGHT / 2 - 18})`}>
+        <path
+          d="M 14,3 C 20,10 20,21 14,32 C 8,21 8,10 14,3 Z"
+          fill={`url(#stampInkGrad-${theme.id})`}
+          opacity="0.88"
+        />
+        <circle cx="14" cy="14" r="2.5" fill="#E3B338" />
+        <path d="M 12.5,18 L 15.5,18 L 14,35 Z" fill={theme.secondaryColor} />
+      </g>
+    ),
+  },
+  {
+    id: 'forest-dove',
+    name: '포레스트 비둘기',
+    badgeLabel: '포레스트 비둘기',
+    bgGradStart: '#F9FDF7',
+    bgGradMid: '#EFF6EF',
+    bgGradEnd: '#E3ECE2',
+    primaryColor: '#22543D',
+    secondaryColor: '#143727',
+    accentGold: '#C59B27',
+    perforateColor: '#A3BFA8',
+    innerBg: '#F2F7F2',
+    topHeaderHanzi: '愛之 郵便 · 平和',
+    topHeaderSub: 'SECRET CARRIER DOVE',
+    centerTitle: '초록의 온기 · 翠綠',
+    denomWon: '77',
+    denomYear: '1988',
+    bottomMotto: '★ ALWAYS IN MY HEART ★',
+    sealColor: '#1B4732',
+    renderSymbol: (theme) => (
+      <g transform={`translate(${STAMP_WIDTH / 2 - 16}, ${STAMP_HEIGHT / 2 - 18})`}>
+        {/* 날개 펼친 평화의 전서구 */}
+        <path
+          d="M 16,23 C 13,19 7,16 4,14 C 4,11 10,12 14,14 C 13,10 12,5 15,2 C 18,7 19,13 18,17 C 22,14 27,11 29,12 C 27,15 22,18 19,21 C 21,24 22,28 23,31 C 20,29 18,26 16,23 Z"
+          fill={theme.primaryColor}
+          opacity="0.9"
+        />
+        <circle cx="26" cy="13.5" r="1.1" fill={theme.accentGold} />
+        {/* 부리에 물린 올리브 잎가지 */}
+        <path d="M 27,14 Q 31,15 33,13" fill="none" stroke={theme.accentGold} strokeWidth="1.2" strokeLinecap="round" />
+        <ellipse cx="32" cy="11.5" rx="2" ry="1.1" fill={theme.primaryColor} transform="rotate(-20 32 11.5)" />
+        <ellipse cx="30" cy="16" rx="1.8" ry="1" fill={theme.primaryColor} transform="rotate(30 30 16)" />
+      </g>
+    ),
+  },
+  {
+    id: 'midnight-moon',
+    name: '미드나잇 달빛',
+    badgeLabel: '미드나잇 달빛',
+    bgGradStart: '#F5F8FE',
+    bgGradMid: '#E8EEF8',
+    bgGradEnd: '#DBE4F2',
+    primaryColor: '#1E3A5F',
+    secondaryColor: '#10223A',
+    accentGold: '#DDA218',
+    perforateColor: '#9BB1D0',
+    innerBg: '#EFF4FA',
+    topHeaderHanzi: '星夜 郵便 · 永遠',
+    topHeaderSub: 'MIDNIGHT RENDEZVOUS',
+    centerTitle: '달빛 서약 · 月光',
+    denomWon: '99',
+    denomYear: '2026',
+    bottomMotto: '★ SHINING LIKE THE STARS ★',
+    sealColor: '#152B47',
+    renderSymbol: (theme) => (
+      <g transform={`translate(${STAMP_WIDTH / 2 - 16}, ${STAMP_HEIGHT / 2 - 18})`}>
+        {/* 우아한 초승달 */}
+        <path
+          d="M 19,4 C 11,6 6,13 8,22 C 10,29 17,33 24,31 C 18,29 14,24 14,18 C 14,12 18,6 24,4 C 22,4 20,4 19,4 Z"
+          fill={theme.primaryColor}
+          opacity="0.92"
+        />
+        {/* 반짝이는 4방향 별 */}
+        <path
+          d="M 25,12 Q 25,16 29,16 Q 25,16 25,20 Q 25,16 21,16 Q 25,16 25,12 Z"
+          fill={theme.accentGold}
+        />
+        <circle cx="8" cy="11" r="1.2" fill={theme.accentGold} opacity="0.8" />
+        <circle cx="10" cy="27" r="1" fill={theme.accentGold} opacity="0.75" />
+        <circle cx="28" cy="25" r="1.3" fill={theme.accentGold} opacity="0.85" />
+      </g>
+    ),
+  },
+  {
+    id: 'sunset-camellia',
+    name: '선셋 동백꽃',
+    badgeLabel: '선셋 동백꽃',
+    bgGradStart: '#FDF8F6',
+    bgGradMid: '#FAECE7',
+    bgGradEnd: '#F3DDD6',
+    primaryColor: '#A83220',
+    secondaryColor: '#6E1B0E',
+    accentGold: '#D88B27',
+    perforateColor: '#D19F95',
+    innerBg: '#FAF0ED',
+    topHeaderHanzi: '花語 郵便 · 初心',
+    topHeaderSub: 'BLOOMING AFFECTION',
+    centerTitle: '그리움의 꽃 · 冬柏',
+    denomWon: '520',
+    denomYear: '2024',
+    bottomMotto: '★ LOVE THAT NEVER FADES ★',
+    sealColor: '#7E2314',
+    renderSymbol: (theme) => (
+      <g transform={`translate(${STAMP_WIDTH / 2 - 16}, ${STAMP_HEIGHT / 2 - 17})`}>
+        {/* 푸른 잎사귀 */}
+        <path d="M 9,24 Q 4,27 7,32 Q 12,31 12,26 Z" fill="#3D5A38" opacity="0.85" />
+        <path d="M 23,25 Q 28,28 25,33 Q 20,32 20,27 Z" fill="#3D5A38" opacity="0.85" />
+        {/* 5장의 동백꽃잎 */}
+        <ellipse cx="16" cy="10" rx="6.5" ry="5.5" fill={theme.primaryColor} opacity="0.92" />
+        <ellipse cx="22" cy="15" rx="6.5" ry="5.5" fill={theme.primaryColor} opacity="0.92" transform="rotate(40 22 15)" />
+        <ellipse cx="19" cy="22" rx="6.5" ry="5.5" fill={theme.primaryColor} opacity="0.92" transform="rotate(80 19 22)" />
+        <ellipse cx="13" cy="22" rx="6.5" ry="5.5" fill={theme.primaryColor} opacity="0.92" transform="rotate(-80 13 22)" />
+        <ellipse cx="10" cy="15" rx="6.5" ry="5.5" fill={theme.primaryColor} opacity="0.92" transform="rotate(-40 10 15)" />
+        {/* 내부 꽃심 및 황금 꽃술 */}
+        <circle cx="16" cy="16" r="4.2" fill={theme.secondaryColor} />
+        <circle cx="16" cy="16" r="2.2" fill={theme.accentGold} />
+        <circle cx="14.5" cy="14.5" r="0.9" fill="#FFE58F" />
+        <circle cx="17.5" cy="14.5" r="0.9" fill="#FFE58F" />
+        <circle cx="16" cy="18" r="0.9" fill="#FFE58F" />
+      </g>
+    ),
+  },
+  {
+    id: 'sepia-pocketwatch',
+    name: '세피아 회중시계',
+    badgeLabel: '세피아 회중시계',
+    bgGradStart: '#FAF7F2',
+    bgGradMid: '#F2EBE0',
+    bgGradEnd: '#E7DCCB',
+    primaryColor: '#63452E',
+    secondaryColor: '#3D2716',
+    accentGold: '#B8860B',
+    perforateColor: '#BDA58E',
+    innerBg: '#F5EFE6',
+    topHeaderHanzi: '歲月 郵便 · 記憶',
+    topHeaderSub: 'TIMELESS MEMORIES',
+    centerTitle: '기억의 서재 · 歲月',
+    denomWon: '365',
+    denomYear: '2025',
+    bottomMotto: '★ EVERY MOMENT WITH YOU ★',
+    sealColor: '#4A3220',
+    renderSymbol: (theme) => (
+      <g transform={`translate(${STAMP_WIDTH / 2 - 16}, ${STAMP_HEIGHT / 2 - 17})`}>
+        {/* 상단 고리 & 크라운 */}
+        <circle cx="16" cy="4" r="3.2" fill="none" stroke={theme.accentGold} strokeWidth="1.4" />
+        <rect x="14.5" y="6" width="3" height="2" fill={theme.accentGold} />
+        {/* 시계 몸통 다이얼 */}
+        <circle cx="16" cy="18" r="13" fill={theme.innerBg} stroke={theme.primaryColor} strokeWidth="1.8" />
+        <circle cx="16" cy="18" r="10.5" fill="none" stroke={theme.accentGold} strokeWidth="0.8" strokeDasharray="1.5 1.5" />
+        {/* 4방향 인덱스 */}
+        <rect x="15.5" y="9" width="1" height="2" fill={theme.primaryColor} />
+        <rect x="23" y="17.5" width="2" height="1" fill={theme.primaryColor} />
+        <rect x="15.5" y="25" width="1" height="2" fill={theme.primaryColor} />
+        <rect x="9" y="17.5" width="2" height="1" fill={theme.primaryColor} />
+        {/* 시침 및 분침 (10시 10분) */}
+        <line x1="16" y1="18" x2="12.5" y2="13.5" stroke={theme.secondaryColor} strokeWidth="1.4" strokeLinecap="round" />
+        <line x1="16" y1="18" x2="20.5" y2="14" stroke={theme.secondaryColor} strokeWidth="1.1" strokeLinecap="round" />
+        <circle cx="16" cy="18" r="1.5" fill={theme.accentGold} />
+      </g>
+    ),
+  },
+  {
+    id: 'lavender-twilight',
+    name: '트와일라잇 연서',
+    badgeLabel: '트와일라잇 연서',
+    bgGradStart: '#FBF7FC',
+    bgGradMid: '#F3EBF5',
+    bgGradEnd: '#E9DBEB',
+    primaryColor: '#6E3569',
+    secondaryColor: '#451B41',
+    accentGold: '#C8952B',
+    perforateColor: '#C3A4C7',
+    innerBg: '#F7EEF8',
+    topHeaderHanzi: '心音 郵便 · 告白',
+    topHeaderSub: 'WHISPERING TWILIGHT',
+    centerTitle: '수줍은 고백 · 戀書',
+    denomWon: '1004',
+    denomYear: '2026',
+    bottomMotto: '★ TO MY ONE AND ONLY ★',
+    sealColor: '#4E214B',
+    renderSymbol: (theme) => (
+      <g transform={`translate(${STAMP_WIDTH / 2 - 16}, ${STAMP_HEIGHT / 2 - 17})`}>
+        {/* 편지 봉투 본체 */}
+        <rect x="3" y="9" width="26" height="18" rx="2" fill="#FAF5FA" stroke={theme.primaryColor} strokeWidth="1.4" />
+        <path d="M 3,9 L 16,19 L 29,9" fill="none" stroke={theme.primaryColor} strokeWidth="1.2" />
+        <path d="M 3,27 L 11,18" stroke={theme.primaryColor} strokeWidth="0.8" opacity="0.6" />
+        <path d="M 29,27 L 21,18" stroke={theme.primaryColor} strokeWidth="0.8" opacity="0.6" />
+        {/* 중앙 하트 왁스 실링 */}
+        <path
+          d="M 16,16 C 14.5,14 12,14.5 12,16.5 C 12,18.5 16,21.5 16,21.5 C 16,21.5 20,18.5 20,16.5 C 20,14.5 17.5,14 16,16 Z"
+          fill={theme.accentGold}
+        />
+        <circle cx="16" cy="18" r="0.8" fill="#FFFDF9" />
+      </g>
+    ),
+  },
+];
+
+// 앤틱 대형 우표 원본 그래픽 SVG 컴포넌트 (선택된 테마 반영)
+function LargeStampArt({ partnerName, theme }: { partnerName: string; theme: StampTheme }) {
+  return (
+    <svg
+      width={STAMP_WIDTH}
+      height={STAMP_HEIGHT}
+      viewBox={`0 0 ${STAMP_WIDTH} ${STAMP_HEIGHT}`}
+      className="w-full h-full select-none"
+    >
+      <defs>
+        <linearGradient id={`stampPaperGrad-${theme.id}`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor={theme.bgGradStart} />
+          <stop offset="50%" stopColor={theme.bgGradMid} />
+          <stop offset="100%" stopColor={theme.bgGradEnd} />
+        </linearGradient>
+
+        <linearGradient id={`stampInkGrad-${theme.id}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={theme.primaryColor} />
+          <stop offset="100%" stopColor={theme.secondaryColor} />
+        </linearGradient>
+      </defs>
+
+      <rect x="0" y="0" width={STAMP_WIDTH} height={STAMP_HEIGHT} fill={`url(#stampPaperGrad-${theme.id})`} />
+
+      {/* 외곽 천공 점선 */}
+      <rect
+        x="4"
+        y="4"
+        width={STAMP_WIDTH - 8}
+        height={STAMP_HEIGHT - 8}
+        fill="none"
+        stroke={theme.perforateColor}
+        strokeWidth="1.2"
+        strokeDasharray="3.5 2.5"
+      />
+
+      {/* 앤틱 우표 이중 프레임 */}
+      <rect
+        x="10"
+        y="10"
+        width={STAMP_WIDTH - 20}
+        height={STAMP_HEIGHT - 20}
+        fill="none"
+        stroke={theme.primaryColor}
+        strokeWidth="1.8"
+      />
+      <rect
+        x="12.5"
+        y="12.5"
+        width={STAMP_WIDTH - 25}
+        height={STAMP_HEIGHT - 25}
+        fill="none"
+        stroke={theme.accentGold}
+        strokeWidth="0.7"
+      />
+
+      {/* 상단 텍스트 */}
+      <text
+        x={STAMP_WIDTH / 2}
+        y="26"
+        textAnchor="middle"
+        fill={theme.primaryColor}
+        fontSize="10"
+        fontFamily="serif"
+        fontWeight="bold"
+        letterSpacing="2.5"
+      >
+        {theme.topHeaderHanzi}
+      </text>
+      <text
+        x={STAMP_WIDTH / 2}
+        y="37"
+        textAnchor="middle"
+        fill={theme.secondaryColor}
+        opacity="0.8"
+        fontSize="6.5"
+        fontFamily="sans-serif"
+        letterSpacing="1.8"
+      >
+        {theme.topHeaderSub}
+      </text>
+
+      {/* 중앙 타원형 앤틱 일러스트 프레임 */}
+      <ellipse
+        cx={STAMP_WIDTH / 2}
+        cy={STAMP_HEIGHT / 2 + 3}
+        rx="50"
+        ry="42"
+        fill={theme.innerBg}
+        stroke={theme.accentGold}
+        strokeWidth="1"
+        strokeDasharray="2 2"
+      />
+
+      {/* 중앙 테마별 고유 일러스트 심볼 */}
+      {theme.renderSymbol(theme)}
+
+      <text
+        x={STAMP_WIDTH / 2}
+        y={STAMP_HEIGHT / 2 + 28}
+        textAnchor="middle"
+        fill={theme.primaryColor}
+        fontSize="11"
+        fontFamily="serif"
+        fontWeight="bold"
+      >
+        {theme.centerTitle}
+      </text>
+
+      <text
+        x={STAMP_WIDTH / 2}
+        y={STAMP_HEIGHT / 2 + 39}
+        textAnchor="middle"
+        fill={theme.secondaryColor}
+        opacity="0.85"
+        fontSize="8"
+        fontFamily="serif"
+        fontStyle="italic"
+      >
+        To. {partnerName}
+      </text>
+
+      {/* 좌우 하단 우표 액면가 */}
+      <text x="16" y={STAMP_HEIGHT - 16} fill={theme.primaryColor} fontSize="13" fontFamily="serif" fontWeight="bold">
+        {theme.denomWon}
+      </text>
+      <text x="16" y={STAMP_HEIGHT - 27} fill={theme.secondaryColor} opacity="0.75" fontSize="5.5" fontFamily="sans-serif">
+        WON
+      </text>
+
+      <text x={STAMP_WIDTH - 16} y={STAMP_HEIGHT - 16} textAnchor="end" fill={theme.primaryColor} fontSize="13" fontFamily="serif" fontWeight="bold">
+        {theme.denomYear}
+      </text>
+      <text x={STAMP_WIDTH - 16} y={STAMP_HEIGHT - 27} textAnchor="end" fill={theme.secondaryColor} opacity="0.75" fontSize="5.5" fontFamily="sans-serif">
+        YEAR
+      </text>
+
+      <text
+        x={STAMP_WIDTH / 2}
+        y={STAMP_HEIGHT - 14}
+        textAnchor="middle"
+        fill={theme.accentGold}
+        fontSize="6.5"
+        fontFamily="sans-serif"
+        letterSpacing="1.5"
+      >
+        {theme.bottomMotto}
+      </text>
+    </svg>
+  );
+}
 
 export interface PieceData {
   id: number;
@@ -302,169 +696,13 @@ function generateTornPaths(stampWidth: number, stampHeight: number): TornData {
   return chosenGen(stampWidth, stampHeight);
 }
 
-// 앤틱 대형 우표 원본 그래픽 SVG 컴포넌트
-function LargeStampArt({ partnerName }: { partnerName: string }) {
-  return (
-    <svg
-      width={STAMP_WIDTH}
-      height={STAMP_HEIGHT}
-      viewBox={`0 0 ${STAMP_WIDTH} ${STAMP_HEIGHT}`}
-      className="w-full h-full select-none"
-    >
-      <defs>
-        <linearGradient id="stampPaperGrad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#FFFDF9" />
-          <stop offset="50%" stopColor="#F9F3EA" />
-          <stop offset="100%" stopColor="#F2E8D8" />
-        </linearGradient>
-
-        <linearGradient id="stampInkGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#8C2131" />
-          <stop offset="100%" stopColor="#54121C" />
-        </linearGradient>
-      </defs>
-
-      <rect x="0" y="0" width={STAMP_WIDTH} height={STAMP_HEIGHT} fill="url(#stampPaperGrad)" />
-
-      {/* 외곽 천공 점선 */}
-      <rect
-        x="4"
-        y="4"
-        width={STAMP_WIDTH - 8}
-        height={STAMP_HEIGHT - 8}
-        fill="none"
-        stroke="#C4A882"
-        strokeWidth="1.2"
-        strokeDasharray="3.5 2.5"
-      />
-
-      {/* 앤틱 우표 이중 프레임 */}
-      <rect
-        x="10"
-        y="10"
-        width={STAMP_WIDTH - 20}
-        height={STAMP_HEIGHT - 20}
-        fill="none"
-        stroke="#8C2131"
-        strokeWidth="1.8"
-      />
-      <rect
-        x="12.5"
-        y="12.5"
-        width={STAMP_WIDTH - 25}
-        height={STAMP_HEIGHT - 25}
-        fill="none"
-        stroke="#B8860B"
-        strokeWidth="0.7"
-      />
-
-      {/* 상단 텍스트 */}
-      <text
-        x={STAMP_WIDTH / 2}
-        y="26"
-        textAnchor="middle"
-        fill="#8C2131"
-        fontSize="10"
-        fontFamily="serif"
-        fontWeight="bold"
-        letterSpacing="2.5"
-      >
-        大韓 溫氣 郵便
-      </text>
-      <text
-        x={STAMP_WIDTH / 2}
-        y="37"
-        textAnchor="middle"
-        fill="#7A6855"
-        fontSize="6.5"
-        fontFamily="sans-serif"
-        letterSpacing="2"
-      >
-        SPECIAL CORRESPONDENCE
-      </text>
-
-      {/* 중앙 타원형 앤틱 일러스트 프레임 */}
-      <ellipse
-        cx={STAMP_WIDTH / 2}
-        cy={STAMP_HEIGHT / 2 + 3}
-        rx="50"
-        ry="42"
-        fill="#FAF5ED"
-        stroke="#B8860B"
-        strokeWidth="1"
-        strokeDasharray="2 2"
-      />
-
-      {/* 중앙 만년필 깃펜 & 촛불 심볼 */}
-      <g transform={`translate(${STAMP_WIDTH / 2 - 14}, ${STAMP_HEIGHT / 2 - 18})`}>
-        <path
-          d="M 14,3 C 20,10 20,21 14,32 C 8,21 8,10 14,3 Z"
-          fill="url(#stampInkGrad)"
-          opacity="0.85"
-        />
-        <circle cx="14" cy="14" r="2.5" fill="#E3B338" />
-        <path d="M 12.5,18 L 15.5,18 L 14,35 Z" fill="#3D0B14" />
-      </g>
-
-      <text
-        x={STAMP_WIDTH / 2}
-        y={STAMP_HEIGHT / 2 + 28}
-        textAnchor="middle"
-        fill="#8C2131"
-        fontSize="11"
-        fontFamily="serif"
-        fontWeight="bold"
-      >
-        온기 · 溫氣
-      </text>
-
-      <text
-        x={STAMP_WIDTH / 2}
-        y={STAMP_HEIGHT / 2 + 39}
-        textAnchor="middle"
-        fill="#66594C"
-        fontSize="8"
-        fontFamily="serif"
-        fontStyle="italic"
-      >
-        To. {partnerName}
-      </text>
-
-      {/* 좌우 하단 우표 액면가 */}
-      <text x="16" y={STAMP_HEIGHT - 16} fill="#8C2131" fontSize="13" fontFamily="serif" fontWeight="bold">
-        42
-      </text>
-      <text x="16" y={STAMP_HEIGHT - 27} fill="#7A6855" fontSize="5.5" fontFamily="sans-serif">
-        WON
-      </text>
-
-      <text x={STAMP_WIDTH - 16} y={STAMP_HEIGHT - 16} textAnchor="end" fill="#8C2131" fontSize="13" fontFamily="serif" fontWeight="bold">
-        1926
-      </text>
-      <text x={STAMP_WIDTH - 16} y={STAMP_HEIGHT - 27} textAnchor="end" fill="#7A6855" fontSize="5.5" fontFamily="sans-serif">
-        YEAR
-      </text>
-
-      <text
-        x={STAMP_WIDTH / 2}
-        y={STAMP_HEIGHT - 14}
-        textAnchor="middle"
-        fill="#B8860B"
-        fontSize="6.5"
-        fontFamily="sans-serif"
-        letterSpacing="1.5"
-      >
-        ★ TWO SOULS UNITED ★
-      </text>
-    </svg>
-  );
-}
-
 export default function StampJigsawPuzzle({
   onSolve,
   partnerName = '유라',
 }: StampJigsawPuzzleProps) {
   const [tornData, setTornData] = useState<TornData | null>(null);
+  const [themeIdx, setThemeIdx] = useState<number>(() => Math.floor(Math.random() * STAMP_THEMES.length));
+  const currentTheme = STAMP_THEMES[themeIdx];
   const [snapped, setSnapped] = useState<boolean[]>([false, false, false, false]);
   const [rotations, setRotations] = useState<number[]>([90, 180, 270, 90]);
   const [activePiece, setActivePiece] = useState<number | null>(null);
@@ -475,7 +713,7 @@ export default function StampJigsawPuzzle({
   const targetSlotRefs = useRef<(HTMLDivElement | null)[]>([null, null, null, null]);
   const pieceRefs = useRef<(HTMLDivElement | null)[]>([null, null, null, null]);
 
-  // 퍼즐 초기화 (새로운 무작위 찢김 및 무작위 회전)
+  // 퍼즐 초기화 (새로운 무작위 찢김, 무작위 회전 각도, 새로운 무작위 우표 테마 생성)
   const initPuzzle = useCallback(() => {
     const data = generateTornPaths(STAMP_WIDTH, STAMP_HEIGHT);
     setTornData(data);
@@ -490,6 +728,16 @@ export default function StampJigsawPuzzle({
       angles[Math.floor(Math.random() * angles.length)],
     ];
     setRotations(randRots);
+
+    // 새로 찢을 때 우표 디자인도 함께 무작위 교체
+    setThemeIdx((prev) => {
+      let next = Math.floor(Math.random() * STAMP_THEMES.length);
+      if (next === prev) {
+        next = (next + 1) % STAMP_THEMES.length;
+      }
+      return next;
+    });
+
     setIsCompleted(false);
     setStampKey((k) => k + 1);
   }, []);
@@ -498,17 +746,23 @@ export default function StampJigsawPuzzle({
     initPuzzle();
   }, [initPuzzle]);
 
-  // 90도 회전 (버튼 클릭 시) -> 조각 고유의 중심(50% 50%)을 축으로 항상 시계 방향으로만 회전!
+  // 다른 우표 테마로 수동 변경
+  const handleNextTheme = () => {
+    soundEngine.playTileSlideSound();
+    setThemeIdx((prev) => (prev + 1) % STAMP_THEMES.length);
+  };
+
+  // 조각 탭(클릭) 시 제자리에서 시계방향 90도 회전!
   const handleRotate = (pieceIdx: number) => {
     soundEngine.playTileSlideSound();
     setRotations((prev) => {
       const next = [...prev];
-      next[pieceIdx] = next[pieceIdx] + 90; // % 360을 하지 않아야 framer-motion이 역회전하지 않고 항상 시계방향으로 회전함
+      next[pieceIdx] = next[pieceIdx] + 90;
       return next;
     });
   };
 
-  // 드래그 종료 시 위치 및 회전각 검증 -> 정답 슬롯 위치 + 정방향(0°)일 때만 결합!
+  // 드래그 종료 시 위치 및 회전각 검증 -> 정답 슬롯 위치 근처(55px 이내) + 정방향(0°)일 때 결합!
   const checkSnap = (pieceIdx: number) => {
     if (snapped[pieceIdx] || isCompleted) return;
 
@@ -527,8 +781,8 @@ export default function StampJigsawPuzzle({
     // 360도 배수일 때 올바른 정방향 (0도, 360도, 720도 등)
     const isOrientationCorrect = ((rotations[pieceIdx] % 360) + 360) % 360 === 0;
 
-    // 타겟 슬롯(거리 40px 이내)에 정확히 올려놓았고, 사용자가 올바른 방향(0도)을 찾아 돌려놓았을 때만 체결!
-    if (dist < 40 && isOrientationCorrect) {
+    // 타겟 슬롯(거리 55px 이내)에 올려놓았고, 올바른 정방향(0도)을 맞췄을 때 결합!
+    if (dist < 55 && isOrientationCorrect) {
       soundEngine.playTileSlideSound();
       const nextSnapped = [...snapped];
       nextSnapped[pieceIdx] = true;
@@ -554,7 +808,7 @@ export default function StampJigsawPuzzle({
         particleCount: 65,
         spread: 75,
         origin: { y: 0.5 },
-        colors: ['#8C2131', '#B8860B', '#FFFDF9', '#E3B338'],
+        colors: [currentTheme.primaryColor, currentTheme.accentGold, '#FFFDF9', currentTheme.secondaryColor],
       });
     }, 700);
 
@@ -572,38 +826,41 @@ export default function StampJigsawPuzzle({
 
   if (!tornData) return null;
 
-  // 4개 조각이 작업대(하단 2x2)에서 화면 밖으로 절대 나가지 않고 서로 겹치지 않는 동적 시작 위치
+  // 4개 조각이 작업대(하단 2x2)에서 겹치지 않고 정돈되는 시작 위치
   const initialPositions = tornData.pieces.map((piece, idx) => {
-    const qX = idx % 2 === 0 ? 14 : 160;
-    const qY = idx < 2 ? 228 : 340;
-    const qW = 134;
-    const qH = 104;
+    const qX = idx % 2 === 0 ? 12 : 160;
+    const qY = idx < 2 ? 228 : 318;
+    const qW = 136;
+    const qH = 84;
     return {
-      x: Math.max(10, Math.min(BOARD_WIDTH - piece.width - 10, qX + Math.round((qW - piece.width) / 2))),
-      y: Math.max(226, Math.min(BOARD_HEIGHT - piece.height - 10, qY + Math.round((qH - piece.height) / 2))),
+      x: Math.max(8, Math.min(BOARD_WIDTH - piece.width - 8, qX + Math.round((qW - piece.width) / 2))),
+      y: Math.max(224, Math.min(BOARD_HEIGHT - piece.height - 8, qY + Math.round((qH - piece.height) / 2))),
     };
   });
 
   return (
     <div className="flex flex-col items-center select-none w-full max-w-sm mx-auto touch-none">
-      {/* 가이드 안내 (스포일러 없이 직관적인 퍼즐 규칙 안내 & 현재 찢김 형태 안내) */}
+      {/* 가이드 안내 */}
       <div className="text-center mb-2">
         <p className="text-stone-800 font-serif-warm text-sm font-semibold flex items-center justify-center gap-1.5 flex-wrap">
-          <span>📮 찢어진 우표 조각 맞추기</span>
-          <span className="text-[10px] font-sans-ui text-amber-900 bg-amber-100/90 px-2 py-0.5 rounded-full border border-amber-300 font-normal">
+          <span>📮 찢어진 우표 맞추기</span>
+          <span className="text-[10px] font-sans-ui text-amber-900 bg-amber-100/90 px-2 py-0.5 rounded-full border border-amber-300 font-medium">
+            {currentTheme.name}
+          </span>
+          <span className="text-[10px] font-sans-ui text-stone-600 bg-stone-100 px-2 py-0.5 rounded-full border border-stone-200 font-normal">
             {tornData.patternName}
           </span>
         </p>
         <p className="text-[11px] text-stone-600 font-sans-ui mt-0.5 flex items-center justify-center gap-1">
           <Hand className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-          <span>조각의 <strong>[🔄]</strong>로 회전시켜 맞는 방향을 찾은 뒤, <strong>우표 틀의 제자리로 끌어다</strong> 맞추세요!</span>
+          <span>조각을 <strong>탭(클릭)하면 90° 회전</strong>하고, 드래그하여 우표 틀에 맞출 수 있어요!</span>
         </p>
       </div>
 
-      {/* 퍼즐 작업대 (화면 밖 이탈 방지 안전 영역) */}
+      {/* 퍼즐 작업대 */}
       <div
         ref={boardRef}
-        className="relative bg-[#F5EFE6] rounded-2xl border-2 border-[#C4B29A] shadow-inner overflow-hidden touch-none select-none origin-top scale-[0.85] sm:scale-100 -mb-12 sm:mb-0"
+        className="relative bg-[#F5EFE6] rounded-2xl border-2 border-[#C4B29A] shadow-inner overflow-hidden touch-none select-none"
         style={{ width: BOARD_WIDTH, height: BOARD_HEIGHT }}
       >
         {/* 상단 타겟: 우표 결합 틀 */}
@@ -618,7 +875,7 @@ export default function StampJigsawPuzzle({
         >
           {/* 밑바탕 가이드 실루엣 */}
           <div className="absolute inset-0 opacity-15 pointer-events-none filter grayscale">
-            <LargeStampArt partnerName={partnerName} />
+            <LargeStampArt partnerName={partnerName} theme={currentTheme} />
           </div>
 
           <div className="absolute inset-0 flex items-center justify-center text-[9px] font-serif-warm text-[#8C2131]/30 font-bold uppercase tracking-widest pointer-events-none">
@@ -657,7 +914,7 @@ export default function StampJigsawPuzzle({
                       clipPath: `path('${piece.path}')`,
                     }}
                   >
-                    <LargeStampArt partnerName={partnerName} />
+                    <LargeStampArt partnerName={partnerName} theme={currentTheme} />
                     <svg className="absolute inset-0 w-full h-full pointer-events-none">
                       <path
                         d={piece.path}
@@ -681,7 +938,7 @@ export default function StampJigsawPuzzle({
               transition={{ delay: 0.3, duration: 0.5 }}
               className="absolute inset-0 z-20 pointer-events-none"
             >
-              <LargeStampArt partnerName={partnerName} />
+              <LargeStampArt partnerName={partnerName} theme={currentTheme} />
             </motion.div>
           )}
 
@@ -694,7 +951,14 @@ export default function StampJigsawPuzzle({
                 transition={{ type: 'spring', damping: 14, stiffness: 280, delay: 0.2 }}
                 className="absolute inset-0 flex items-center justify-center pointer-events-none z-30"
               >
-                <div className="w-28 h-28 rounded-full border-[2.2px] border-dashed border-[#6B1724] text-[#6B1724] flex flex-col items-center justify-center font-mono text-[8px] p-2 bg-[#6B1724]/10 backdrop-blur-2xs shadow-xl">
+                <div
+                  className="w-28 h-28 rounded-full border-[2.2px] border-dashed flex flex-col items-center justify-center font-mono text-[8px] p-2 backdrop-blur-2xs shadow-xl"
+                  style={{
+                    borderColor: currentTheme.sealColor,
+                    color: currentTheme.sealColor,
+                    backgroundColor: `${currentTheme.sealColor}1A`,
+                  }}
+                >
                   <Stamp className="w-6 h-6 stroke-[2.2] mb-0.5" />
                   <span className="font-bold tracking-widest text-[9px]">WARMTH SEOUL</span>
                   <span className="font-bold text-[8px]">2026.09.28</span>
@@ -712,11 +976,10 @@ export default function StampJigsawPuzzle({
           <div className="h-px flex-1 bg-stone-400 border-t border-dashed border-stone-500" />
         </div>
 
-        {/* 4개의 직접 손으로 움직이고 조각 자체 중심으로 회전하는 찢어진 조각들 (삼각/오각/다각) */}
+        {/* 4개의 직접 손으로 움직여 맞추는 찢어진 우표 조각들 */}
         {tornData.pieces.map((piece, idx) => {
           if (snapped[idx]) return null;
 
-          const rot = rotations[idx];
           const isCurrentActive = activePiece === idx;
 
           return (
@@ -726,12 +989,18 @@ export default function StampJigsawPuzzle({
                 pieceRefs.current[idx] = el;
               }}
               drag
-              dragConstraints={boardRef}
-              dragElastic={0.05}
+              dragConstraints={{
+                top: -initialPositions[idx].y - 60,
+                bottom: BOARD_HEIGHT - initialPositions[idx].y + 30,
+                left: -initialPositions[idx].x - 30,
+                right: BOARD_WIDTH - initialPositions[idx].x + 30,
+              }}
+              dragElastic={0.12}
               dragMomentum={false}
               onDragStart={() => setActivePiece(idx)}
               onDragEnd={() => checkSnap(idx)}
-              animate={{ rotate: rot }}
+              onTap={() => handleRotate(idx)}
+              animate={{ rotate: rotations[idx] }}
               transition={{ rotate: { type: 'spring', stiffness: 350, damping: 25 } }}
               style={{
                 position: 'absolute',
@@ -739,7 +1008,7 @@ export default function StampJigsawPuzzle({
                 top: initialPositions[idx].y,
                 width: piece.width,
                 height: piece.height,
-                transformOrigin: 'center center', // ★ 조각 고유의 중심을 축으로 제자리 회전!
+                transformOrigin: 'center center',
                 zIndex: isCurrentActive ? 40 : 20 + idx,
                 cursor: 'grab',
                 filter: isCurrentActive
@@ -762,7 +1031,7 @@ export default function StampJigsawPuzzle({
                     clipPath: `path('${piece.path}')`,
                   }}
                 >
-                  <LargeStampArt partnerName={partnerName} />
+                  <LargeStampArt partnerName={partnerName} theme={currentTheme} />
                   {/* 찢긴 종이 흰색 섬유 질감 테두리 */}
                   <svg className="absolute inset-0 w-full h-full pointer-events-none">
                     <path
@@ -776,35 +1045,34 @@ export default function StampJigsawPuzzle({
                   </svg>
                 </div>
               </div>
-
-              {/* 조각 중심에 달린 회전 버튼 ([🔄]) */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleRotate(idx);
-                }}
-                className="absolute z-30 inset-0 m-auto w-6 h-6 rounded-full bg-white/95 text-stone-700 shadow-md border border-stone-300 hover:bg-amber-100 hover:text-amber-900 active:scale-85 transition-transform flex items-center justify-center cursor-pointer pointer-events-auto"
-                title="회전하기"
-              >
-                <RotateCw className="w-3 h-3 stroke-[2.2]" />
-              </button>
             </motion.div>
           );
         })}
       </div>
 
       {/* 하단 컨트롤러 */}
-      <div className="mt-1 sm:mt-3 flex items-center justify-between w-full max-w-sm text-xs font-sans-ui text-stone-500 px-1">
-        <button
-          type="button"
-          onClick={initPuzzle}
-          title="새로운 무작위 찢김과 회전으로 다시 도전"
-          className="p-1.5 rounded-lg border border-stone-300 hover:bg-stone-100 text-stone-600 active:scale-95 flex items-center gap-1 text-[11px]"
-        >
-          <RotateCcw className="w-3 h-3" />
-          <span>새로 찢기</span>
-        </button>
+      <div className="mt-1 sm:mt-3 flex items-center justify-between w-full max-w-sm text-xs font-sans-ui text-stone-500 px-1 gap-1">
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={initPuzzle}
+            title="새로운 우표와 무작위 찢김 형태로 다시 도전"
+            className="p-1.5 rounded-lg border border-stone-300 hover:bg-stone-100 text-stone-600 active:scale-95 flex items-center gap-1 text-[11px]"
+          >
+            <RotateCcw className="w-3 h-3" />
+            <span>새로 찢기</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleNextTheme}
+            title="다음 우표 테마로 교체"
+            className="p-1.5 rounded-lg border border-stone-300 hover:bg-stone-100 text-stone-600 active:scale-95 flex items-center gap-1 text-[11px]"
+          >
+            <Palette className="w-3 h-3 text-stone-500" />
+            <span>우표 변경</span>
+          </button>
+        </div>
 
         <span className="text-[11px] text-stone-500 font-mono">
           완성 {snapped.filter((s) => s).length}/4
