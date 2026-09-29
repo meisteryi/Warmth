@@ -603,7 +603,7 @@ export default function StampJigsawPuzzle({
       {/* 퍼즐 작업대 (화면 밖 이탈 방지 안전 영역) */}
       <div
         ref={boardRef}
-        className="relative bg-[#F5EFE6] rounded-2xl border-2 border-[#C4B29A] shadow-inner overflow-hidden touch-none select-none"
+        className="relative bg-[#F5EFE6] rounded-2xl border-2 border-[#C4B29A] shadow-inner overflow-hidden touch-none select-none origin-top scale-[0.85] sm:scale-100 -mb-12 sm:mb-0"
         style={{ width: BOARD_WIDTH, height: BOARD_HEIGHT }}
       >
         {/* 상단 타겟: 우표 결합 틀 */}
@@ -795,7 +795,7 @@ export default function StampJigsawPuzzle({
       </div>
 
       {/* 하단 컨트롤러 */}
-      <div className="mt-3 flex items-center justify-between w-full max-w-sm text-xs font-sans-ui text-stone-500 px-1">
+      <div className="mt-1 sm:mt-3 flex items-center justify-between w-full max-w-sm text-xs font-sans-ui text-stone-500 px-1">
         <button
           type="button"
           onClick={initPuzzle}

@@ -114,33 +114,33 @@ export default function MissionModal({
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="relative w-full max-w-lg my-auto bg-[#FFFDF9] rounded-2xl p-4 sm:p-7 paper-texture border border-[#E8DFC8] shadow-2xl text-stone-900 max-h-[92dvh] overflow-y-auto pb-[max(env(safe-area-inset-bottom),1.25rem)]"
+            className="relative w-full max-w-lg my-auto bg-[#FFFDF9] rounded-2xl p-3 sm:p-7 paper-texture border border-[#E8DFC8] shadow-2xl text-stone-900 max-h-[94dvh] overflow-y-auto pb-[max(env(safe-area-inset-bottom),1rem)]"
           >
             {/* 닫기 버튼 */}
             <button
               onClick={onClose}
-              className="absolute top-3 right-3 sm:top-4 sm:right-4 p-2 text-stone-400 hover:text-stone-700 rounded-full hover:bg-stone-100 transition-colors z-10 min-h-[40px] min-w-[40px] flex items-center justify-center"
+              className="absolute top-2.5 right-2.5 sm:top-4 sm:right-4 p-1.5 text-stone-400 hover:text-stone-700 rounded-full hover:bg-stone-100 transition-colors z-10 min-h-[36px] min-w-[36px] flex items-center justify-center"
             >
               <X className="w-5 h-5" />
             </button>
 
             {/* 헤더 */}
-            <div className="flex items-center gap-2.5 mb-3.5 pr-8">
-              <div className="w-9 h-9 rounded-full bg-[#6B1724]/10 border border-[#6B1724]/20 flex items-center justify-center text-[#6B1724] shrink-0">
-                <Puzzle className="w-5 h-5" />
+            <div className="flex items-center gap-2 mb-2 sm:mb-3.5 pr-8">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#6B1724]/10 border border-[#6B1724]/20 flex items-center justify-center text-[#6B1724] shrink-0">
+                <Puzzle className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div>
-                <span className="text-[10px] font-sans-ui text-[#6B1724] font-semibold tracking-wider uppercase">
+                <span className="text-[9px] sm:text-[10px] font-sans-ui text-[#6B1724] font-semibold tracking-wider uppercase">
                   DAILY UNLOCK GATE
                 </span>
-                <h3 className="font-serif-warm text-base sm:text-xl font-bold text-stone-900">
+                <h3 className="font-serif-warm text-sm sm:text-xl font-bold text-stone-900 leading-tight">
                   봉인을 풀기 위한 관문
                 </h3>
               </div>
             </div>
 
             {/* 3가지 관문 선택 탭 (사진 퍼즐 / 우표 맞추기 / 깜짝 퀴즈) */}
-            <div className="flex bg-[#F4EFEA] p-1 rounded-xl mb-5 text-xs font-sans-ui">
+            <div className="flex bg-[#F4EFEA] p-1 rounded-xl mb-3 sm:mb-5 text-xs font-sans-ui">
               <button
                 type="button"
                 onClick={() => setActiveTab('PHOTO_PUZZLE')}

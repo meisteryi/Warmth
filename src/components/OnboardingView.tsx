@@ -139,20 +139,20 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto px-4 py-8 flex flex-col items-center">
+    <div className="w-full max-w-lg mx-auto px-3 sm:px-4 py-2 sm:py-6 flex flex-col items-center my-auto">
       {/* 헤더 타이틀 */}
       <motion.div
-        initial={{ opacity: 0, y: -15 }}
+        initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-8"
+        className="text-center mb-3 sm:mb-6"
       >
-        <div className="w-16 h-16 mx-auto rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center font-serif-warm text-2xl font-bold shadow-xl border-2 border-amber-200/30 mb-3">
+        <div className="w-11 h-11 sm:w-14 sm:h-14 mx-auto rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center font-serif-warm text-xl sm:text-2xl font-bold shadow-md border-2 border-amber-200/30 mb-2">
           溫
         </div>
-        <h1 className="font-serif-warm text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight">
+        <h1 className="font-serif-warm text-xl sm:text-3xl font-bold text-stone-900 tracking-tight leading-tight">
           온기 · 둘만의 비밀 교환일기
         </h1>
-        <p className="mt-2 text-stone-600 font-serif-warm text-xs sm:text-sm">
+        <p className="mt-1 text-stone-600 font-serif-warm text-[11px] sm:text-sm">
           서재 책상 위, 오직 둘만의 따뜻한 온기가 머무는 교환일기장을 열어보세요.
         </p>
       </motion.div>
@@ -161,17 +161,17 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full bg-[#FFFDF9] rounded-2xl p-6 sm:p-8 paper-texture border border-[#E8DFC8] shadow-2xl relative overflow-hidden"
+        className="w-full bg-[#FFFDF9] rounded-2xl p-4 sm:p-7 paper-texture border border-[#E8DFC8] shadow-xl relative overflow-hidden"
       >
         {/* 상단 탭 전환 (방 생성 vs 코드 참여) */}
-        <div className="flex bg-[#F4EFEA] p-1 rounded-xl mb-6 text-xs font-sans-ui">
+        <div className="flex bg-[#F4EFEA] p-1 rounded-xl mb-4 sm:mb-6 text-xs font-sans-ui">
           <button
             type="button"
             onClick={() => {
               setActiveTab('CREATE');
               setJoinError('');
             }}
-            className={`flex-1 py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-1.5 sm:py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'CREATE'
                 ? 'bg-white shadow-xs text-stone-900 font-bold'
                 : 'text-stone-500 hover:text-stone-800'
@@ -186,7 +186,7 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
               setActiveTab('JOIN');
               setJoinError('');
             }}
-            className={`flex-1 py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-1.5 sm:py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'JOIN'
                 ? 'bg-white shadow-xs text-stone-900 font-bold'
                 : 'text-stone-500 hover:text-stone-800'
@@ -198,8 +198,8 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
         </div>
 
         {/* 사용자 이름 입력 필드 (공통) */}
-        <div className="mb-6">
-          <label className="block text-xs font-sans-ui text-stone-600 mb-1.5">
+        <div className="mb-3.5 sm:mb-5">
+          <label className="block text-[11px] sm:text-xs font-sans-ui text-stone-600 mb-1">
             일기장에 사용할 나의 이름 / 애칭
           </label>
           <input
@@ -207,24 +207,24 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
             value={myName}
             onChange={(e) => setMyName(e.target.value)}
             placeholder="예: 주형"
-            className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-sm text-stone-900"
+            className="w-full px-3 py-2 sm:py-2.5 rounded-xl border border-stone-300 bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-sm text-stone-900"
           />
         </div>
 
         {/* 탭 1: 방 새로 만들기 (6자리 난수 코드 발급 및 Firestore 저장) */}
         {activeTab === 'CREATE' && (
-          <div className="space-y-5">
+          <div className="space-y-3 sm:space-y-4">
             {!generatedCode ? (
-              <div className="text-center py-4">
-                <p className="text-stone-600 text-xs sm:text-sm font-serif-warm mb-5 leading-relaxed">
+              <div className="text-center py-2 sm:py-3">
+                <p className="text-stone-600 text-xs sm:text-sm font-serif-warm mb-3.5 sm:mb-5 leading-relaxed">
                   방을 생성하면 상대방과 1:1로 매칭할 수 있는<br />
-                  <strong>6자리 비밀 초대코드</strong>가 발급되어 데이터베이스에 안전하게 보관됩니다.
+                  <strong>6자리 비밀 초대코드</strong>가 발급되어 데이터베이스에 보관됩니다.
                 </p>
                 <button
                   type="button"
                   disabled={isLoading}
                   onClick={handleGenerateCode}
-                  className="w-full py-3.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] active:scale-[0.99] text-amber-50 font-serif-warm font-semibold text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="w-full py-3 sm:py-3.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] active:scale-[0.99] text-amber-50 font-serif-warm font-semibold text-xs sm:text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {isLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin text-amber-200" />

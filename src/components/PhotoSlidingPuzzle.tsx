@@ -212,7 +212,7 @@ export default function PhotoSlidingPuzzle({
       <div 
         ref={boardRef}
         onPointerMove={handlePointerMove}
-        className="relative w-64 h-64 sm:w-72 sm:h-72 p-1 bg-[#D8CEBE] rounded-xl border border-[#BFAFA0] shadow-md overflow-hidden"
+        className="relative w-56 h-56 sm:w-64 sm:h-64 p-1 bg-[#D8CEBE] rounded-xl border border-[#BFAFA0] shadow-md overflow-hidden"
       >
         <div className="grid grid-cols-3 grid-rows-3 gap-[1px] w-full h-full bg-[#C2B4A2]">
           {tiles.map((tileNum, currentIdx) => {
@@ -285,7 +285,7 @@ export default function PhotoSlidingPuzzle({
       </div>
 
       {/* 하단 컨트롤러 */}
-      <div className="mt-3 flex items-center justify-between w-64 sm:w-72 text-xs font-sans-ui text-stone-600">
+      <div className="mt-2.5 flex items-center justify-between w-56 sm:w-64 text-xs font-sans-ui text-stone-600">
         <span className="text-stone-500">
           이동: <strong className="font-mono text-stone-800">{moves}</strong>회
         </span>
