@@ -36,7 +36,7 @@ const INITIAL_DIARY: DiaryData = {
     'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=800&q=80',
   ],
   waxColor: '#6B1724' as WaxColor,
-  createdAt: new Date().toISOString(),
+  createdAt: '2026-09-28T21:00:00.000Z',
   mission: {
     type: 'TEXT',
     prompt: '오늘 하루도 정말 고생 많았을 서로에게 20자 이상의 다정한 한 줄 쪽지를 남겨주세요.',
@@ -250,6 +250,7 @@ export default function HomePage() {
         onSaveDiary={handleSaveDiary}
         currentUserName={userName}
         partnerName={partnerName}
+        roomCode={roomCode}
       />
 
       {/* 푸터 */}

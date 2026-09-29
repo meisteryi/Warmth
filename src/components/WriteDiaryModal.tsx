@@ -1,10 +1,23 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WaxColor, WAX_COLORS, MissionData, DiaryData } from '@/types/diary';
 import { soundEngine } from '@/lib/audio';
-import { X, Send, Image as ImageIcon, Sparkles, Feather, HelpCircle } from 'lucide-react';
+import { compressImage, uploadPhotoIfPossible, CompressedImageResult } from '@/lib/imageUtils';
+import { 
+  X, 
+  Send, 
+  Image as ImageIcon, 
+  Sparkles, 
+  Feather, 
+  HelpCircle, 
+  Upload, 
+  Camera, 
+  Check, 
+  Loader2, 
+  Trash2 
+} from 'lucide-react';
 
 interface WriteDiaryModalProps {
   isOpen: boolean;
@@ -12,6 +25,7 @@ interface WriteDiaryModalProps {
   onSaveDiary: (newDiary: Partial<DiaryData>) => void;
   currentUserName: string;
   partnerName: string;
+  roomCode?: string;
 }
 
 export default function WriteDiaryModal({
@@ -20,6 +34,7 @@ export default function WriteDiaryModal({
   onSaveDiary,
   currentUserName,
   partnerName,
+  roomCode = '829104',
 }: WriteDiaryModalProps) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -28,21 +43,60 @@ export default function WriteDiaryModal({
   const [customPrompt, setCustomPrompt] = useState('');
   const [customQuizAnswer, setCustomQuizAnswer] = useState('');
   const [customQuizHint, setCustomQuizHint] = useState('');
-  const [selectedPhoto, setSelectedPhoto] = useState<string>(
-    'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=600&q=80'
-  );
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [uploadedPhotoInfo, setUploadedPhotoInfo] = useState<CompressedImageResult | null>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [photoError, setPhotoError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const samplePhotos = [
-    'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=600&q=80',
-    'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80',
-    'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=600&q=80',
-  ];
+  // 기기 내 사진 파일 선택 시 클라이언트 사이드 압축 처리
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const handleSubmit = (e: React.FormEvent) => {
+    setPhotoError('');
+    setIsCompressing(true);
+    try {
+      // 스마트폰 원본 사진을 1200px / ~150KB 수준으로 즉시 압축 (DB 용량 절약)
+      const compressed = await compressImage(file);
+      setUploadedPhotoInfo(compressed);
+      setSelectedPhoto(compressed.dataUrl);
+      soundEngine.playTileSlideSound();
+    } catch (err) {
+      console.error('Image compression error:', err);
+      alert('사진을 불러오는 중 오류가 발생했습니다. 다른 사진을 선택해주세요.');
+    } finally {
+      setIsCompressing(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !content.trim()) return;
+    if (!title.trim() || !content.trim() || isSubmitting || isCompressing) return;
 
+    // 사진 퍼즐 관문 선택 시 사진 첨부 필수 검증
+    if (missionType === 'PUZZLE_PHOTO' && !selectedPhoto) {
+      setPhotoError('사진 조각 퍼즐 관문을 풀게 하려면 사진을 1장 올려주세요.');
+      return;
+    }
+
+    setIsSubmitting(true);
     soundEngine.playWaxCrackSound();
+
+    let finalPhotoUrl = selectedPhoto;
+
+    // 직접 업로드한 base64 사진인 경우, Storage 업로드 시도 (실패 시 base64 그대로 안전 저장)
+    if (selectedPhoto && selectedPhoto.startsWith('data:')) {
+      try {
+        finalPhotoUrl = await uploadPhotoIfPossible(roomCode, selectedPhoto);
+      } catch (e) {
+        console.warn('Storage upload fallback:', e);
+      }
+    }
 
     let mission: MissionData;
     if (missionType === 'PUZZLE_PHOTO') {
@@ -87,7 +141,7 @@ export default function WriteDiaryModal({
     onSaveDiary({
       title,
       content,
-      photos: [selectedPhoto],
+      photos: finalPhotoUrl ? [finalPhotoUrl] : [],
       waxColor: selectedColor,
       mission,
       authorName: currentUserName,
@@ -96,6 +150,7 @@ export default function WriteDiaryModal({
       isWaxBroken: false,
     });
 
+    setIsSubmitting(false);
     onClose();
   };
 
@@ -159,29 +214,107 @@ export default function WriteDiaryModal({
                 />
               </div>
 
-              {/* 사진 첨부 선택 */}
-              <div>
-                <label className="block text-xs font-sans-ui text-stone-600 mb-1.5 flex items-center gap-1">
-                  <ImageIcon className="w-3.5 h-3.5 text-stone-500" />
-                  <span>오늘의 사진 1장 첨부</span>
-                </label>
-                <div className="flex gap-2.5">
-                  {samplePhotos.map((url, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setSelectedPhoto(url)}
-                      className={`relative w-20 h-16 rounded-lg overflow-hidden border-2 transition-all ${
-                        selectedPhoto === url
-                          ? 'border-[#6B1724] ring-2 ring-[#6B1724]/30 scale-105'
-                          : 'border-stone-200 opacity-60 hover:opacity-90'
-                      }`}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={url} alt="sample" className="w-full h-full object-cover" />
-                    </button>
-                  ))}
+              {/* 사진 첨부 선택 (사용자 기기 직접 업로드) */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-sans-ui text-stone-600 flex items-center gap-1">
+                    <ImageIcon className="w-3.5 h-3.5 text-stone-500" />
+                    <span>오늘의 사진 첨부 (선택)</span>
+                  </label>
+                  {uploadedPhotoInfo && (
+                    <span className="text-[11px] font-mono text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                      직접 업로드됨 ({uploadedPhotoInfo.sizeKb}KB 압축)
+                    </span>
+                  )}
                 </div>
+
+                {/* 숨겨진 파일 인풋 (모바일 카메라/갤러리 대응) */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+
+                {/* 업로드된 사진 미리보기 또는 업로드 버튼 */}
+                {selectedPhoto && uploadedPhotoInfo ? (
+                  <div className="flex items-center gap-3 p-3 bg-[#FAF6EE] rounded-xl border border-[#E0D3C1]">
+                    <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-stone-300 shrink-0 shadow-xs">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={selectedPhoto}
+                        alt="Uploaded"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="text-xs font-serif-warm font-bold text-stone-800 truncate">
+                        {uploadedPhotoInfo.fileName}
+                      </p>
+                      <p className="text-[11px] text-stone-500 font-sans-ui mt-0.5">
+                        {uploadedPhotoInfo.width}×{uploadedPhotoInfo.height}px · {uploadedPhotoInfo.sizeKb}KB로 자동 최적화됨
+                      </p>
+                      <div className="flex items-center gap-2.5 mt-2">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="text-[11px] text-amber-900 font-medium hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Camera className="w-3.5 h-3.5 text-amber-700" />
+                          <span>다른 사진으로 변경</span>
+                        </button>
+                        <span className="text-stone-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUploadedPhotoInfo(null);
+                            setSelectedPhoto(null);
+                          }}
+                          className="text-[11px] text-rose-700 font-medium hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                          <span>사진 삭제</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={isCompressing}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full py-5 px-4 rounded-xl border-2 border-dashed border-[#C4A882] hover:border-[#6B1724] bg-[#FAF6EE]/80 hover:bg-[#F5ECE0] text-stone-700 flex flex-col items-center justify-center gap-1.5 transition-all active:scale-[0.99] group cursor-pointer"
+                  >
+                    {isCompressing ? (
+                      <div className="flex flex-col items-center gap-1.5 py-1">
+                        <Loader2 className="w-6 h-6 text-[#6B1724] animate-spin" />
+                        <span className="text-xs font-serif-warm text-stone-700 font-bold">사진 최적화 압축 중...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="w-10 h-10 rounded-full bg-white shadow-xs border border-[#DECDBB] flex items-center justify-center group-hover:scale-105 transition-transform text-[#6B1724]">
+                          <Upload className="w-5 h-5 stroke-[1.8]" />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-xs font-serif-warm font-bold text-stone-800">
+                            내 앨범이나 카메라에서 사진 올리기
+                          </p>
+                          <p className="text-[11px] text-stone-500 font-sans-ui mt-0.5">
+                            스마트폰 원본 사진을 올려도 용량이 자동으로 최적화됩니다
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {photoError && (
+                  <p className="text-xs text-rose-600 font-sans-ui flex items-center gap-1">
+                    <HelpCircle className="w-3.5 h-3.5" />
+                    <span>{photoError}</span>
+                  </p>
+                )}
               </div>
 
               {/* 실링 왁스 색상 선택 */}
@@ -293,10 +426,20 @@ export default function WriteDiaryModal({
               <div className="pt-3">
                 <button
                   type="submit"
-                  className="w-full py-3.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] active:scale-[0.99] text-amber-50 font-serif-warm font-semibold text-sm shadow-lg transition-all flex items-center justify-center gap-2"
+                  disabled={isSubmitting || isCompressing}
+                  className="w-full py-3.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] active:scale-[0.99] disabled:opacity-50 text-amber-50 font-serif-warm font-semibold text-sm shadow-lg transition-all flex items-center justify-center gap-2"
                 >
-                  <Send className="w-4 h-4 text-amber-200" />
-                  <span>실링 왁스로 꾹 봉인하여 발송하기</span>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 text-amber-200 animate-spin" />
+                      <span>실링 왁스로 봉인 중...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 text-amber-200" />
+                      <span>실링 왁스로 꾹 봉인하여 발송하기</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

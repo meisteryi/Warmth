@@ -37,7 +37,7 @@ export default function OpenedLetter({
           <div className="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-[#EADCCB] text-stone-600 text-xs sm:text-sm font-serif-warm">
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-amber-800" />
-              <span>{new Date(diary.createdAt).toLocaleDateString('ko-KR', {
+              <span suppressHydrationWarning>{new Date(diary.createdAt).toLocaleDateString('ko-KR', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',

@@ -18,10 +18,19 @@ const BOARD_HEIGHT = 455;
 const TARGET_X = (BOARD_WIDTH - STAMP_WIDTH) / 2; // 77px
 const TARGET_Y = 10; // 10px from top
 
-interface TornData {
-  midX: number;
-  midY: number;
-  paths: string[];
+export interface PieceData {
+  id: number;
+  path: string;
+  originX: number;
+  originY: number;
+  width: number;
+  height: number;
+  shapeName: string;
+}
+
+export interface TornData {
+  pieces: PieceData[];
+  patternName: string;
 }
 
 // 찢어진 종이의 거친 섬유와 이빨을 시뮬레이션하는 지그재그 세그먼트 생성
@@ -30,8 +39,8 @@ function generateJaggedSegment(
   y1: number,
   x2: number,
   y2: number,
-  steps: number = 10,
-  maxDev: number = 7
+  steps: number = 8,
+  maxDev: number = 5
 ): [number, number][] {
   const points: [number, number][] = [[x1, y1]];
   const dx = x2 - x1;
@@ -44,8 +53,8 @@ function generateJaggedSegment(
     const t = i / steps;
     const baseTx = x1 + dx * t;
     const baseTy = y1 + dy * t;
-    // 불규칙한 찢김 이빨과 미세 진동
-    const tooth = (i % 2 === 0 ? 1 : -1) * (1.8 + Math.random() * 3.2);
+    // 불규칙한 찢김 이빨과 섬유 진동
+    const tooth = (i % 2 === 0 ? 1 : -1) * (1.6 + Math.random() * 2.8);
     const jitter = (Math.random() - 0.5) * maxDev;
     const offset = tooth + jitter;
     points.push([
@@ -57,65 +66,240 @@ function generateJaggedSegment(
   return points;
 }
 
-// 새로고침이나 재생성 시 매번 무작위로 찢긴 4조각 패스 생성
-function generateTornPaths(stampWidth: number, stampHeight: number): TornData {
-  // 중심 찢김 시작점 (42% ~ 58% 영역 내 무작위)
-  const midX = Math.round(stampWidth * (0.42 + Math.random() * 0.16));
-  const midY = Math.round(stampHeight * (0.42 + Math.random() * 0.16));
+// 다각형 정점 목록으로부터 조각 Bounding Box 및 SVG path 생성
+function pointsToPieceData(
+  id: number,
+  points: [number, number][],
+  shapeName: string,
+  stampWidth: number,
+  stampHeight: number
+): PieceData {
+  const xs = points.map((p) => p[0]);
+  const ys = points.map((p) => p[1]);
 
-  const steps = 8 + Math.floor(Math.random() * 5); // 8 ~ 12개의 이빨
+  const minX = Math.max(0, Math.min(...xs));
+  const maxX = Math.min(stampWidth, Math.max(...xs));
+  const minY = Math.max(0, Math.min(...ys));
+  const maxY = Math.min(stampHeight, Math.max(...ys));
 
-  // 상단에서 중앙
-  const topToCenter = generateJaggedSegment(midX, 0, midX, midY, steps, 6);
-  // 중앙에서 하단
-  const centerToBottom = generateJaggedSegment(midX, midY, midX, stampHeight, steps, 6);
-  // 좌측에서 중앙
-  const leftToCenter = generateJaggedSegment(0, midY, midX, midY, steps, 6);
-  // 중앙에서 우측
-  const centerToRight = generateJaggedSegment(midX, midY, stampWidth, midY, steps, 6);
+  const originX = Math.floor(minX);
+  const originY = Math.floor(minY);
+  const width = Math.max(30, Math.ceil(maxX - minX));
+  const height = Math.max(30, Math.ceil(maxY - minY));
 
-  // 1. 좌상단 조각 (Top-Left)
-  const p0 = [
-    'M 0,0',
-    ...topToCenter.map(([x, y]) => `L ${x},${y}`),
-    ...leftToCenter.slice().reverse().map(([x, y]) => `L ${x},${y}`),
-    'Z',
-  ].join(' ');
-
-  // 2. 우상단 조각 (Top-Right)
-  const p1 = [
-    `M ${topToCenter[0][0]},0`,
-    `L ${stampWidth},0`,
-    `L ${centerToRight[centerToRight.length - 1][0]},${centerToRight[centerToRight.length - 1][1]}`,
-    ...centerToRight.slice().reverse().map(([x, y]) => `L ${x},${y}`),
-    ...topToCenter.slice().reverse().map(([x, y]) => `L ${x},${y}`),
-    'Z',
-  ].join(' ');
-
-  // 3. 좌하단 조각 (Bottom-Left)
-  const p2 = [
-    `M 0,${leftToCenter[0][1]}`,
-    ...leftToCenter.slice(1).map(([x, y]) => `L ${x},${y}`),
-    ...centerToBottom.slice(1).map(([x, y]) => `L ${x},${y}`),
-    `L 0,${stampHeight}`,
-    'Z',
-  ].join(' ');
-
-  // 4. 우하단 조각 (Bottom-Right)
-  const p3 = [
-    `M ${midX},${midY}`,
-    ...centerToRight.slice(1).map(([x, y]) => `L ${x},${y}`),
-    `L ${stampWidth},${stampHeight}`,
-    `L ${centerToBottom[centerToBottom.length - 1][0]},${stampHeight}`,
-    ...centerToBottom.slice().reverse().map(([x, y]) => `L ${x},${y}`),
-    'Z',
-  ].join(' ');
+  const path = points.map(([x, y], i) => (i === 0 ? `M ${x},${y}` : `L ${x},${y}`)).join(' ') + ' Z';
 
   return {
-    midX,
-    midY,
-    paths: [p0, p1, p2, p3],
+    id,
+    path,
+    originX,
+    originY,
+    width,
+    height,
+    shapeName,
   };
+}
+
+// 1. 대각선 삼각 & 오각 분할 (Triangle & Pentagon Cut)
+function generateDiagonalTriPent(W: number, H: number): TornData {
+  const x1 = Math.round(W * (0.52 + Math.random() * 0.16));
+  const y1 = Math.round(H * (0.46 + Math.random() * 0.16));
+  const cutTL = generateJaggedSegment(x1, 0, 0, y1, 8, 5);
+
+  const mIdx = Math.floor(cutTL.length / 2);
+  const midTL = cutTL[mIdx];
+
+  const x2 = Math.round(W * (0.36 + Math.random() * 0.22));
+  const y2 = Math.round(H * (0.42 + Math.random() * 0.22));
+  const centerPt: [number, number] = [Math.round(W * 0.50), Math.round(H * 0.50)];
+
+  const cutMidC = generateJaggedSegment(midTL[0], midTL[1], centerPt[0], centerPt[1], 5, 4);
+  const cutCB = generateJaggedSegment(centerPt[0], centerPt[1], x2, H, 6, 5);
+  const cutCR = generateJaggedSegment(centerPt[0], centerPt[1], W, y2, 6, 5);
+
+  // 0. 좌상단 삼각형 (Top-Left Triangle: [0,0], [x1,0], [0,y1])
+  const pts0: [number, number][] = [
+    [0, 0],
+    [x1, 0],
+    ...cutTL.slice(1),
+    [0, 0],
+  ];
+
+  // 1. 우상단 오각형 (Top-Right Pentagon: 5 vertices)
+  const pts1: [number, number][] = [
+    [x1, 0],
+    [W, 0],
+    [W, y2],
+    ...cutCR.slice().reverse(),
+    ...cutMidC.slice().reverse(),
+    ...cutTL.slice(0, mIdx + 1).reverse(),
+  ];
+
+  // 2. 좌하단 오각형 (Bottom-Left Pentagon: 5 vertices)
+  const pts2: [number, number][] = [
+    [0, y1],
+    ...cutTL.slice(mIdx),
+    ...cutMidC.slice(1),
+    ...cutCB.slice(1),
+    [0, H],
+    [0, y1],
+  ];
+
+  // 3. 우하단 사변형 다각형 (Bottom-Right Quad/Polygon)
+  const pts3: [number, number][] = [
+    centerPt,
+    ...cutCR.slice(1),
+    [W, H],
+    [x2, H],
+    ...cutCB.slice().reverse(),
+  ];
+
+  return {
+    patternName: '대각선 삼각·오각 분할',
+    pieces: [
+      pointsToPieceData(0, pts0, '삼각형', W, H),
+      pointsToPieceData(1, pts1, '오각형', W, H),
+      pointsToPieceData(2, pts2, '오각형', W, H),
+      pointsToPieceData(3, pts3, '사변형', W, H),
+    ],
+  };
+}
+
+// 2. X자 사선 4중 삼각 분할 (Four Triangles Cut)
+function generateFourTriangles(W: number, H: number): TornData {
+  const C: [number, number] = [
+    Math.round(W * (0.44 + Math.random() * 0.12)),
+    Math.round(H * (0.44 + Math.random() * 0.12)),
+  ];
+
+  const cTL = generateJaggedSegment(C[0], C[1], 0, 0, 8, 5);
+  const cTR = generateJaggedSegment(C[0], C[1], W, 0, 8, 5);
+  const cBR = generateJaggedSegment(C[0], C[1], W, H, 8, 5);
+  const cBL = generateJaggedSegment(C[0], C[1], 0, H, 8, 5);
+
+  // 0. 상단 삼각형 (Top Triangle)
+  const pts0: [number, number][] = [C, ...cTL.slice(1), [W, 0], ...cTR.slice().reverse()];
+  // 1. 우측 삼각형 (Right Triangle)
+  const pts1: [number, number][] = [C, ...cTR.slice(1), [W, H], ...cBR.slice().reverse()];
+  // 2. 하단 삼각형 (Bottom Triangle)
+  const pts2: [number, number][] = [C, ...cBR.slice(1), [0, H], ...cBL.slice().reverse()];
+  // 3. 좌측 삼각형 (Left Triangle)
+  const pts3: [number, number][] = [C, ...cBL.slice(1), [0, 0], ...cTL.slice().reverse()];
+
+  return {
+    patternName: 'X자 사선 4각 삼각 찢김',
+    pieces: [
+      pointsToPieceData(0, pts0, '삼각형', W, H),
+      pointsToPieceData(1, pts1, '삼각형', W, H),
+      pointsToPieceData(2, pts2, '삼각형', W, H),
+      pointsToPieceData(3, pts3, '삼각형', W, H),
+    ],
+  };
+}
+
+// 3. 쐐기형 사선 삼각 & 오각 분할 (Wedge Triangle & Pentagon Cut)
+function generateWedgeTriPent(W: number, H: number): TornData {
+  const xT = Math.round(W * (0.35 + Math.random() * 0.15));
+  const xB = Math.round(W * (0.58 + Math.random() * 0.16));
+  const M: [number, number] = [Math.round(W * 0.48), Math.round(H * 0.50)];
+
+  const cutTM = generateJaggedSegment(xT, 0, M[0], M[1], 6, 5);
+  const cutMB = generateJaggedSegment(M[0], M[1], xB, H, 6, 5);
+
+  const yR = Math.round(H * (0.32 + Math.random() * 0.18));
+  const yL = Math.round(H * (0.58 + Math.random() * 0.18));
+  const cutMR = generateJaggedSegment(M[0], M[1], W, yR, 6, 5);
+  const cutML = generateJaggedSegment(M[0], M[1], 0, yL, 6, 5);
+
+  // 0. 좌상단 사변형 (Top-Left Quad)
+  const pts0: [number, number][] = [
+    [0, 0],
+    [xT, 0],
+    ...cutTM.slice(1),
+    ...cutML.slice().reverse(),
+    [0, 0],
+  ];
+
+  // 1. 우상단 오각형 (Top-Right Pentagon)
+  const pts1: [number, number][] = [
+    [xT, 0],
+    [W, 0],
+    [W, yR],
+    ...cutMR.slice().reverse(),
+    ...cutTM.slice().reverse(),
+  ];
+
+  // 2. 좌하단 삼각형 (Bottom-Left Triangle: [0, yL], M, [0, H])
+  const pts2: [number, number][] = [
+    [0, yL],
+    ...cutML.slice().reverse(),
+    ...cutMB.slice(1),
+    [0, H],
+    [0, yL],
+  ];
+
+  // 3. 우하단 오각형 (Bottom-Right Pentagon)
+  const pts3: [number, number][] = [
+    M,
+    ...cutMR.slice(1),
+    [W, H],
+    [xB, H],
+    ...cutMB.slice().reverse(),
+  ];
+
+  return {
+    patternName: '사선 쐐기형 삼각·오각 분할',
+    pieces: [
+      pointsToPieceData(0, pts0, '사변형', W, H),
+      pointsToPieceData(1, pts1, '오각형', W, H),
+      pointsToPieceData(2, pts2, '삼각형', W, H),
+      pointsToPieceData(3, pts3, '오각형', W, H),
+    ],
+  };
+}
+
+// 4. 비정형 다각 찢김 (Irregular Asymmetric Multi-angle Cut)
+function generateIrregularPattern(W: number, H: number): TornData {
+  const midX = Math.round(W * (0.42 + Math.random() * 0.18));
+  const midY = Math.round(H * (0.42 + Math.random() * 0.18));
+  const C: [number, number] = [midX, midY];
+
+  const xTop = Math.round(W * (0.35 + Math.random() * 0.30));
+  const yRight = Math.round(H * (0.35 + Math.random() * 0.30));
+  const xBottom = Math.round(W * (0.35 + Math.random() * 0.30));
+  const yLeft = Math.round(H * (0.35 + Math.random() * 0.30));
+
+  const cTop = generateJaggedSegment(xTop, 0, C[0], C[1], 7, 5);
+  const cRight = generateJaggedSegment(C[0], C[1], W, yRight, 7, 5);
+  const cBottom = generateJaggedSegment(C[0], C[1], xBottom, H, 7, 5);
+  const cLeft = generateJaggedSegment(0, yLeft, C[0], C[1], 7, 5);
+
+  const pts0: [number, number][] = [[0, 0], [xTop, 0], ...cTop.slice(1), ...cLeft.slice().reverse(), [0, 0]];
+  const pts1: [number, number][] = [[xTop, 0], [W, 0], [W, yRight], ...cRight.slice().reverse(), ...cTop.slice().reverse()];
+  const pts2: [number, number][] = [[0, yLeft], ...cLeft.slice(1), ...cBottom.slice(1), [0, H], [0, yLeft]];
+  const pts3: [number, number][] = [C, ...cRight.slice(1), [W, H], [xBottom, H], ...cBottom.slice().reverse()];
+
+  return {
+    patternName: '비정형 다각 찢김',
+    pieces: [
+      pointsToPieceData(0, pts0, '비정형 사각', W, H),
+      pointsToPieceData(1, pts1, '오각형', W, H),
+      pointsToPieceData(2, pts2, '오각형', W, H),
+      pointsToPieceData(3, pts3, '사변형', W, H),
+    ],
+  };
+}
+
+// 새로고침이나 재생성 시 매번 무작위 형태(삼각형, 오각형, 비정형 등)로 찢음
+function generateTornPaths(stampWidth: number, stampHeight: number): TornData {
+  const generators = [
+    generateDiagonalTriPent,
+    generateFourTriangles,
+    generateWedgeTriPent,
+    generateIrregularPattern,
+  ];
+  const chosenGen = generators[Math.floor(Math.random() * generators.length)];
+  return chosenGen(stampWidth, stampHeight);
 }
 
 // 앤틱 대형 우표 원본 그래픽 SVG 컴포넌트
@@ -388,33 +572,30 @@ export default function StampJigsawPuzzle({
 
   if (!tornData) return null;
 
-  const { midX, midY } = tornData;
-
-  // 4개 조각 각각의 고유 크기 및 원점 정보
-  const pieceMeta = [
-    { width: midX, height: midY, originX: 0, originY: 0 }, // 0: 좌상단
-    { width: STAMP_WIDTH - midX, height: midY, originX: midX, originY: 0 }, // 1: 우상단
-    { width: midX, height: STAMP_HEIGHT - midY, originX: 0, originY: midY }, // 2: 좌하단
-    { width: STAMP_WIDTH - midX, height: STAMP_HEIGHT - midY, originX: midX, originY: midY }, // 3: 우하단
-  ];
-
-  // 4개 조각이 작업대(하단 2x2)에서 화면 밖으로 절대 나가지 않고 서로 겹치지 않는 시작 위치 (모바일 308px 최적화)
-  const initialPositions = [
-    { x: 18, y: 228 }, // 0: 작업대 좌상단
-    { x: 168, y: 228 }, // 1: 작업대 우상단
-    { x: 18, y: 338 }, // 2: 작업대 좌하단
-    { x: 168, y: 338 }, // 3: 작업대 우하단
-  ];
+  // 4개 조각이 작업대(하단 2x2)에서 화면 밖으로 절대 나가지 않고 서로 겹치지 않는 동적 시작 위치
+  const initialPositions = tornData.pieces.map((piece, idx) => {
+    const qX = idx % 2 === 0 ? 14 : 160;
+    const qY = idx < 2 ? 228 : 340;
+    const qW = 134;
+    const qH = 104;
+    return {
+      x: Math.max(10, Math.min(BOARD_WIDTH - piece.width - 10, qX + Math.round((qW - piece.width) / 2))),
+      y: Math.max(226, Math.min(BOARD_HEIGHT - piece.height - 10, qY + Math.round((qH - piece.height) / 2))),
+    };
+  });
 
   return (
     <div className="flex flex-col items-center select-none w-full max-w-sm mx-auto touch-none">
-      {/* 가이드 안내 (스포일러 없이 직관적인 퍼즐 규칙 안내) */}
+      {/* 가이드 안내 (스포일러 없이 직관적인 퍼즐 규칙 안내 & 현재 찢김 형태 안내) */}
       <div className="text-center mb-2">
-        <p className="text-stone-800 font-serif-warm text-sm font-semibold flex items-center justify-center gap-1.5">
+        <p className="text-stone-800 font-serif-warm text-sm font-semibold flex items-center justify-center gap-1.5 flex-wrap">
           <span>📮 찢어진 우표 조각 맞추기</span>
+          <span className="text-[10px] font-sans-ui text-amber-900 bg-amber-100/90 px-2 py-0.5 rounded-full border border-amber-300 font-normal">
+            {tornData.patternName}
+          </span>
         </p>
         <p className="text-[11px] text-stone-600 font-sans-ui mt-0.5 flex items-center justify-center gap-1">
-          <Hand className="w-3.5 h-3.5 text-amber-700" />
+          <Hand className="w-3.5 h-3.5 text-amber-700 shrink-0" />
           <span>조각의 <strong>[🔄]</strong>로 회전시켜 맞는 방향을 찾은 뒤, <strong>우표 틀의 제자리로 끌어다</strong> 맞추세요!</span>
         </p>
       </div>
@@ -444,8 +625,8 @@ export default function StampJigsawPuzzle({
             {snapped.some((s) => s) ? '' : '우표 틀에 조각을 맞춰 넣으세요'}
           </div>
 
-          {/* 4개의 결합 슬롯 (각 슬롯의 위치에 맞춰 정확히 결합) */}
-          {pieceMeta.map((meta, idx) => (
+          {/* 4개의 결합 슬롯 (삼각형/오각형 등 각 조각의 위치에 맞춰 정확히 결합) */}
+          {tornData.pieces.map((piece, idx) => (
             <div
               key={`target-slot-${idx}`}
               ref={(el) => {
@@ -453,10 +634,10 @@ export default function StampJigsawPuzzle({
               }}
               className="absolute"
               style={{
-                left: meta.originX,
-                top: meta.originY,
-                width: meta.width,
-                height: meta.height,
+                left: piece.originX,
+                top: piece.originY,
+                width: piece.width,
+                height: piece.height,
               }}
             >
               {snapped[idx] && (
@@ -469,17 +650,17 @@ export default function StampJigsawPuzzle({
                   <div
                     style={{
                       position: 'absolute',
-                      left: -meta.originX,
-                      top: -meta.originY,
+                      left: -piece.originX,
+                      top: -piece.originY,
                       width: STAMP_WIDTH,
                       height: STAMP_HEIGHT,
-                      clipPath: `path('${tornData.paths[idx]}')`,
+                      clipPath: `path('${piece.path}')`,
                     }}
                   >
                     <LargeStampArt partnerName={partnerName} />
                     <svg className="absolute inset-0 w-full h-full pointer-events-none">
                       <path
-                        d={tornData.paths[idx]}
+                        d={piece.path}
                         fill="none"
                         stroke="#FFFDF9"
                         strokeWidth="1.2"
@@ -531,8 +712,8 @@ export default function StampJigsawPuzzle({
           <div className="h-px flex-1 bg-stone-400 border-t border-dashed border-stone-500" />
         </div>
 
-        {/* 4개의 직접 손으로 움직이고 조각 자체 중심으로 회전하는 찢어진 조각들 */}
-        {pieceMeta.map((meta, idx) => {
+        {/* 4개의 직접 손으로 움직이고 조각 자체 중심으로 회전하는 찢어진 조각들 (삼각/오각/다각) */}
+        {tornData.pieces.map((piece, idx) => {
           if (snapped[idx]) return null;
 
           const rot = rotations[idx];
@@ -556,8 +737,8 @@ export default function StampJigsawPuzzle({
                 position: 'absolute',
                 left: initialPositions[idx].x,
                 top: initialPositions[idx].y,
-                width: meta.width,
-                height: meta.height,
+                width: piece.width,
+                height: piece.height,
                 transformOrigin: 'center center', // ★ 조각 고유의 중심을 축으로 제자리 회전!
                 zIndex: isCurrentActive ? 40 : 20 + idx,
                 cursor: 'grab',
@@ -574,18 +755,18 @@ export default function StampJigsawPuzzle({
                 <div
                   style={{
                     position: 'absolute',
-                    left: -meta.originX,
-                    top: -meta.originY,
+                    left: -piece.originX,
+                    top: -piece.originY,
                     width: STAMP_WIDTH,
                     height: STAMP_HEIGHT,
-                    clipPath: `path('${tornData.paths[idx]}')`,
+                    clipPath: `path('${piece.path}')`,
                   }}
                 >
                   <LargeStampArt partnerName={partnerName} />
                   {/* 찢긴 종이 흰색 섬유 질감 테두리 */}
                   <svg className="absolute inset-0 w-full h-full pointer-events-none">
                     <path
-                      d={tornData.paths[idx]}
+                      d={piece.path}
                       fill="none"
                       stroke="#FFFDF9"
                       strokeWidth="1.8"
