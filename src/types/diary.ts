@@ -69,6 +69,13 @@ export interface DiaryData {
   openedAt?: string | null;
 }
 
+export interface KnockData {
+  senderUid: string;
+  senderName: string;
+  message: string;
+  knockedAt: string;
+}
+
 export interface RoomData {
   roomId: string;
   roomCode: string;
@@ -82,4 +89,6 @@ export interface RoomData {
     };
   };
   latestDiary?: DiaryData;
+  latestKnock?: KnockData | null;
 }
+

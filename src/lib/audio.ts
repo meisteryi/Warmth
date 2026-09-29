@@ -293,6 +293,52 @@ class SoundEngine {
       // ignore
     }
   }
+
+  // 7. 은은한 풍경 종소리 노크음 (Gentle wind chime bell for partner knock)
+  public playWindChimeKnock() {
+    try {
+      this.initCtx();
+      if (!this.ctx) return;
+
+      const now = this.ctx.currentTime;
+      // 은은한 오리엔탈/유러피안 풍경 종소리 (Pentatonic Chime: E5, B5, E6, F#6, B6)
+      const notes = [
+        { freq: 659.25, time: 0.0, gain: 0.15, duration: 1.8 },
+        { freq: 987.77, time: 0.12, gain: 0.13, duration: 2.0 },
+        { freq: 1318.51, time: 0.28, gain: 0.11, duration: 2.2 },
+        { freq: 1479.98, time: 0.45, gain: 0.09, duration: 2.4 },
+        { freq: 1975.53, time: 0.62, gain: 0.07, duration: 2.6 },
+      ];
+
+      notes.forEach((note) => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        // 맑고 투명한 사인파 종소리
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(note.freq, now + note.time);
+
+        gain.gain.setValueAtTime(0.001, now + note.time);
+        gain.gain.linearRampToValueAtTime(note.gain, now + note.time + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + note.time + note.duration);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now + note.time);
+        osc.stop(now + note.time + note.duration);
+      });
+
+      if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+        try {
+          navigator.vibrate([30, 80, 40]);
+        } catch {}
+      }
+    } catch {
+      // ignore
+    }
+  }
 }
 
 export const soundEngine = new SoundEngine();

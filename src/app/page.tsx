@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import RoomHeader from '@/components/RoomHeader';
 import OnboardingView from '@/components/OnboardingView';
 import Envelope from '@/components/Envelope';
@@ -8,12 +8,16 @@ import MissionModal from '@/components/MissionModal';
 import OpenedLetter from '@/components/OpenedLetter';
 import WaitingLetter from '@/components/WaitingLetter';
 import WriteDiaryModal from '@/components/WriteDiaryModal';
-import { DiaryData, UIState, WaxColor } from '@/types/diary';
+import KnockNotificationModal from '@/components/KnockNotificationModal';
+import { DiaryData, KnockData, UIState, WaxColor } from '@/types/diary';
 import { soundEngine } from '@/lib/audio';
 import { 
   saveDiaryToFirestore, 
   updateMissionInFirestore, 
-  unsealDiaryInFirestore 
+  unsealDiaryInFirestore,
+  sendKnockInFirestore,
+  subscribeRoom,
+  getOrCreateUserId
 } from '@/lib/roomService';
 
 // 초기 PRD 스펙 기반 일기 데이터
@@ -59,10 +63,41 @@ export default function HomePage() {
   const [isWriteModalOpen, setIsWriteModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // 실시간 노크 수신 상태
+  const [receivedKnock, setReceivedKnock] = useState<KnockData | null>(null);
+  const [isKnockModalOpen, setIsKnockModalOpen] = useState(false);
+  const handledKnockTimeRef = useRef<string | null>(null);
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
+
+  // 실시간 Firestore 룸 구독 (상대방의 노크 감지 및 실시간 상태 동기화)
+  useEffect(() => {
+    if (!roomCode) return;
+    const myUid = getOrCreateUserId();
+
+    const unsubscribe = subscribeRoom(roomCode, (room) => {
+      // 1. 방에 상대방이 보낸 새 노크가 있는지 실시간 감지
+      if (room.latestKnock) {
+        const knock = room.latestKnock;
+        const isFromPartner = knock.senderUid !== myUid;
+        const isNewKnock = knock.knockedAt !== handledKnockTimeRef.current;
+        // 10분 이내의 노크만 활성화
+        const isRecent = Date.now() - new Date(knock.knockedAt).getTime() < 10 * 60 * 1000;
+
+        if (isFromPartner && isNewKnock && isRecent) {
+          handledKnockTimeRef.current = knock.knockedAt;
+          soundEngine.playWindChimeKnock();
+          setReceivedKnock(knock);
+          setIsKnockModalOpen(true);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [roomCode]);
 
   // 0. 초대코드 매칭 완료 처리
   const handleMatched = (code: string, me: string, partner: string) => {
@@ -139,6 +174,17 @@ export default function HomePage() {
     }
   };
 
+  // 4. 노크 보내기 처리 (Firestore에 기록하여 상대방에게 실시간 인앱 노크 전송)
+  const handleSendKnock = async (message: string) => {
+    try {
+      await sendKnockInFirestore(roomCode, userName, message);
+      showToast(`🔔 ${partnerName} 님에게 은은한 노크를 전했습니다.`);
+    } catch (e) {
+      console.warn('Firestore knock sync:', e);
+      showToast(`🔔 ${partnerName} 님에게 은은한 노크를 전했습니다.`);
+    }
+  };
+
   // 상태 수동 전환 시 일관성 유지
   const handleSelectState = (nextState: UIState) => {
     setUiState(nextState);
@@ -200,7 +246,7 @@ export default function HomePage() {
         {uiState === 'VIEW_WAITING' && (
           <WaitingLetter
             partnerName={partnerName}
-            onSendKnock={() => showToast(`🔔 ${partnerName} 님에게 은은한 노크 알림을 보냈습니다.`)}
+            onSendKnock={handleSendKnock}
           />
         )}
 
@@ -232,6 +278,14 @@ export default function HomePage() {
           />
         )}
       </main>
+
+      {/* 실시간 인앱 노크 도착 알림 팝업 모달 */}
+      <KnockNotificationModal
+        isOpen={isKnockModalOpen}
+        knock={receivedKnock}
+        onClose={() => setIsKnockModalOpen(false)}
+        onWriteDiary={() => setIsWriteModalOpen(true)}
+      />
 
       {/* 미션 수행 팝업 모달 */}
       <MissionModal

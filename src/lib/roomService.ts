@@ -173,3 +173,23 @@ export async function unsealDiaryInFirestore(
     openedAt: new Date().toISOString(),
   });
 }
+
+// 7. 상대방에게 은은한 노크 전송 (Firestore rooms/{roomCode}에 latestKnock 기록)
+export async function sendKnockInFirestore(
+  roomCode: string,
+  senderName: string,
+  message?: string
+): Promise<void> {
+  const myUid = getOrCreateUserId();
+  const roomRef = doc(db, 'rooms', roomCode);
+  await updateDoc(roomRef, {
+    latestKnock: {
+      senderUid: myUid,
+      senderName: senderName || '주형',
+      message: message || '오늘의 교환일기를 기다리고 있어요 ✉️',
+      knockedAt: new Date().toISOString(),
+    },
+    updatedAt: serverTimestamp(),
+  });
+}
+
