@@ -84,11 +84,11 @@ export async function compressImage(
 }
 
 /**
- * Firebase Storage 업로드 시도 (실패하거나 설정 미비 시 압축된 dataUrl 그대로 안전 반환)
+ * Firebase Storage 업로드 시도 (1.5초 타임아웃 적용하여 무한 대기 방지, 실패 시 즉시 초경량 압축 dataUrl 반환)
  */
 export async function uploadPhotoIfPossible(roomCode: string, dataUrl: string): Promise<string> {
   // 이미 일반 웹 URL(Unsplash 등)인 경우 그대로 반환
-  if (!dataUrl.startsWith('data:')) {
+  if (!dataUrl || !dataUrl.startsWith('data:')) {
     return dataUrl;
   }
 
@@ -96,9 +96,18 @@ export async function uploadPhotoIfPossible(roomCode: string, dataUrl: string): 
     if (!storage) return dataUrl;
     const photoId = 'photo_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
     const storageRef = ref(storage, `rooms/${roomCode}/photos/${photoId}.jpg`);
-    await uploadString(storageRef, dataUrl, 'data_url');
-    const downloadUrl = await getDownloadURL(storageRef);
-    return downloadUrl;
+
+    const uploadTask = (async () => {
+      await uploadString(storageRef, dataUrl, 'data_url');
+      return await getDownloadURL(storageRef);
+    })();
+
+    // 1.5초 타임아웃: 스토리지 권한 오류나 재시도로 무한 대기하는 현상을 완벽 차단
+    const timeoutTask = new Promise<string>((_, reject) =>
+      setTimeout(() => reject(new Error('Storage upload timeout')), 1500)
+    );
+
+    return await Promise.race([uploadTask, timeoutTask]);
   } catch (error) {
     console.warn('Firebase Storage upload notice (falling back to compressed dataURL):', error);
     return dataUrl;

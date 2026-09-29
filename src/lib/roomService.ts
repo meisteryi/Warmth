@@ -161,13 +161,19 @@ export async function saveDiaryToFirestore(
     createdAt: new Date().toISOString(),
   });
 
-  // 방 최신 일기 ID 업데이트 및 턴 넘기기
+  // 방 최신 일기 ID 업데이트 및 턴 넘기기 (방 문서가 없어도 안전하게 merge 생성)
   const roomRef = doc(db, 'rooms', roomCode);
-  await updateDoc(roomRef, {
-    latestDiaryId: diary.diaryId,
-    currentTurn: diary.recipientId,
-    updatedAt: serverTimestamp(),
-  });
+  await setDoc(
+    roomRef,
+    {
+      roomId: roomCode,
+      roomCode: roomCode,
+      latestDiaryId: diary.diaryId,
+      currentTurn: diary.recipientId || 'partner',
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
 }
 
 // 5. 미션 통과 업데이트

@@ -85,73 +85,93 @@ export default function WriteDiaryModal({
     }
 
     setIsSubmitting(true);
-    soundEngine.playWaxCrackSound();
-
-    let finalPhotoUrl = selectedPhoto;
-
-    // 직접 업로드한 base64 사진인 경우, Storage 업로드 시도 (실패 시 base64 그대로 안전 저장)
-    if (selectedPhoto && selectedPhoto.startsWith('data:')) {
+    try {
       try {
-        finalPhotoUrl = await uploadPhotoIfPossible(roomCode, selectedPhoto);
-      } catch (e) {
-        console.warn('Storage upload fallback:', e);
+        soundEngine.playWaxCrackSound();
+      } catch (audioErr) {
+        console.warn('Audio notice:', audioErr);
       }
+
+      let finalPhotoUrl = selectedPhoto;
+
+      // 직접 업로드한 base64 사진인 경우, Storage 업로드 시도 (실패 시 base64 그대로 안전 저장)
+      if (selectedPhoto && selectedPhoto.startsWith('data:')) {
+        try {
+          finalPhotoUrl = await uploadPhotoIfPossible(roomCode, selectedPhoto);
+        } catch (e) {
+          console.warn('Storage upload fallback:', e);
+        }
+      }
+
+      let mission: MissionData;
+      if (missionType === 'PUZZLE_PHOTO') {
+        mission = {
+          type: 'PUZZLE_PHOTO',
+          prompt: `${partnerName} 님이 남긴 오늘의 한 컷 조각 퍼즐 맞추기`,
+          quizAnswer: null,
+          isCustom: false,
+          submission: null,
+          isPassed: false,
+        };
+      } else if (missionType === 'PUZZLE_STAMP') {
+        mission = {
+          type: 'PUZZLE_STAMP',
+          prompt: '편지 봉투의 빈티지 우표 조각 4개를 맞추고 소인 찍기',
+          quizAnswer: null,
+          isCustom: false,
+          submission: null,
+          isPassed: false,
+        };
+      } else if (missionType === 'CUSTOM') {
+        mission = {
+          type: 'QUIZ',
+          prompt: customPrompt || '내가 오늘 가장 맛있게 먹었던 음식은 무엇일까요?',
+          quizAnswer: customQuizAnswer || '된장찌개',
+          quizHint: customQuizHint || '구수한 국물 요리야!',
+          isCustom: true,
+          submission: null,
+          isPassed: false,
+        };
+      } else {
+        mission = {
+          type: 'TEXT',
+          prompt: '오늘 고생한 나 또는 서로에게 다정한 한 줄 응원을 남겨주세요 (10자 이상)',
+          quizAnswer: null,
+          isCustom: false,
+          submission: null,
+          isPassed: false,
+        };
+      }
+
+      onSaveDiary({
+        title,
+        content,
+        photos: finalPhotoUrl ? [finalPhotoUrl] : [],
+        waxColor: selectedColor,
+        mission,
+        authorName: currentUserName,
+        recipientName: partnerName,
+        createdAt: new Date().toISOString(),
+        isWaxBroken: false,
+      });
+
+      // 입력 폼 초기화
+      setTitle('');
+      setContent('');
+      setSelectedPhoto(null);
+      setUploadedPhotoInfo(null);
+      setPhotoError('');
+      setCustomPrompt('');
+      setCustomQuizAnswer('');
+      setCustomQuizHint('');
+
+      onClose();
+    } catch (err) {
+      console.error('Failed to save diary:', err);
+      onClose();
+    } finally {
+      setIsSubmitting(false);
     }
-
-    let mission: MissionData;
-    if (missionType === 'PUZZLE_PHOTO') {
-      mission = {
-        type: 'PUZZLE_PHOTO',
-        prompt: `${partnerName} 님이 남긴 오늘의 한 컷 조각 퍼즐 맞추기`,
-        quizAnswer: null,
-        isCustom: false,
-        submission: null,
-        isPassed: false,
-      };
-    } else if (missionType === 'PUZZLE_STAMP') {
-      mission = {
-        type: 'PUZZLE_STAMP',
-        prompt: '편지 봉투의 빈티지 우표 조각 4개를 맞추고 소인 찍기',
-        quizAnswer: null,
-        isCustom: false,
-        submission: null,
-        isPassed: false,
-      };
-    } else if (missionType === 'CUSTOM') {
-      mission = {
-        type: 'QUIZ',
-        prompt: customPrompt || '내가 오늘 가장 맛있게 먹었던 음식은 무엇일까요?',
-        quizAnswer: customQuizAnswer || '된장찌개',
-        quizHint: customQuizHint || '구수한 국물 요리야!',
-        isCustom: true,
-        submission: null,
-        isPassed: false,
-      };
-    } else {
-      mission = {
-        type: 'TEXT',
-        prompt: '오늘 고생한 나 또는 서로에게 다정한 한 줄 응원을 남겨주세요 (10자 이상)',
-        quizAnswer: null,
-        isCustom: false,
-        submission: null,
-        isPassed: false,
-      };
-    }
-
-    onSaveDiary({
-      title,
-      content,
-      photos: finalPhotoUrl ? [finalPhotoUrl] : [],
-      waxColor: selectedColor,
-      mission,
-      authorName: currentUserName,
-      recipientName: partnerName,
-      createdAt: new Date().toISOString(),
-      isWaxBroken: false,
-    });
-
-    setIsSubmitting(false);
-    onClose();
   };
 
   return (
