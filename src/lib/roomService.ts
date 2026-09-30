@@ -7,6 +7,7 @@ import {
   collection, 
   onSnapshot, 
   serverTimestamp,
+  runTransaction,
   Unsubscribe 
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -43,6 +44,51 @@ export async function getOrFetchRoomSalt(roomCode: string): Promise<string | und
     console.warn('Failed to fetch roomSalt:', e);
   }
   return undefined;
+}
+
+// ===============================================================
+// 클라이언트 브루트포스 스캐닝 방지용 레이트 리미터 (MEDIUM 3.2)
+// 5회 연속 실패 시 30초간 코드 입력 잠금
+// ===============================================================
+const RATE_LIMIT_KEY_ATTEMPTS = 'warmth_join_failed_count';
+const RATE_LIMIT_KEY_LOCKOUT = 'warmth_join_lockout_until';
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 30 * 1000; // 30초 쿨다운
+
+export function checkJoinRateLimit(): { isBlocked: boolean; remainingSec: number } {
+  if (typeof window === 'undefined') return { isBlocked: false, remainingSec: 0 };
+  const lockoutUntilStr = sessionStorage.getItem(RATE_LIMIT_KEY_LOCKOUT);
+  if (lockoutUntilStr) {
+    const lockoutUntil = parseInt(lockoutUntilStr, 10);
+    const now = Date.now();
+    if (now < lockoutUntil) {
+      const remainingSec = Math.ceil((lockoutUntil - now) / 1000);
+      return { isBlocked: true, remainingSec };
+    } else {
+      sessionStorage.removeItem(RATE_LIMIT_KEY_LOCKOUT);
+      sessionStorage.setItem(RATE_LIMIT_KEY_ATTEMPTS, '0');
+    }
+  }
+  return { isBlocked: false, remainingSec: 0 };
+}
+
+export function recordFailedJoinAttempt(): { isNowBlocked: boolean; remainingSec: number } {
+  if (typeof window === 'undefined') return { isNowBlocked: false, remainingSec: 0 };
+  const count = parseInt(sessionStorage.getItem(RATE_LIMIT_KEY_ATTEMPTS) || '0', 10) + 1;
+  sessionStorage.setItem(RATE_LIMIT_KEY_ATTEMPTS, count.toString());
+
+  if (count >= MAX_FAILED_ATTEMPTS) {
+    const lockoutUntil = Date.now() + LOCKOUT_DURATION_MS;
+    sessionStorage.setItem(RATE_LIMIT_KEY_LOCKOUT, lockoutUntil.toString());
+    return { isNowBlocked: true, remainingSec: Math.ceil(LOCKOUT_DURATION_MS / 1000) };
+  }
+  return { isNowBlocked: false, remainingSec: 0 };
+}
+
+export function resetJoinRateLimit(): void {
+  if (typeof window === 'undefined') return;
+  sessionStorage.removeItem(RATE_LIMIT_KEY_ATTEMPTS);
+  sessionStorage.removeItem(RATE_LIMIT_KEY_LOCKOUT);
 }
 
 // 사용자 고유 클라이언트 ID 생성/가져오기 (역할 및 URL 파라미터 기반 분리 지원)
@@ -83,18 +129,23 @@ export function subscribeDiary(
   });
 }
 
-// 1. 방 생성 (6자리 난수 코드 발급, 128비트 암호학적 솔트 발급 및 Firestore 저장)
+// 1. 방 생성 (6자리 난수 코드 발급, 128비트 암호학적 솔트 발급 및 충돌 방지 루프)
 export async function createRoomInFirestore(creatorNickname: string): Promise<string> {
   const myUid = getOrCreateUserId();
   
-  // 6자리 난수 코드 생성
-  let roomCode = Math.floor(100000 + Math.random() * 900000).toString();
-  
-  // 이미 존재하는 방인지 체크 (중복 방지)
-  const roomRef = doc(db, 'rooms', roomCode);
-  const existing = await getDoc(roomRef);
-  if (existing.exists()) {
-    roomCode = Math.floor(100000 + Math.random() * 900000).toString();
+  // 6자리 난수 코드 생성 (충돌 방지 최대 10회 검증 루프 - MEDIUM 3.2 해결)
+  let roomCode = '';
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const candidate = Math.floor(100000 + Math.random() * 900000).toString();
+    const snap = await getDoc(doc(db, 'rooms', candidate));
+    if (!snap.exists()) {
+      roomCode = candidate;
+      break;
+    }
+  }
+
+  if (!roomCode) {
+    roomCode = (Math.floor(100000 + Math.random() * 800000) + (Date.now() % 100000)).toString().substring(0, 6);
   }
 
   // 방 고유 128-bit E2EE 솔트 생성 (레인보우 테이블 무력화)
@@ -126,16 +177,32 @@ export async function createRoomInFirestore(creatorNickname: string): Promise<st
   return roomCode;
 }
 
-// 2. 방 참여 (6자리 초대코드 입력하여 1:1 매칭 & iOS PWA 세션 복구)
+// 2. 방 참여 (6자리 초대코드 입력하여 1:1 매칭, iOS PWA 세션 복구 및 레이트 리밋)
 export async function joinRoomInFirestore(
   roomCode: string, 
   partnerNickname: string
 ): Promise<{ success: boolean; message: string; room?: RoomData }> {
+  // 0) 브루트포스 스캐닝 방지 검사 (연속 5회 실패 시 30초 차단)
+  const rateLimit = checkJoinRateLimit();
+  if (rateLimit.isBlocked) {
+    return {
+      success: false,
+      message: `연속된 코드 입력 실패로 보안 잠금 상태입니다. ${rateLimit.remainingSec}초 후에 다시 시도해주세요.`,
+    };
+  }
+
   const myUid = getOrCreateUserId();
   const roomRef = doc(db, 'rooms', roomCode);
   const snap = await getDoc(roomRef);
 
   if (!snap.exists()) {
+    const failStatus = recordFailedJoinAttempt();
+    if (failStatus.isNowBlocked) {
+      return {
+        success: false,
+        message: `존재하지 않는 코드입니다. 5회 연속 실패하여 보안을 위해 ${failStatus.remainingSec}초간 입장이 제한됩니다.`,
+      };
+    }
     return { success: false, message: '존재하지 않는 초대코드입니다. 코드를 다시 확인해주세요.' };
   }
 
@@ -146,6 +213,7 @@ export async function joinRoomInFirestore(
 
   // 1) 이미 현재 UID가 members에 속해 있는 경우 즉시 재입장
   if (room.members.includes(myUid)) {
+    resetJoinRateLimit();
     return { success: true, message: '기존 방에 재입장했습니다.', room };
   }
 
@@ -180,6 +248,7 @@ export async function joinRoomInFirestore(
       currentTurn: updatedTurn,
     };
 
+    resetJoinRateLimit();
     return {
       success: true,
       message: `${oldMemberData.nickname} 님의 일기장 세션이 성공적으로 복구되었습니다!`,
@@ -189,6 +258,7 @@ export async function joinRoomInFirestore(
 
   // 3) 닉네임 불일치 및 이미 2명 매칭이 완료된 경우 무단 입장 차단
   if (room.members.length >= 2) {
+    recordFailedJoinAttempt();
     return { success: false, message: '이미 2명의 매칭이 완료된 일기장입니다.' };
   }
 
@@ -209,6 +279,7 @@ export async function joinRoomInFirestore(
     updatedAt: serverTimestamp(),
   });
 
+  resetJoinRateLimit();
   return {
     success: true,
     message: '매칭이 완료되었습니다!',
@@ -238,34 +309,56 @@ export function subscribeRoom(
   });
 }
 
-// 4. 일기 저장 (rooms/{roomCode}/diaries/{diaryId} - 종단간 암호화 적용)
+// 4. 일기 저장 (rooms/{roomCode}/diaries/{diaryId} - 종단간 암호화 & 동시 작성 충돌 방지 트랜잭션)
 export async function saveDiaryToFirestore(
   roomCode: string,
   diary: DiaryData
 ): Promise<void> {
-  // 방 고유 솔트를 가져와 E2EE 암호화 (사진, 본문, 미션, 감성평 전체)
   const roomSalt = await getOrFetchRoomSalt(roomCode);
   const encryptedDiary = await encryptDiaryData(roomCode, diary, roomSalt);
 
-  const diaryRef = doc(db, 'rooms', roomCode, 'diaries', diary.diaryId);
-  await setDoc(diaryRef, {
-    ...encryptedDiary,
-    createdAt: new Date().toISOString(),
-  });
-
-  // 방 최신 일기 ID 업데이트 및 턴 넘기기
   const roomRef = doc(db, 'rooms', roomCode);
-  await setDoc(
-    roomRef,
-    {
-      roomId: roomCode,
-      roomCode: roomCode,
-      latestDiaryId: diary.diaryId,
-      currentTurn: diary.recipientId || 'partner',
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  const diaryRef = doc(db, 'rooms', roomCode, 'diaries', diary.diaryId);
+
+  // Firestore runTransaction을 통한 원자적(Atomic) 턴 검증 및 Race Condition 방지 (MEDIUM 3.3 해결)
+  await runTransaction(db, async (transaction) => {
+    const roomSnap = await transaction.get(roomRef);
+    if (roomSnap.exists()) {
+      const roomData = roomSnap.data() as RoomData;
+      // 상대방의 턴이거나 이미 다른 최신 일기가 전송된 경우 덮어쓰기 방지
+      if (roomData.currentTurn && diary.authorId && roomData.currentTurn !== diary.authorId) {
+        if (roomData.members.length >= 2 && roomData.status === 'MATCHED') {
+          throw new Error('현재 상대방의 작성 턴이거나 이미 새 일기가 전송되었습니다.');
+        }
+      }
+
+      // 파트너 UID 결정 (턴 넘기기용)
+      const partnerUid = roomData.members.find((id) => id !== diary.authorId) || diary.recipientId || 'partner';
+
+      transaction.set(diaryRef, {
+        ...encryptedDiary,
+        createdAt: new Date().toISOString(),
+      });
+
+      transaction.update(roomRef, {
+        latestDiaryId: diary.diaryId,
+        currentTurn: partnerUid,
+        updatedAt: serverTimestamp(),
+      });
+    } else {
+      transaction.set(diaryRef, {
+        ...encryptedDiary,
+        createdAt: new Date().toISOString(),
+      });
+      transaction.set(roomRef, {
+        roomId: roomCode,
+        roomCode: roomCode,
+        latestDiaryId: diary.diaryId,
+        currentTurn: diary.recipientId || 'partner',
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    }
+  });
 }
 
 // 5. 미션 통과 업데이트 (답변 텍스트 암호화)

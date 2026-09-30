@@ -245,9 +245,13 @@ export default function HomePage() {
 
   // 3. 새 일기 작성 완료 -> Firestore 저장 & VIEW_WAITING (상대방 턴으로 전환)
   const handleSaveDiary = async (newDiaryPart: Partial<DiaryData>) => {
+    const myUid = getOrCreateUserId();
     const updated: DiaryData = {
       ...diary,
       ...newDiaryPart,
+      authorId: myUid,
+      authorName: userName,
+      recipientName: partnerName,
       diaryId: 'diary-' + Date.now(),
       isWaxBroken: false,
       openedAt: null,
@@ -258,8 +262,12 @@ export default function HomePage() {
 
     try {
       await saveDiaryToFirestore(roomCode, updated);
-    } catch (e) {
+    } catch (e: unknown) {
       console.warn('Firestore save diary sync:', e);
+      const errMsg = e instanceof Error ? e.message : '';
+      if (errMsg.includes('턴') || errMsg.includes('전송')) {
+        showToast('⚠️ 상대방이 이미 새 일기를 등록했습니다.');
+      }
     }
   };
 
