@@ -317,44 +317,6 @@ export default function HomePage() {
     showToast('일기장 연결이 해제되었습니다.');
   };
 
-  // 시점 전환 (주형 ⇄ 유라 2인 시뮬레이션 지원)
-  const handleSwitchUser = () => {
-    soundEngine.playTileSlideSound();
-    const nextUser = userName === '주형' ? '유라' : '주형';
-    const nextPartner = nextUser === '주형' ? '유라' : '주형';
-
-    setUserName(nextUser);
-    setPartnerName(nextPartner);
-
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(STORAGE_KEYS.USER_NAME, nextUser);
-        localStorage.setItem(STORAGE_KEYS.PARTNER_NAME, nextPartner);
-      } catch {}
-    }
-
-    // 새 사용자의 시점에 맞추어 UI 상태 자동 갱신
-    if (uiState !== 'VIEW_ONBOARDING') {
-      if (!diary) {
-        // 일기가 없는 초기 상태
-        setUiState('VIEW_EMPTY');
-      } else if (diary.authorName === nextUser) {
-        // 내가 쓴 일기 -> 상대방 턴 대기 화면
-        setUiState(diary.isWaxBroken ? 'VIEW_OPENED_DIARY' : 'VIEW_WAITING');
-      } else {
-        // 상대방이 내게 보낸 편지가 있으므로 -> 편지를 까는 메뉴 (미션/봉인 상태에 따라 표시)
-        if (diary.isWaxBroken) {
-          setUiState('VIEW_OPENED_DIARY');
-        } else if (diary.mission?.isPassed) {
-          setUiState('VIEW_WAX_READY');
-        } else {
-          setUiState('VIEW_SEALED_LETTER');
-        }
-      }
-    }
-
-    showToast(`👤 시점이 전환되었습니다: ${nextUser} 님의 시점`);
-  };
 
   // 1. 미션 통과 처리 -> Firestore 동기화 & VIEW_WAX_READY
   const handlePassMission = async (submissionText: string) => {
@@ -444,65 +406,14 @@ export default function HomePage() {
     }
   };
 
-  // 상태 수동 전환 시 일관성 유지 (데모 및 리뷰 지원)
-  const handleSelectState = (nextState: UIState) => {
-    setUiState(nextState);
-    if (nextState === 'VIEW_EMPTY') {
-      setIsWriteModalOpen(true);
-    } else if (nextState === 'VIEW_SEALED_LETTER') {
-      setDiary((prev) => {
-        const base = prev || INITIAL_DIARY;
-        return {
-          ...base,
-          authorName: partnerName,
-          recipientName: userName,
-          isWaxBroken: false,
-          mission: { ...base.mission, isPassed: false },
-        };
-      });
-    } else if (nextState === 'VIEW_WAX_READY') {
-      setDiary((prev) => {
-        const base = prev || INITIAL_DIARY;
-        return {
-          ...base,
-          authorName: partnerName,
-          recipientName: userName,
-          isWaxBroken: false,
-          mission: { ...base.mission, isPassed: true },
-        };
-      });
-    } else if (nextState === 'VIEW_OPENED_DIARY') {
-      setDiary((prev) => {
-        const base = prev || INITIAL_DIARY;
-        return {
-          ...base,
-          authorName: partnerName,
-          recipientName: userName,
-          isWaxBroken: true,
-          mission: { ...base.mission, isPassed: true },
-        };
-      });
-    }
-  };
-
-  const handleResetDemo = () => {
-    setDiary(null);
-    setUiState('VIEW_EMPTY');
-    setIsWriteModalOpen(true);
-    showToast('초기 상태로 되돌아왔습니다. 첫 편지를 작성해보세요.');
-  };
-
   return (
     <div className="min-h-screen min-h-dvh flex flex-col bg-[#FDFBF7] text-[#2C2A29] selection:bg-[#6B1724]/20 selection:text-[#6B1724]">
-      {/* 서재 상단 바 */}
+      {/* 서재 상단 바 (정식 상용 헤더) */}
       <RoomHeader
         currentState={uiState}
-        onSelectState={handleSelectState}
         onOpenWriteModal={() => setIsWriteModalOpen(true)}
         onOpenArchive={() => setIsArchiveOpen(true)}
         onLeaveRoom={handleLeaveRoom}
-        onResetDemo={handleResetDemo}
-        onSwitchUser={handleSwitchUser}
         roomCode={roomCode}
         userName={userName}
         partnerName={partnerName}
