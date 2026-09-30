@@ -24,6 +24,7 @@ import {
 import { decryptDiaryData, decryptKnockData } from '@/lib/crypto';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { registerServiceWorker, sendLocalNotification } from '@/lib/notifications';
 
 // 초기 PRD 스펙 기반 샘플 일기 데이터 (데모 전환 및 폴백용)
 const INITIAL_DIARY: DiaryData = {
@@ -110,9 +111,10 @@ export default function HomePage() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // 1. 앱 마운트 시 저장된 세션(방 코드 및 닉네임) 자동 복구 & 재접속
+  // 1. 앱 마운트 시 저장된 세션(방 코드 및 닉네임) 자동 복구 & 재접속 및 서비스 워커 등록
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    registerServiceWorker();
     try {
       const savedRoom = localStorage.getItem(STORAGE_KEYS.ROOM_CODE);
       const savedUser = localStorage.getItem(STORAGE_KEYS.USER_NAME);
@@ -172,7 +174,7 @@ export default function HomePage() {
     }
   }, []);
 
-  // 실시간 Firestore 룸 및 일기 구독 (상대방의 노크 및 새 일기 실시간 감지 + E2EE 복호화)
+  // 실시간 Firestore 룸 및 일기 구독 (상대방의 노크 및 새 일기 실시간 감지 + E2EE 복호화 + 웹 푸시 알림)
   useEffect(() => {
     if (!roomCode || uiState === 'VIEW_ONBOARDING') return;
     const myUid = getOrCreateUserId();
@@ -191,6 +193,10 @@ export default function HomePage() {
           const decryptedKnock = await decryptKnockData(roomCode, rawKnock, room.roomSalt);
           setReceivedKnock(decryptedKnock);
           setIsKnockModalOpen(true);
+          sendLocalNotification(
+            '🔔 똑똑, 노크가 도착했습니다!',
+            `${decryptedKnock.senderName || partnerName} 님이 일기장 문을 두드렸어요.`
+          );
         }
       }
 
@@ -220,6 +226,10 @@ export default function HomePage() {
                 setUiState('VIEW_SEALED_LETTER');
               }
               showToast(`📬 ${latestDiary.authorName} 님에게서 새 일기가 도착했습니다!`);
+              sendLocalNotification(
+                '📬 새 일기가 도착했습니다!',
+                `${latestDiary.authorName} 님이 보낸 비밀 편지가 서재에 도착했습니다.`
+              );
             }
           }
         } catch (err) {

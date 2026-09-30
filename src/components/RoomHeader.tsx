@@ -1,8 +1,20 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { UIState } from '@/types/diary';
-import { Heart, PenLine, RotateCcw, Scroll, Users, ArrowLeftRight, BookOpen, LogOut } from 'lucide-react';
+import { 
+  PenLine, 
+  RotateCcw, 
+  ArrowLeftRight, 
+  BookOpen, 
+  LogOut, 
+  MoreHorizontal, 
+  Bell, 
+  Copy, 
+  Check, 
+  Share2 
+} from 'lucide-react';
+import { getNotificationStatus, requestNotificationPermission } from '@/lib/notifications';
 
 interface RoomHeaderProps {
   currentState: UIState;
@@ -29,6 +41,53 @@ export default function RoomHeader({
   userName,
   partnerName,
 }: RoomHeaderProps) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const status = getNotificationStatus();
+    setNotifPermission(status.permission);
+  }, []);
+
+  // 외부 클릭 시 메뉴 닫기
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    }
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMenuOpen]);
+
+  const handleCopyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(roomCode);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    } catch {}
+  };
+
+  const handleToggleNotification = async () => {
+    if (notifPermission === 'granted') {
+      alert('이미 알림 권한이 허용되어 있습니다. 새로운 일기나 노크가 올 때 알림이 전달됩니다.');
+      return;
+    }
+    const result = await requestNotificationPermission();
+    setNotifPermission(result);
+    if (result === 'granted') {
+      alert('🔔 알림이 켜졌습니다! 상대방이 보낸 새 일기와 노크를 실시간으로 받아보실 수 있습니다.');
+    } else if (result === 'denied') {
+      alert('기기 설정에서 알림 권한이 차단되어 있습니다. 브라우저 설정에서 권한을 허용해주세요.');
+    }
+  };
+
   const states: { id: UIState; label: string; icon: string }[] = [
     { id: 'VIEW_ONBOARDING', label: '방 연결', icon: '🔑' },
     { id: 'VIEW_EMPTY', label: '편지 쓰기', icon: '✍️' },
@@ -91,13 +150,13 @@ export default function RoomHeader({
                 <BookOpen className="w-4 h-4 text-[#6B1724]" />
               </button>
             )}
-            {isMatched && onLeaveRoom && (
+            {isMatched && (
               <button
-                onClick={onLeaveRoom}
-                title="일기장 연결 해제 (방 나가기)"
-                className="p-2 rounded-xl border border-stone-300 text-stone-600 hover:text-rose-700 hover:bg-rose-50 text-sm min-h-[38px] min-w-[38px] flex items-center justify-center active:scale-95 cursor-pointer shadow-2xs transition-colors"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                title="더보기"
+                className="p-2 rounded-xl border border-stone-300 text-stone-600 hover:bg-stone-100 text-sm min-h-[38px] min-w-[38px] flex items-center justify-center active:scale-95 cursor-pointer shadow-2xs"
               >
-                <LogOut className="w-4 h-4" />
+                <MoreHorizontal className="w-4 h-4" />
               </button>
             )}
             <button
@@ -120,7 +179,7 @@ export default function RoomHeader({
         </div>
 
         {/* 데모 상태 전환 컨트롤러 (모바일에서 부드러운 가로 스와이프) */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 -mx-1 px-1">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 -mx-1 px-1 relative">
           {/* 상태 탭 셀렉터 */}
           <div className="inline-flex bg-stone-200/70 p-1 rounded-xl text-xs font-sans-ui shrink-0">
             {states.map((st) => (
@@ -151,13 +210,14 @@ export default function RoomHeader({
             </button>
           )}
 
-          {isMatched && onLeaveRoom && (
+          {/* 데스크탑 더보기 메뉴 버튼 */}
+          {isMatched && (
             <button
-              onClick={onLeaveRoom}
-              title="일기장 연결 해제 (방 나가기)"
-              className="hidden sm:flex p-2 rounded-xl border border-stone-300 text-stone-600 hover:text-rose-700 hover:bg-rose-50 text-sm shrink-0 cursor-pointer shadow-2xs transition-colors"
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              title="설정 및 더보기"
+              className="hidden sm:flex p-2 rounded-xl border border-stone-300 text-stone-600 hover:bg-stone-100 text-sm shrink-0 cursor-pointer shadow-2xs transition-colors"
             >
-              <LogOut className="w-4 h-4" />
+              <MoreHorizontal className="w-4 h-4" />
             </button>
           )}
 
@@ -180,6 +240,71 @@ export default function RoomHeader({
           )}
         </div>
       </div>
+
+      {/* 설정 / 더보기 팝오버 드롭다운 (방 나가기를 안전하게 숨김) */}
+      {isMatched && isMenuOpen && (
+        <div
+          ref={menuRef}
+          className="absolute right-3.5 sm:right-8 top-[calc(100%+6px)] w-64 bg-[#FAF7F2] rounded-2xl shadow-xl border border-[#E8DFD3] py-2 z-50 animate-in fade-in zoom-in-95 font-sans-ui text-stone-700"
+        >
+          {/* 1. 방 정보 헤더 */}
+          <div className="px-3.5 py-2 border-b border-[#E8DFD3]/80 flex items-center justify-between">
+            <div>
+              <div className="text-[10px] text-stone-500 font-medium">연결된 일기장 방 코드</div>
+              <div className="text-sm font-mono font-bold text-amber-950">#{roomCode}</div>
+            </div>
+            <button
+              onClick={handleCopyCode}
+              className="px-2 py-1 rounded-lg bg-stone-100 hover:bg-amber-100/70 border border-stone-200 text-xs font-semibold text-stone-700 flex items-center gap-1 transition-colors cursor-pointer"
+              title="방 코드 복사"
+            >
+              {copiedCode ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3 text-stone-500" />}
+              <span>{copiedCode ? '복사됨' : '복사'}</span>
+            </button>
+          </div>
+
+          {/* 2. 웹 푸시 알림 설정 토글 */}
+          <button
+            onClick={handleToggleNotification}
+            className="w-full px-3.5 py-2.5 text-left flex items-center justify-between hover:bg-stone-100/70 transition-colors text-xs cursor-pointer"
+          >
+            <span className="flex items-center gap-2">
+              <Bell className="w-3.5 h-3.5 text-[#6B1724]" />
+              <span className="font-medium text-stone-800">새 일기/노크 알림</span>
+            </span>
+            <span
+              className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${
+                notifPermission === 'granted'
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                  : 'bg-stone-200 text-stone-600'
+              }`}
+            >
+              {notifPermission === 'granted' ? '켜짐' : '알림 켜기'}
+            </span>
+          </button>
+
+          {/* 3. 사파리 7일 보관 안내 */}
+          <div className="px-3.5 py-2 text-[10.5px] text-stone-500 leading-snug border-t border-[#E8DFD3]/60 bg-amber-50/40">
+            💡 Safari 7일 미접속 초기화 방지를 위해 <strong>‘홈 화면에 추가’</strong>를 권장합니다.
+          </div>
+
+          {/* 4. 방 나가기 (더 깊숙이 숨김: 눈에 띄지 않게 하단 배치) */}
+          {onLeaveRoom && (
+            <div className="border-t border-[#E8DFD3]/80 pt-1 mt-1">
+              <button
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  onLeaveRoom();
+                }}
+                className="w-full px-3.5 py-2 text-left flex items-center gap-2 text-stone-400 hover:text-rose-600 hover:bg-rose-50/60 transition-colors text-xs cursor-pointer font-sans-ui"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>일기장 연결 해제 (방 나가기)</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </header>
   );
 }

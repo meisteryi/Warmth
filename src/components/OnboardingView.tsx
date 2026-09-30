@@ -393,6 +393,24 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
             </button>
           </form>
         )}
+
+        {/* iOS Safari 7일 미접속 초기화 방지 안내 & 홈 화면 추가 팁 */}
+        <div className="mt-5 p-3.5 sm:p-4 rounded-2xl bg-[#F4EFE6]/90 border border-[#E3D7C5] text-stone-700 shadow-2xs">
+          <div className="flex items-start gap-2.5">
+            <span className="text-base shrink-0 mt-0.5">💡</span>
+            <div className="text-xs leading-relaxed font-sans-ui text-stone-600">
+              <span className="font-bold text-amber-950 block mb-1">
+                iOS Safari 이용 시 유의사항
+              </span>
+              사파리 일반 웹 브라우저에서는 애플의 보안 정책(ITP)으로 인해{' '}
+              <strong className="text-amber-900 font-semibold">7일 동안 켜지지 않으면</strong> 로그인 및 방 연결 정보가 자동으로 초기화될 수 있습니다.
+              <div className="mt-2 pt-2 border-t border-amber-900/10 text-stone-600">
+                📌 사파리 하단의 <strong>공유 버튼( <Share2 className="w-3.5 h-3.5 inline text-amber-800 -mt-0.5" /> )</strong>을 누른 뒤{' '}
+                <strong className="text-[#6B1724]">‘홈 화면에 추가’</strong>를 해주시면, 7일이 지나도 정보가 유지되고 앱처럼 푸시 알림도 받아보실 수 있습니다.
+              </div>
+            </div>
+          </div>
+        </div>
       </motion.div>
     </div>
   );
