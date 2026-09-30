@@ -41,7 +41,7 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
         if (param === 'joohyoung') return '주형';
       } catch { }
     }
-    return '주형';
+    return '';
   });
 
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
@@ -75,7 +75,10 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
 
   // 1. 6자리 난수 코드 발급 및 실제 Firestore에 방 저장
   const handleGenerateCode = async () => {
-    if (!myName.trim()) return;
+    if (!myName.trim()) {
+      alert('일기장에 사용할 나의 이름이나 별명을 먼저 입력해주세요.');
+      return;
+    }
     setIsLoading(true);
     try {
       const code = await createRoomInFirestore(myName.trim());
@@ -128,6 +131,11 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
   const handleJoinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setJoinError('');
+
+    if (!myName.trim()) {
+      setJoinError('일기장에 사용할 나의 이름이나 별명을 먼저 입력해주세요.');
+      return;
+    }
 
     if (inputCode.trim().length !== 6) {
       setJoinError('6자리 초대 코드를 올바르게 입력해주세요.');
@@ -245,7 +253,7 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
             type="text"
             value={myName}
             onChange={(e) => setMyName(e.target.value)}
-            placeholder="예: 주형"
+            placeholder="예: 민우, 서연 또는 나만의 애칭"
             className="w-full px-3.5 py-3 rounded-xl border border-stone-300 bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-base text-stone-900 font-medium placeholder:text-stone-400"
           />
         </div>
