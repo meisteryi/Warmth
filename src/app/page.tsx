@@ -7,6 +7,7 @@ import Envelope from '@/components/Envelope';
 import MissionModal from '@/components/MissionModal';
 import OpenedLetter from '@/components/OpenedLetter';
 import WaitingLetter from '@/components/WaitingLetter';
+import EmptyDeskView from '@/components/EmptyDeskView';
 import WriteDiaryModal from '@/components/WriteDiaryModal';
 import KnockNotificationModal from '@/components/KnockNotificationModal';
 import ArchiveModal from '@/components/ArchiveModal';
@@ -24,7 +25,7 @@ import { decryptDiaryData, decryptKnockData } from '@/lib/crypto';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
-// 초기 PRD 스펙 기반 일기 데이터
+// 초기 PRD 스펙 기반 샘플 일기 데이터 (데모 전환 및 폴백용)
 const INITIAL_DIARY: DiaryData = {
   diaryId: 'diary-demo-01',
   authorId: 'UID_B',
@@ -84,7 +85,9 @@ export default function HomePage() {
     }
     return '유라';
   });
-  const [diary, setDiary] = useState<DiaryData>(INITIAL_DIARY);
+
+  // 초기 상태: 작성된 편지가 없을 때는 null (맨 처음 편지 쓰기 플로우 우선)
+  const [diary, setDiary] = useState<DiaryData | null>(null);
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false);
   const [isWriteModalOpen, setIsWriteModalOpen] = useState(false);
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
@@ -140,6 +143,7 @@ export default function HomePage() {
               setUiState(latestDiary.isWaxBroken ? 'VIEW_OPENED_DIARY' : 'VIEW_WAITING');
             } else {
               soundEngine.playPaperRustle();
+              // 상대방 편지가 있으므로 편지를 까는 메뉴 (봉인 해제 관문 열기)가 뜸
               if (latestDiary.isWaxBroken) {
                 setUiState('VIEW_OPENED_DIARY');
               } else if (latestDiary.mission?.isPassed) {
@@ -153,6 +157,10 @@ export default function HomePage() {
         } catch (err) {
           console.warn('Failed to fetch latest diary:', err);
         }
+      } else if (!room.latestDiaryId) {
+        // 일기가 아직 없는 맨 처음 초기 상태 -> 편지 쓰기가 제일 먼저 나옴
+        setDiary(null);
+        setUiState('VIEW_EMPTY');
       }
     });
 
@@ -160,17 +168,44 @@ export default function HomePage() {
   }, [roomCode, uiState, userName]);
 
   // 0. 초대코드 매칭 완료 처리
-  const handleMatched = (code: string, me: string, partner: string) => {
+  const handleMatched = async (code: string, me: string, partner: string) => {
     setRoomCode(code);
     setUserName(me);
     setPartnerName(partner);
-    setDiary((prev) => ({
-      ...prev,
-      authorName: partner,
-      recipientName: me,
-    }));
-    setUiState('VIEW_SEALED_LETTER');
-    showToast(`🎉 ${partner} 님과 일기장이 성공적으로 연결되었습니다! (방 번호: #${code})`);
+
+    // 방에 기존 일기가 있는지 Firestore에서 즉시 확인
+    try {
+      const roomRef = doc(db, 'rooms', code);
+      const snap = await getDoc(roomRef);
+      if (snap.exists()) {
+        const roomData = snap.data();
+        if (roomData.latestDiaryId) {
+          // 일기가 존재하는 경우: 일기를 불러와서 수신자이면 편지 까는 메뉴(VIEW_SEALED_LETTER)로 이동
+          const diaryRef = doc(db, 'rooms', code, 'diaries', roomData.latestDiaryId);
+          const diarySnap = await getDoc(diaryRef);
+          if (diarySnap.exists()) {
+            const rawDiary = diarySnap.data() as DiaryData;
+            const decrypted = await decryptDiaryData(code, rawDiary, roomData.roomSalt);
+            setDiary(decrypted);
+            if (decrypted.authorName === me) {
+              setUiState(decrypted.isWaxBroken ? 'VIEW_OPENED_DIARY' : 'VIEW_WAITING');
+            } else {
+              setUiState(decrypted.isWaxBroken ? 'VIEW_OPENED_DIARY' : decrypted.mission?.isPassed ? 'VIEW_WAX_READY' : 'VIEW_SEALED_LETTER');
+            }
+            showToast(`🎉 ${partner} 님과 일기장이 연결되었습니다!`);
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Check room on match:', e);
+    }
+
+    // 일기가 없는 맨 처음 초기 상태 -> 편지 쓰기가 제일 먼저 나와야 함!
+    setDiary(null);
+    setUiState('VIEW_EMPTY');
+    setIsWriteModalOpen(true);
+    showToast(`🎉 ${partner} 님과 연결되었습니다! 첫 편지를 작성해보세요.`);
   };
 
   // 시점 전환 (주형 ⇄ 유라 2인 시뮬레이션 지원)
@@ -184,11 +219,14 @@ export default function HomePage() {
 
     // 새 사용자의 시점에 맞추어 UI 상태 자동 갱신
     if (uiState !== 'VIEW_ONBOARDING') {
-      if (diary.authorName === nextUser) {
+      if (!diary) {
+        // 일기가 없는 초기 상태
+        setUiState('VIEW_EMPTY');
+      } else if (diary.authorName === nextUser) {
         // 내가 쓴 일기 -> 상대방 턴 대기 화면
         setUiState(diary.isWaxBroken ? 'VIEW_OPENED_DIARY' : 'VIEW_WAITING');
       } else {
-        // 상대방이 내게 보낸 일기 -> 미션/봉인 상태에 따라 표시
+        // 상대방이 내게 보낸 편지가 있으므로 -> 편지를 까는 메뉴 (미션/봉인 상태에 따라 표시)
         if (diary.isWaxBroken) {
           setUiState('VIEW_OPENED_DIARY');
         } else if (diary.mission?.isPassed) {
@@ -204,17 +242,21 @@ export default function HomePage() {
 
   // 1. 미션 통과 처리 -> Firestore 동기화 & VIEW_WAX_READY
   const handlePassMission = async (submissionText: string) => {
-    setDiary((prev) => ({
-      ...prev,
-      mission: {
-        ...prev.mission,
-        isPassed: true,
-        submission: {
-          text: submissionText,
-          submittedAt: new Date().toISOString(),
+    if (!diary) return;
+    setDiary((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        mission: {
+          ...prev.mission,
+          isPassed: true,
+          submission: {
+            text: submissionText,
+            submittedAt: new Date().toISOString(),
+          },
         },
-      },
-    }));
+      };
+    });
     setUiState('VIEW_WAX_READY');
     showToast('✨ 미션을 완료했습니다! 이제 실링 왁스를 3초 동안 눌러 봉인을 풀어보세요.');
 
@@ -227,12 +269,16 @@ export default function HomePage() {
 
   // 2. 3초 실링 왁스 해제 완료 -> Firestore 동기화 & VIEW_OPENED_DIARY
   const handleUnsealComplete = async () => {
+    if (!diary) return;
     soundEngine.playPaperRustle();
-    setDiary((prev) => ({
-      ...prev,
-      isWaxBroken: true,
-      openedAt: new Date().toISOString(),
-    }));
+    setDiary((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        isWaxBroken: true,
+        openedAt: new Date().toISOString(),
+      };
+    });
     setUiState('VIEW_OPENED_DIARY');
     showToast('📬 편지 봉인이 해제되었습니다. 정성스레 적은 일기를 읽어보세요.');
 
@@ -247,7 +293,7 @@ export default function HomePage() {
   const handleSaveDiary = async (newDiaryPart: Partial<DiaryData>) => {
     const myUid = getOrCreateUserId();
     const updated: DiaryData = {
-      ...diary,
+      ...(diary || INITIAL_DIARY),
       ...newDiaryPart,
       authorId: myUid,
       authorName: userName,
@@ -282,34 +328,52 @@ export default function HomePage() {
     }
   };
 
-  // 상태 수동 전환 시 일관성 유지
+  // 상태 수동 전환 시 일관성 유지 (데모 및 리뷰 지원)
   const handleSelectState = (nextState: UIState) => {
     setUiState(nextState);
-    if (nextState === 'VIEW_SEALED_LETTER') {
-      setDiary((prev) => ({
-        ...prev,
-        isWaxBroken: false,
-        mission: { ...prev.mission, isPassed: false },
-      }));
+    if (nextState === 'VIEW_EMPTY') {
+      setIsWriteModalOpen(true);
+    } else if (nextState === 'VIEW_SEALED_LETTER') {
+      setDiary((prev) => {
+        const base = prev || INITIAL_DIARY;
+        return {
+          ...base,
+          authorName: partnerName,
+          recipientName: userName,
+          isWaxBroken: false,
+          mission: { ...base.mission, isPassed: false },
+        };
+      });
     } else if (nextState === 'VIEW_WAX_READY') {
-      setDiary((prev) => ({
-        ...prev,
-        isWaxBroken: false,
-        mission: { ...prev.mission, isPassed: true },
-      }));
+      setDiary((prev) => {
+        const base = prev || INITIAL_DIARY;
+        return {
+          ...base,
+          authorName: partnerName,
+          recipientName: userName,
+          isWaxBroken: false,
+          mission: { ...base.mission, isPassed: true },
+        };
+      });
     } else if (nextState === 'VIEW_OPENED_DIARY') {
-      setDiary((prev) => ({
-        ...prev,
-        isWaxBroken: true,
-        mission: { ...prev.mission, isPassed: true },
-      }));
+      setDiary((prev) => {
+        const base = prev || INITIAL_DIARY;
+        return {
+          ...base,
+          authorName: partnerName,
+          recipientName: userName,
+          isWaxBroken: true,
+          mission: { ...base.mission, isPassed: true },
+        };
+      });
     }
   };
 
   const handleResetDemo = () => {
-    setDiary(INITIAL_DIARY);
-    setUiState('VIEW_ONBOARDING');
-    showToast('초기 매칭(온보딩) 상태로 전환되었습니다.');
+    setDiary(null);
+    setUiState('VIEW_EMPTY');
+    setIsWriteModalOpen(true);
+    showToast('초기 상태로 되돌아왔습니다. 첫 편지를 작성해보세요.');
   };
 
   return (
@@ -341,7 +405,17 @@ export default function HomePage() {
           <OnboardingView onMatched={handleMatched} />
         )}
 
-        {/* 1. VIEW_WAITING: 상대방 턴 진행 중 */}
+        {/* 1. VIEW_EMPTY: 초기 상태 - 아직 편지가 없을 때 편지 쓰기가 제일 먼저 나옴 */}
+        {uiState === 'VIEW_EMPTY' && (
+          <EmptyDeskView
+            partnerName={partnerName}
+            userName={userName}
+            onOpenWriteModal={() => setIsWriteModalOpen(true)}
+            roomCode={roomCode}
+          />
+        )}
+
+        {/* 2. VIEW_WAITING: 내가 작성 후 상대방 턴 진행 중 (답장 대기) */}
         {uiState === 'VIEW_WAITING' && (
           <WaitingLetter
             partnerName={partnerName}
@@ -349,32 +423,59 @@ export default function HomePage() {
           />
         )}
 
-        {/* 2. VIEW_SEALED_LETTER: 새 일기 도착, 미션 미완수 */}
+        {/* 3. VIEW_SEALED_LETTER: 편지가 있을 때 -> 편지를 까는 메뉴 (미션 게이트 대기) */}
         {uiState === 'VIEW_SEALED_LETTER' && (
-          <Envelope
-            diary={diary}
-            isLocked={true}
-            onOpenMission={() => setIsMissionModalOpen(true)}
-            onUnsealComplete={handleUnsealComplete}
-          />
+          diary ? (
+            <Envelope
+              diary={diary}
+              isLocked={true}
+              onOpenMission={() => setIsMissionModalOpen(true)}
+              onUnsealComplete={handleUnsealComplete}
+            />
+          ) : (
+            <EmptyDeskView
+              partnerName={partnerName}
+              userName={userName}
+              onOpenWriteModal={() => setIsWriteModalOpen(true)}
+              roomCode={roomCode}
+            />
+          )
         )}
 
-        {/* 3. VIEW_WAX_READY: 미션 클리어 후 3초 실링 왁스 롱프레스 대기 */}
+        {/* 4. VIEW_WAX_READY: 미션 클리어 후 3초 실링 왁스 롱프레스 개봉 */}
         {uiState === 'VIEW_WAX_READY' && (
-          <Envelope
-            diary={diary}
-            isLocked={false}
-            onOpenMission={() => setIsMissionModalOpen(true)}
-            onUnsealComplete={handleUnsealComplete}
-          />
+          diary ? (
+            <Envelope
+              diary={diary}
+              isLocked={false}
+              onOpenMission={() => setIsMissionModalOpen(true)}
+              onUnsealComplete={handleUnsealComplete}
+            />
+          ) : (
+            <EmptyDeskView
+              partnerName={partnerName}
+              userName={userName}
+              onOpenWriteModal={() => setIsWriteModalOpen(true)}
+              roomCode={roomCode}
+            />
+          )
         )}
 
-        {/* 4. VIEW_OPENED_DIARY: 왁스 개봉 완료, 일기 본문 열람 */}
+        {/* 5. VIEW_OPENED_DIARY: 왁스 개봉 완료, 일기 본문 열람 */}
         {uiState === 'VIEW_OPENED_DIARY' && (
-          <OpenedLetter
-            diary={diary}
-            onWriteReply={() => setIsWriteModalOpen(true)}
-          />
+          diary ? (
+            <OpenedLetter
+              diary={diary}
+              onWriteReply={() => setIsWriteModalOpen(true)}
+            />
+          ) : (
+            <EmptyDeskView
+              partnerName={partnerName}
+              userName={userName}
+              onOpenWriteModal={() => setIsWriteModalOpen(true)}
+              roomCode={roomCode}
+            />
+          )
         )}
       </main>
 
@@ -390,9 +491,9 @@ export default function HomePage() {
       <MissionModal
         isOpen={isMissionModalOpen}
         onClose={() => setIsMissionModalOpen(false)}
-        mission={diary.mission}
+        mission={diary?.mission || INITIAL_DIARY.mission}
         onPassMission={handlePassMission}
-        diaryPhoto={diary.photos && diary.photos.length > 0 ? diary.photos[0] : undefined}
+        diaryPhoto={diary?.photos && diary.photos.length > 0 ? diary.photos[0] : undefined}
         partnerName={partnerName}
       />
 

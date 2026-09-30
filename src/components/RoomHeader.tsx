@@ -28,11 +28,12 @@ export default function RoomHeader({
   partnerName,
 }: RoomHeaderProps) {
   const states: { id: UIState; label: string; icon: string }[] = [
-    { id: 'VIEW_ONBOARDING', label: '0. 방 생성/매칭', icon: '🔑' },
-    { id: 'VIEW_WAITING', label: '1. 상대방 턴 대기', icon: '⏳' },
-    { id: 'VIEW_SEALED_LETTER', label: '2. 미션 게이트 대기', icon: '🔒' },
-    { id: 'VIEW_WAX_READY', label: '3. 실링 왁스 3초 개봉', icon: '🕯️' },
-    { id: 'VIEW_OPENED_DIARY', label: '4. 일기 열람 완료', icon: '📖' },
+    { id: 'VIEW_ONBOARDING', label: '방 연결', icon: '🔑' },
+    { id: 'VIEW_EMPTY', label: '편지 쓰기', icon: '✍️' },
+    { id: 'VIEW_WAITING', label: '답장 대기', icon: '⏳' },
+    { id: 'VIEW_SEALED_LETTER', label: '편지 까기', icon: '🔒' },
+    { id: 'VIEW_WAX_READY', label: '왁스 개봉', icon: '🕯️' },
+    { id: 'VIEW_OPENED_DIARY', label: '일기 열람', icon: '📖' },
   ];
 
   const isMatched = currentState !== 'VIEW_ONBOARDING';
