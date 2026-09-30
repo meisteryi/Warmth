@@ -6,6 +6,7 @@ import { WaxColor, WAX_COLORS, MissionData, DiaryData, WarmthScore } from '@/typ
 import { soundEngine } from '@/lib/audio';
 import { compressImage, uploadPhotoIfPossible, CompressedImageResult } from '@/lib/imageUtils';
 import { fetchAiQuiz, fetchWarmthScore, fetchDailyPrompt } from '@/lib/aiClient';
+import { getLatestReadDiaryForPartner } from '@/lib/roomService';
 import { 
   X, 
   Send, 
@@ -18,7 +19,8 @@ import {
   Check, 
   Loader2, 
   Trash2,
-  Dices
+  Dices,
+  BookOpen
 } from 'lucide-react';
 
 interface WriteDiaryModalProps {
@@ -28,6 +30,7 @@ interface WriteDiaryModalProps {
   currentUserName: string;
   partnerName: string;
   roomCode?: string;
+  fallbackPreviousDiary?: DiaryData | null;
 }
 
 export default function WriteDiaryModal({
@@ -37,6 +40,7 @@ export default function WriteDiaryModal({
   currentUserName,
   partnerName,
   roomCode = '829104',
+  fallbackPreviousDiary,
 }: WriteDiaryModalProps) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -45,6 +49,7 @@ export default function WriteDiaryModal({
   const [customPrompt, setCustomPrompt] = useState('');
   const [customQuizAnswer, setCustomQuizAnswer] = useState('');
   const [customQuizHint, setCustomQuizHint] = useState('');
+  const [quizSourceInfo, setQuizSourceInfo] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [uploadedPhotoInfo, setUploadedPhotoInfo] = useState<CompressedImageResult | null>(null);
   const [isCompressing, setIsCompressing] = useState(false);
@@ -91,19 +96,38 @@ export default function WriteDiaryModal({
     }
   };
 
-  // AI 퀴즈 자동 생성
+  // AI 퀴즈 자동 생성: 상대방이 이미 읽은 편지 중 가장 최근 편지 기반!
   const handleGenerateAiQuiz = async () => {
-    if (!content.trim()) {
-      alert('일기 본문을 먼저 몇 줄 작성해주시면, AI가 내용을 읽고 꼭 맞는 퀴즈를 만들어 드려요!');
-      return;
-    }
     setIsGeneratingQuiz(true);
     soundEngine.playTileSlideSound();
     try {
-      const quiz = await fetchAiQuiz(content, currentUserName, partnerName);
-      setCustomPrompt(quiz.prompt);
-      setCustomQuizAnswer(quiz.answer);
-      setCustomQuizHint(quiz.hint);
+      let targetDiary: DiaryData | null = null;
+      if (roomCode) {
+        targetDiary = await getLatestReadDiaryForPartner(roomCode, partnerName);
+      }
+      if (!targetDiary && fallbackPreviousDiary) {
+        targetDiary = fallbackPreviousDiary;
+      }
+
+      if (targetDiary) {
+        const quiz = await fetchAiQuiz(
+          targetDiary.content,
+          currentUserName,
+          partnerName,
+          targetDiary.authorName
+        );
+        setCustomPrompt(quiz.prompt);
+        setCustomQuizAnswer(quiz.answer);
+        setCustomQuizHint(quiz.hint);
+        setQuizSourceInfo(`상대방이 읽은 최근 편지「${targetDiary.title || '제목 없음'}」기반`);
+      } else {
+        // 지난 편지가 아직 없는 첫 편지인 경우
+        const quiz = await fetchAiQuiz(null, currentUserName, partnerName);
+        setCustomPrompt(quiz.prompt);
+        setCustomQuizAnswer(quiz.answer);
+        setCustomQuizHint(quiz.hint);
+        setQuizSourceInfo('아직 지난 편지가 없어 둘만의 첫인사 퀴즈로 생성');
+      }
       soundEngine.playMissionPassChime();
     } catch (e) {
       console.warn('AI quiz error:', e);
@@ -524,23 +548,31 @@ export default function WriteDiaryModal({
 
                 {missionType === 'CUSTOM' && (
                   <div className="space-y-2.5 p-3 bg-amber-50/60 rounded-xl border border-amber-200/70">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <span className="text-[11px] font-sans-ui text-amber-900 font-bold flex items-center gap-1">
-                        <span>❓ 직접 퀴즈 & 관문</span>
+                        <span>❓ 지난 편지 복습 퀴즈</span>
                       </span>
                       <button
                         type="button"
                         onClick={handleGenerateAiQuiz}
-                        disabled={isGeneratingQuiz || !content.trim()}
-                        className="px-2.5 py-1 rounded-lg bg-amber-200/80 hover:bg-amber-300 text-amber-950 text-[11px] font-sans-ui font-semibold flex items-center gap-1 transition-all disabled:opacity-50 shadow-xs cursor-pointer"
+                        disabled={isGeneratingQuiz}
+                        className="px-2.5 py-1.5 rounded-lg bg-amber-200/90 hover:bg-amber-300 active:scale-95 text-amber-950 text-[11px] font-sans-ui font-semibold flex items-center justify-center gap-1.5 transition-all disabled:opacity-50 shadow-xs cursor-pointer"
                       >
                         <Sparkles className={`w-3.5 h-3.5 text-amber-800 ${isGeneratingQuiz ? 'animate-spin' : ''}`} />
-                        <span>{isGeneratingQuiz ? 'AI가 퀴즈 짓는 중...' : '✨ 일기 기반 AI 퀴즈 생성'}</span>
+                        <span>{isGeneratingQuiz ? '상대가 본 최근 편지 분석 중...' : '✨ 상대가 본 최근 편지 기반 AI 퀴즈'}</span>
                       </button>
                     </div>
+
+                    {quizSourceInfo && (
+                      <div className="text-[11px] font-sans-ui text-amber-900/90 bg-amber-100/70 px-2.5 py-1.5 rounded-lg border border-amber-300/60 flex items-center gap-1.5">
+                        <BookOpen className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                        <span className="font-medium truncate">{quizSourceInfo}</span>
+                      </div>
+                    )}
+
                     <input
                       type="text"
-                      placeholder="질문 (예: 내가 오늘 점심에 먹은 메뉴는?)"
+                      placeholder="질문 (예: 지난 편지에서 내가 주말에 가자고 했던 곳은?)"
                       value={customPrompt}
                       onChange={(e) => setCustomPrompt(e.target.value)}
                       className="w-full px-3 py-1.5 rounded-lg border border-stone-200 bg-white text-xs font-serif-warm"
@@ -548,14 +580,14 @@ export default function WriteDiaryModal({
                     <div className="flex gap-2">
                       <input
                         type="text"
-                        placeholder="정답 (예: 붕어빵)"
+                        placeholder="정답 (예: 서촌)"
                         value={customQuizAnswer}
                         onChange={(e) => setCustomQuizAnswer(e.target.value)}
                         className="flex-1 px-3 py-1.5 rounded-lg border border-stone-200 bg-white text-xs font-serif-warm"
                       />
                       <input
                         type="text"
-                        placeholder="힌트 (예: 달콤하고 따뜻한 간식)"
+                        placeholder="힌트 (예: 지난 편지 셋째 줄에 있어!)"
                         value={customQuizHint}
                         onChange={(e) => setCustomQuizHint(e.target.value)}
                         className="flex-1 px-3 py-1.5 rounded-lg border border-stone-200 bg-white text-xs font-serif-warm"

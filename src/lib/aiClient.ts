@@ -6,20 +6,21 @@ import {
 } from '@/lib/gemini';
 
 /**
- * 1. ✉️ 일기 본문 기반 '맞춤형 관문 퀴즈' 생성
+ * 1. ✉️ 상대방이 이미 읽은 편지 기반 '맞춤형 관문 복습 퀴즈' 생성
  * (Static Export 및 로컬/배포 환경 모두 100% 완벽 호환)
  */
 export async function fetchAiQuiz(
-  content: string,
+  previousContent: string | null,
   authorName: string = '주형',
-  partnerName: string = '유라'
+  partnerName: string = '유라',
+  previousAuthorName?: string
 ): Promise<{ prompt: string; answer: string; hint: string }> {
   try {
-    return await generateCustomQuiz(content, authorName, partnerName);
+    return await generateCustomQuiz(previousContent, authorName, partnerName, previousAuthorName);
   } catch (e) {
     console.warn('fetchAiQuiz error:', e);
     return {
-      prompt: `오늘 일기에서 내가 ${partnerName} 님에게 전하고 싶었던 가장 큰 감정은?`,
+      prompt: `지난 편지에서 내가 ${partnerName} 님에게 전하고 싶었던 가장 큰 감정은?`,
       answer: '고마움',
       hint: '다정한 세 글자',
     };

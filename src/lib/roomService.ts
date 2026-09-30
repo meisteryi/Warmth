@@ -440,3 +440,24 @@ export async function getRoomDiariesFromFirestore(
     return [];
   }
 }
+
+// 9. 상대방(partnerName)이 이미 본(열람했거나 작성한) 편지 중 가장 최근 편지 1건 조회
+export async function getLatestReadDiaryForPartner(
+  roomCode: string,
+  partnerName: string
+): Promise<DiaryData | null> {
+  try {
+    const list = await getRoomDiariesFromFirestore(roomCode);
+    // 상대방(partnerName)이 이미 내용을 알고 있는 편지:
+    // 1) 상대방이 직접 작성했던 편지 (authorName === partnerName)
+    // 2) 내가 작성했고 상대방이 이미 실링 왁스를 개봉(isWaxBroken)해서 읽은 편지
+    const readByPartner = list.filter(
+      (d) => d.authorName === partnerName || Boolean(d.isWaxBroken)
+    );
+
+    return readByPartner.length > 0 ? readByPartner[0] : null;
+  } catch (e) {
+    console.warn('Failed to get latest read diary for partner:', e);
+    return null;
+  }
+}

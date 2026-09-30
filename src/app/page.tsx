@@ -622,6 +622,7 @@ export default function HomePage() {
         currentUserName={userName}
         partnerName={partnerName}
         roomCode={roomCode}
+        fallbackPreviousDiary={diary}
       />
 
       {/* 둘만의 서재(아카이브) 모달 (E2EE 암호화 해제 열람) */}

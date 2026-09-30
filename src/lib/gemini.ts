@@ -2,31 +2,50 @@ import { WarmthScore } from '@/types/diary';
 import { getSecureGeminiKey } from './secureKeys';
 
 /**
- * 1. ✉️ 일기 본문 기반 '맞춤형 관문 퀴즈' 생성
+ * 1. ✉️ 상대방이 이미 읽은 편지 기반 '맞춤형 관문 복습 퀴즈' 생성
  */
 export async function generateCustomQuiz(
-  content: string,
+  previousContent: string | null,
   authorName: string = '주형',
-  partnerName: string = '유라'
+  partnerName: string = '유라',
+  previousAuthorName?: string
 ): Promise<{ prompt: string; answer: string; hint: string }> {
-  if (!content || content.trim().length < 5) {
-    return {
-      prompt: `${authorName} 님이 오늘 일기에서 가장 전하고 싶었던 감정은?`,
-      answer: '고마움',
-      hint: '다정한 마음 세 글자',
-    };
-  }
-
   const apiKey = getSecureGeminiKey();
   if (apiKey) {
     try {
-      const systemInstruction = `당신은 아날로그 교환일기 '온기(Warmth)'의 다정한 어시스턴트입니다.
-작성자(${authorName})가 연인(${partnerName})에게 쓴 일기를 읽고, ${partnerName}가 일기를 열기 위해 풀 재미있고 사랑스러운 '맞춤 퀴즈'를 1개 만들어주세요.
+      let systemInstruction = '';
+      if (previousContent && previousContent.trim().length > 5) {
+        if (previousAuthorName === partnerName) {
+          // 상대방(partnerName)이 지난번에 나에게 써준 편지인 경우
+          systemInstruction = `당신은 아날로그 교환일기 '온기(Warmth)'의 다정한 어시스턴트입니다.
+상대방(${partnerName})이 지난번에 나(${authorName})에게 썼던 편지 본문을 분석하여, ${partnerName}가 자기가 썼던 내용을 제대로 기억하고 있는지 확인할 수 있는 다정하고 재치 있는 복습 퀴즈를 1개 만들어주세요.
 규칙:
-1. 일기 내용 속 구체적인 디테일(오늘 먹은 음식, 장소, 사소한 사건, 감정)을 바탕으로 만드세요.
+1. 질문은 상대방이 지난번에 썼던 편지의 구체적인 디테일(음식, 장소, 언급한 노래, 사소한 사건, 약속 등)을 묻는 질문이어야 합니다. (예: "지난 편지에서 네가 요즘 푹 빠졌다고 했던 노래는?", "지난번 편지에서 네가 나한테 약속했던 장소는?")
 2. 정답은 1~6글자의 명사 또는 짧은 단어여야 합니다.
 3. 힌트는 정답을 유추할 수 있는 다정한 문장이어야 합니다.
 4. 반드시 순수 JSON 형태로만 응답하세요: {"prompt": "...", "answer": "...", "hint": "..."}`;
+        } else {
+          // 내가 지난번에 상대방에게 썼고, 상대방이 이미 열어서 읽은 편지인 경우
+          systemInstruction = `당신은 아날로그 교환일기 '온기(Warmth)'의 다정한 어시스턴트입니다.
+작성자(${authorName})가 지난번에 상대방(${partnerName})에게 썼고, ${partnerName}가 이미 열어서 다 읽어본 지난 편지 본문입니다.
+${partnerName}가 내 지난 편지를 정성껏 기억하고 있는지 확인할 수 있는 다정하고 재치 있는 복습 퀴즈를 1개 만들어주세요.
+규칙:
+1. 질문은 지난 편지 속 구체적인 디테일(내가 언급한 음식, 장소, 선물, 기분, 추천한 것 등)을 묻는 질문이어야 합니다. (예: "지난 편지에서 내가 요즘 가장 가고 싶다고 한 곳은?", "지난 편지에서 내가 너에게 꼭 해주고 싶다고 한 요리는?")
+2. 정답은 1~6글자의 명사 또는 짧은 단어여야 합니다.
+3. 힌트는 정답을 유추할 수 있는 다정한 문장이어야 합니다.
+4. 반드시 순수 JSON 형태로만 응답하세요: {"prompt": "...", "answer": "...", "hint": "..."}`;
+        }
+      } else {
+        // 지난 편지가 아직 없는 첫 편지인 경우
+        systemInstruction = `당신은 아날로그 교환일기 '온기(Warmth)'의 다정한 어시스턴트입니다.
+두 사람(${authorName}와 ${partnerName})이 이제 막 시작한 교환일기의 첫 편지입니다.
+아직 주고받은 지난 편지가 없으므로, ${partnerName}가 첫 편지를 열람할 수 있도록 둘만의 소소한 취향이나 마음을 묻는 사랑스러운 퀴즈를 1개 만들어주세요.
+규칙:
+1. 둘만의 소소하고 따뜻한 퀴즈를 만드세요. (예: "내가 가장 좋아하는 계절은?", "우리가 매일 밤 나누는 다정한 인사는?")
+2. 정답은 1~6글자의 명사 또는 짧은 단어여야 합니다.
+3. 힌트는 정답을 유추할 수 있는 다정한 문장이어야 합니다.
+4. 반드시 순수 JSON 형태로만 응답하세요: {"prompt": "...", "answer": "...", "hint": "..."}`;
+      }
 
       const res = await fetch(
         'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent',
@@ -41,7 +60,7 @@ export async function generateCustomQuiz(
               {
                 role: 'user',
                 parts: [
-                  { text: `${systemInstruction}\n\n[일기 본문]:\n${content}` },
+                  { text: `${systemInstruction}\n\n[상대방이 이미 본 지난 편지 본문]:\n${previousContent || '(첫 편지)'}` },
                 ],
               },
             ],
@@ -63,7 +82,7 @@ export async function generateCustomQuiz(
             return {
               prompt: parsed.prompt,
               answer: String(parsed.answer).trim(),
-              hint: parsed.hint || '일기를 꼼꼼히 생각해보면 알 수 있어!',
+              hint: parsed.hint || '지난 편지를 꼼꼼히 떠올려보면 알 수 있어!',
             };
           }
         }
@@ -74,7 +93,7 @@ export async function generateCustomQuiz(
   }
 
   // Fallback: 스마트 감성 휴리스틱 퀴즈 생성
-  return generateFallbackQuiz(content, authorName, partnerName);
+  return generateFallbackQuiz(previousContent, authorName, partnerName, previousAuthorName);
 }
 
 /**
@@ -263,22 +282,32 @@ export async function getRandomPrompt(
 
 /* ---------------- 내부 스마트 휴리스틱 엔진 ---------------- */
 
-function generateFallbackQuiz(content: string, authorName: string, partnerName: string) {
-  const sentences = content
-    .split(/[.?!;\n]/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 6);
+function generateFallbackQuiz(
+  content: string | null,
+  authorName: string,
+  partnerName: string,
+  previousAuthorName?: string
+) {
+  if (!content || content.trim().length < 5) {
+    return {
+      prompt: `${authorName}와 ${partnerName}가 함께 나누는 가장 따뜻한 감정은?`,
+      answer: '사랑',
+      hint: '다정한 마음 두 글자',
+    };
+  }
 
-  // 음식, 장소, 행동 관련 키워드 탐색
+  const isPartnerAuthor = previousAuthorName === partnerName;
   const foodKeywords = ['커피', '붕어빵', '베이글', '라면', '치킨', '파스타', '떡볶이', '된장찌개', '초밥', '빵', '밥'];
   const placeKeywords = ['카페', '서점', '회사', '도서관', '공원', '지하철', '한강', '집', '거리'];
 
   for (const food of foodKeywords) {
     if (content.includes(food)) {
       return {
-        prompt: `오늘 ${authorName} 님이 일기에서 언급한 맛있는 메뉴는 무엇일까요?`,
+        prompt: isPartnerAuthor
+          ? `지난 편지에서 ${partnerName} 님이 언급했던 맛있는 음식은?`
+          : `지난번 내 편지에서 내가 ${partnerName} 님에게 추천했던 음식은?`,
         answer: food,
-        hint: `오늘 편지 속에서 맛있게 등장한 음식이야!`,
+        hint: `지난 편지에 맛있게 등장했던 단어야!`,
       };
     }
   }
@@ -286,26 +315,21 @@ function generateFallbackQuiz(content: string, authorName: string, partnerName: 
   for (const place of placeKeywords) {
     if (content.includes(place)) {
       return {
-        prompt: `오늘 ${authorName} 님이 편지에서 머물렀다고 적은 장소는 어디일까요?`,
+        prompt: isPartnerAuthor
+          ? `지난 편지에서 ${partnerName} 님이 머물렀다고 적었던 공간은?`
+          : `지난번 편지에서 내가 ${partnerName} 님과 함께 가고 싶다고 한 장소는?`,
         answer: place,
-        hint: `오늘의 하루가 머물렀던 공간이야.`,
+        hint: `지난 편지에 등장했던 따뜻한 장소야.`,
       };
     }
   }
 
-  if (sentences.length > 0) {
-    const firstSentence = sentences[0];
-    return {
-      prompt: `오늘 일기에서 내가 ${partnerName} 님에게 전하고 싶었던 오늘의 핵심 키워드는?`,
-      answer: '사랑',
-      hint: `두 글자의 가장 따뜻한 마음!`,
-    };
-  }
-
   return {
-    prompt: `오늘 일기 속에 담긴 ${authorName}의 진심 어린 감정은 무엇일까요?`,
-    answer: '행복',
-    hint: `함께 있을 때 느끼는 두 글자`,
+    prompt: isPartnerAuthor
+      ? `지난 편지에서 ${partnerName} 님이 건넸던 가장 다정한 마음의 단어는?`
+      : `지난 편지에서 내가 ${partnerName} 님에게 전하고 싶었던 가장 큰 감정은?`,
+    answer: '고마움',
+    hint: `마음을 가득 채운 세 글자`,
   };
 }
 
