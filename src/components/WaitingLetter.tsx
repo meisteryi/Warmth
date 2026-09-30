@@ -87,43 +87,42 @@ export default function WaitingLetter({
           <span>상대방의 턴</span>
         </div>
 
-        <h3 className="font-serif-warm text-lg sm:text-2xl font-bold text-stone-900 leading-tight">
+        <h3 className="font-serif-warm text-xl sm:text-2xl font-bold text-stone-900 leading-tight">
           {partnerName} 님이<br />
-          펜을 들고 일기를 적고 있어요
+          일기를 적고 있어요
         </h3>
 
-        <p className="mt-1.5 text-stone-600 text-[11px] sm:text-sm font-serif-warm leading-snug">
-          오늘의 소중한 일상과 마음에 귀 기울이는 중입니다.<br />
-          일기가 도착하면 왁스 봉인과 함께 알려드릴게요.
+        <p className="mt-2 text-stone-600 text-sm sm:text-base font-serif-warm leading-snug font-medium">
+          편지가 도착하면 실링 왁스와 함께 알려드릴게요.
         </p>
 
         {/* 빈티지 대기 장식선 */}
-        <div className="my-2.5 sm:my-4 flex items-center justify-center gap-2 text-stone-400">
-          <span className="w-6 sm:w-8 h-px bg-stone-300" />
-          <Compass className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-stone-400" />
-          <span className="w-6 sm:w-8 h-px bg-stone-300" />
+        <div className="my-3 sm:my-4 flex items-center justify-center gap-2 text-stone-400">
+          <span className="w-8 sm:w-10 h-px bg-stone-300" />
+          <Compass className="w-3.5 h-3.5 text-stone-400" />
+          <span className="w-8 sm:w-10 h-px bg-stone-300" />
         </div>
 
         {/* 노크 메시지 선택 영역 */}
-        <div className="w-full text-left mb-2.5 sm:mb-4 bg-[#F5EFE6]/70 rounded-xl p-2 sm:p-3 border border-[#E3DACB]/80">
-          <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-medium text-stone-700 mb-1.5">
-            <Bell className="w-3 h-3 text-amber-700" />
+        <div className="w-full text-left mb-3 sm:mb-4 bg-[#F5EFE6]/80 rounded-xl p-3 border border-[#E3DACB]/80">
+          <div className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-stone-700 mb-2 font-sans-ui">
+            <Bell className="w-3.5 h-3.5 text-amber-700" />
             <span>노크 문구 고르기</span>
           </div>
-          <div className="space-y-1 sm:space-y-1.5">
+          <div className="space-y-1.5">
             {KNOCK_PRESETS.map((msg, i) => (
               <button
                 key={i}
                 type="button"
                 onClick={() => setSelectedMessage(msg)}
-                className={`w-full text-left px-2.5 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-xs transition-all flex items-center justify-between ${
+                className={`w-full text-left px-3 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm transition-all flex items-center justify-between font-sans-ui cursor-pointer ${
                   selectedMessage === msg
-                    ? 'bg-[#6B1724] text-amber-50 font-medium shadow-xs'
-                    : 'bg-white/80 hover:bg-white text-stone-700 border border-stone-200/70'
+                    ? 'bg-[#6B1724] text-amber-50 font-bold shadow-xs'
+                    : 'bg-white/90 hover:bg-white text-stone-700 border border-stone-200/70 font-medium'
                 }`}
               >
                 <span className="truncate pr-2">{msg}</span>
-                {selectedMessage === msg && <CheckCircle2 className="w-3 h-3 text-amber-200 shrink-0" />}
+                {selectedMessage === msg && <CheckCircle2 className="w-3.5 h-3.5 text-amber-200 shrink-0" />}
               </button>
             ))}
           </div>
@@ -133,7 +132,7 @@ export default function WaitingLetter({
         <button
           onClick={handleKnock}
           disabled={cooldown > 0 || isSending}
-          className={`w-full py-2.5 sm:py-3 rounded-xl active:scale-98 text-xs sm:text-sm font-sans-ui font-medium transition-all flex items-center justify-center gap-1.5 sm:gap-2 shadow-xs ${
+          className={`w-full py-3 sm:py-3.5 rounded-xl active:scale-98 text-sm sm:text-base font-sans-ui font-bold transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer ${
             cooldown > 0
               ? 'bg-stone-200 text-stone-500 cursor-not-allowed'
               : 'bg-[#6B1724] hover:bg-[#58131e] text-[#FFFDF9]'
@@ -141,14 +140,14 @@ export default function WaitingLetter({
         >
           {cooldown > 0 ? (
             <>
-              <Clock className="w-3.5 h-3.5 animate-spin" />
-              <span>노크 전송됨 ({cooldown}초 후 다시 가능)</span>
+              <Clock className="w-4 h-4 animate-spin" />
+              <span>노크 전송됨 ({cooldown}초 대기)</span>
             </>
           ) : (
             <>
-              <Bell className="w-3.5 h-3.5 text-amber-300 animate-bounce" />
-              <span>{partnerName} 님에게 살포시 노크 보내기</span>
-              <Send className="w-3 h-3 opacity-70" />
+              <Bell className="w-4 h-4 text-amber-300 animate-bounce" />
+              <span>{partnerName} 님에게 노크 보내기</span>
+              <Send className="w-3.5 h-3.5 opacity-75" />
             </>
           )}
         </button>
@@ -160,13 +159,13 @@ export default function WaitingLetter({
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="mt-2 text-[10px] sm:text-[11px] text-amber-900 bg-amber-500/10 rounded-lg py-1 px-2.5 font-serif-warm"
+              className="mt-2.5 text-xs text-amber-900 bg-amber-500/10 rounded-lg py-1.5 px-3 font-serif-warm font-medium"
             >
-              🔔 {partnerName} 님에게 노크를 보냈습니다. 상대방이 접속하면 은은한 풍경 종소리와 함께 알림이 전달돼요.
+              🔔 {partnerName} 님에게 노크 알림을 전했습니다.
             </motion.p>
           ) : (
-            <p className="mt-1.5 sm:mt-2 text-[10px] sm:text-[11px] text-stone-400 font-sans-ui">
-              💡 상대방이 웹 앱에 접속해 있거나 접속할 때 실시간 풍경 종소리와 팝업으로 알려줍니다.
+            <p className="mt-2 text-xs text-stone-400 font-sans-ui">
+              상대방이 접속하면 풍경 종소리와 함께 알림이 뜹니다.
             </p>
           )}
         </AnimatePresence>
