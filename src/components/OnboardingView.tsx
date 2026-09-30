@@ -57,7 +57,7 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
 
     const unsubscribe = subscribeRoom(generatedCode, (room) => {
       if (room.status === 'MATCHED' && room.members.length >= 2) {
-        let partner = '유라';
+        let partner = '상대방';
         if (room.memberInfo) {
           const otherKey = Object.keys(room.memberInfo).find(
             (k) => room.memberInfo[k]?.role === 'PARTNER'
@@ -138,7 +138,7 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
       }
 
       // 파트너 닉네임 결정
-      let partner = '유라';
+      let partner = '상대방';
       if (res.room && res.room.memberInfo) {
         const otherKey = Object.keys(res.room.memberInfo).find(
           (k) => res.room?.memberInfo[k]?.role === 'CREATOR'

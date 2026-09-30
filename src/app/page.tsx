@@ -32,9 +32,9 @@ import { registerServiceWorker, sendLocalNotification } from '@/lib/notification
 const INITIAL_DIARY: DiaryData = {
   diaryId: 'diary-demo-01',
   authorId: 'UID_B',
-  authorName: '유라',
+  authorName: '연인',
   recipientId: 'UID_A',
-  recipientName: '주형',
+  recipientName: '나',
   title: '서촌 골목길을 걷다가',
   content: `오늘 날씨가 정말 선선해서 걸어가는 내내 네 생각이 많이 났어.
 
@@ -112,9 +112,10 @@ export default function HomePage() {
         if (saved) return saved;
         const param = new URLSearchParams(window.location.search).get('user');
         if (param === 'yura') return '유라';
+        if (param === 'joohyoung') return '주형';
       } catch {}
     }
-    return '주형';
+    return '나';
   });
   const [partnerName, setPartnerName] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -123,9 +124,10 @@ export default function HomePage() {
         if (saved) return saved;
         const param = new URLSearchParams(window.location.search).get('user');
         if (param === 'yura') return '주형';
+        if (param === 'joohyoung') return '유라';
       } catch {}
     }
-    return '유라';
+    return '상대방';
   });
 
   // 방장(CREATOR) vs 초대받은 사람(PARTNER) 역할 상태

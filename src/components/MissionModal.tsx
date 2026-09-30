@@ -25,7 +25,7 @@ export default function MissionModal({
   mission,
   onPassMission,
   diaryPhoto = 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=600&q=80',
-  partnerName = '유라',
+  partnerName = '상대방',
 }: MissionModalProps) {
   // 편지 작성자가 지정한 관문 (수신자는 작성자가 지정한 미션만 수행할 수 있음)
   const assignedMode: 'PHOTO_PUZZLE' | 'STAMP_PUZZLE' | 'SURPRISE_QUIZ' =

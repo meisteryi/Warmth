@@ -27,8 +27,8 @@ async function callGeminiProxy(action: string, payload: any): Promise<any | null
  */
 export async function generateCustomQuiz(
   previousContent: string | null,
-  authorName: string = '주형',
-  partnerName: string = '유라',
+  authorName: string = '',
+  partnerName: string = '',
   previousAuthorName?: string
 ): Promise<{ prompt: string; answer: string; hint: string }> {
   // 1) 서버 프록시 우선 시도 (보안 100% 모드)
@@ -73,7 +73,7 @@ export async function generateCustomQuiz(
      * "저번 편지에서 네가 요즘 푹 빠졌다고 했던 게 뭐였지?"
      * "저번에 네가 나한테 약속했던 곳이 어디였게?"
      * "저번 편지에서 네가 먹고 싶다고 했던 음식이 뭐였지?"
-2. 질문에 사람 이름(주형, 유라 등)이나 제3자적 존칭(~님 등)을 절대 넣지 마세요.
+2. 질문에 사람 이름이나 제3자적 호칭/존칭을 절대 넣지 마세요. 연인 사이의 1:1 대화이므로 '나', '너'라는 대명사만 사용하세요.
 3. 연인이 평소 둘이서 직접 대화하듯 친근하고 자연스러운 구어체('나', '너')를 사용하세요.
 4. 정답(answer)은 1~6글자의 명사 또는 짧은 단어여야 합니다.
 5. 힌트(hint) 역시 연인에게 살짝 귓속말하듯 친근한 평소 말투로 작성하세요. (예: "저번 편지 세 번째 줄을 떠올려봐!", "네가 정말 좋아하는 거잖아")
@@ -91,7 +91,7 @@ export async function generateCustomQuiz(
      * "저번 편지에서 내가 너랑 가고 싶다고 했던 곳이 어디게?"
      * "저번에 내가 제일 먹고 싶다고 했던 음식이 뭐였을까?"
      * "저번 편지에서 내가 퇴근하고 마셨다고 적은 게 뭐였게?"
-2. 질문에 사람 이름(주형, 유라 등)이나 제3자적 존칭(~님 등)을 절대 넣지 마세요.
+2. 질문에 사람 이름이나 제3자적 호칭/존칭을 절대 넣지 마세요. 연인 사이의 1:1 대화이므로 '나', '너'라는 대명사만 사용하세요.
 3. 연인이 평소 둘이서 직접 대화하듯 친근하고 자연스러운 구어체('나', '너')를 사용하세요.
 4. 정답(answer)은 1~6글자의 명사 또는 짧은 단어여야 합니다.
 5. 힌트(hint) 역시 연인에게 살짝 귓속말하듯 친근한 평소 말투로 작성하세요. (예: "저번 편지 둘째 줄에 적어뒀지!", "너도 좋아하는 곳이야")
@@ -170,8 +170,8 @@ export async function generateCustomQuiz(
 export async function analyzeWarmthTemperature(
   title: string,
   content: string,
-  authorName: string = '주형',
-  partnerName: string = '유라'
+  authorName: string = '',
+  partnerName: string = ''
 ): Promise<WarmthScore | null> {
   const fullText = `${title || ''} ${content || ''}`.trim();
 
@@ -179,6 +179,9 @@ export async function analyzeWarmthTemperature(
   if (fullText.length < 30) {
     return null;
   }
+
+  const cleanAuthor = authorName && authorName.trim() ? authorName.trim() : '작성자';
+  const cleanPartner = partnerName && partnerName.trim() ? partnerName.trim() : '상대방';
 
   // 1) 서버 프록시 우선 시도 (보안 100%)
   const proxyData = await callGeminiProxy('temperature', {
@@ -215,7 +218,7 @@ export async function analyzeWarmthTemperature(
   if (apiKey) {
     try {
       const prompt = `당신은 아날로그 교환일기 '온기(Warmth)'의 감성 온도 분석가입니다.
-작성자(${authorName})가 연인(${partnerName})에게 쓴 편지를 읽고 '온기의 온도'를 측정해주세요.
+작성자(${cleanAuthor})가 연인(${cleanPartner})에게 쓴 편지를 읽고 '온기의 온도'를 측정해주세요.
 
 ★ 매우 중요한 규칙:
 1. 편지 내용이 너무 짧거나(단문), 단순 사실/일정 나열에 불과하여 감정이나 정서적 온도를 확실하게 파악할 수 없을 때는 절대로 억지로 온도를 부여하지 말고 {"hasDistinctEmotion": false, "temperature": null, "comment": null, "keywords": []} 로 응답하세요.
@@ -299,70 +302,112 @@ export const PROMPT_THEMES = [
   { title: '일상 속 쉼과 온기', description: '오늘 하루 나를 스쳐간 작은 행복, 나만의 힐링 루틴, 함께 멍때리고 싶은 순간' },
 ];
 
+/**
+ * 글감 텍스트에서 사용자가 지정한 실제 이름 외에,
+ * 모델이나 템플릿의 실수로 들어간 '유라' 또는 '주형'을 자연스러운 2인칭('너', '네가' 등)으로 정제합니다.
+ * (단, 실제 사용자의 상대방 닉네임이 '유라' 또는 '주형'일 때는 온전히 유지됩니다.)
+ */
+export function sanitizePromptText(text: string, partnerName?: string): string {
+  if (!text) return '';
+  const cleanName = (partnerName || '').trim();
+  let sanitized = text.trim();
+
+  // 1. {partner} 템플릿 토큰 치환
+  const actualTarget = cleanName && cleanName !== '상대방' && cleanName !== '파트너' ? cleanName : '너';
+  sanitized = sanitized.replace(/\{partner\}/g, actualTarget);
+
+  // 2. 사용자의 실제 파트너 이름이 '주형'이 아닌데 실수로 '주형'이 들어간 경우 치환
+  if (cleanName !== '주형') {
+    sanitized = sanitized
+      .replace(/주형이가|주형이는/g, (m) => (m === '주형이가' ? '네가' : '너는'))
+      .replace(/주형이에게|주형에게/g, '너에게')
+      .replace(/주형이와|주형과/g, '너와')
+      .replace(/주형이를|주형을/g, '너를')
+      .replace(/주형이의|주형의/g, '너의')
+      .replace(/주형아|주형이|주형/g, '너');
+  }
+
+  // 3. 사용자의 실제 파트너 이름이 '유라'가 아닌데 실수로 '유라'가 들어간 경우 치환
+  if (cleanName !== '유라') {
+    sanitized = sanitized
+      .replace(/유라가|유라는/g, (m) => (m === '유라가' ? '네가' : '너는'))
+      .replace(/유라에게/g, '너에게')
+      .replace(/유라와/g, '너와')
+      .replace(/유라를/g, '너를')
+      .replace(/유라의/g, '너의')
+      .replace(/유라야|유라/g, '너');
+  }
+
+  return sanitized;
+}
+
 export const DAILY_PROMPTS_POOL = [
   // 1. 설렘과 첫 기억
-  '우리가 처음 만났던 날 유라의 첫인상은 어땠어? 아직도 생생한 기억이 있다면.',
-  '연애 초반, 유라에게 너무 긴장해서 차마 말하지 못했던 귀여운 속마음이 있어?',
-  '유라를 보며 \'아, 이 사람과 오래 함께하고 싶다\'고 확신이 들었던 찰나의 순간.',
+  '우리가 처음 만났던 날 {partner}의 첫인상은 어땠어? 아직도 생생한 기억이 있다면.',
+  '연애 초반, {partner}에게 너무 긴장해서 차마 말하지 못했던 귀여운 속마음이 있어?',
+  '{partner}를 보며 \'아, 이 사람과 오래 함께하고 싶다\'고 확신이 들었던 찰나의 순간.',
   '우리가 처음 손잡았던 날의 공기와 그때 느꼈던 솔직한 심장 소리.',
 
   // 2. 사소한 취향과 TMI
-  '나만 알고 있는 유라만의 사랑스럽거나 귀여운 사소한 버릇 한 가지.',
-  '요즘 내 플레이리스트에서 가장 아끼는 한 곡과, 그 노래를 들으면 떠오르는 유라의 표정.',
+  '나만 알고 있는 {partner}만의 사랑스럽거나 귀여운 사소한 버릇 한 가지.',
+  '요즘 내 플레이리스트에서 가장 아끼는 한 곡과, 그 노래를 들으면 떠오르는 {partner}의 표정.',
   '혼자만의 시간이 생겼을 때 나를 가장 위로해주는 음식이나 힐링 루틴은?',
-  '만약 내일 단 하루, 둘만을 위한 순간이동 티켓이 생긴다면 유라와 어디로 가고 싶어?',
-  '유라가 좋아하는 음식 중에, 유라가 먹는 모습만 봐도 덩달아 기분 좋아지는 메뉴는?',
+  '만약 내일 단 하루, 둘만을 위한 순간이동 티켓이 생긴다면 {partner}와 어디로 가고 싶어?',
+  '{partner}가 좋아하는 음식 중에, 먹는 모습만 봐도 덩달아 기분 좋아지는 메뉴는?',
 
   // 3. 속마음과 고민
   '요즘 마음 한구석을 남몰래 무겁게 채우고 있던 고민이나 생각이 있었나요?',
-  '어른이 되었다고 느끼지만, 여전히 유라 앞에서는 아이처럼 서툴다고 느껴지는 순간.',
-  '내가 지치고 힘들 때 유라에게 가장 받고 싶은 다정한 위로의 방식은?',
+  '어른이 되었다고 느끼지만, 여전히 {partner} 앞에서는 아이처럼 서툴다고 느껴지는 순간.',
+  '내가 지치고 힘들 때 {partner}에게 가장 받고 싶은 다정한 위로의 방식은?',
   '살면서 \'나 정말 나답게 살고 있다\'고 편안하게 느껴지는 순간은 언제일까?',
-  '유라에게 털어놓고 싶은, 오늘 나를 작아지게 만들었던 사소한 일 한 가지.',
+  '{partner}에게 털어놓고 싶은, 오늘 나를 작아지게 만들었던 사소한 일 한 가지.',
 
   // 4. 미래와 둘만의 로망
   '먼 훗날 우리가 함께 꾸밀 둘만의 공간에 꼭 두고 싶은 따뜻한 인테리어 로망은?',
-  '할머니, 할아버지가 되었을 때도 유라에게 변함없이 꼭 해주고 싶은 다정한 일.',
+  '할머니, 할아버지가 되었을 때도 {partner}에게 변함없이 꼭 해주고 싶은 다정한 일.',
   '은퇴 후 둘이서 한 달 동안 조용히 살아보고 싶은 낯선 여행지가 있다면?',
   '10년 뒤 오늘, 우리는 어떤 모습으로 서로의 손을 꼭 잡고 있을까?',
-  '언젠가 유라와 꼭 함께 배우거나 도전해보고 싶은 둘만의 버킷리스트 한 가지.',
+  '언젠가 {partner}와 꼭 함께 배우거나 도전해보고 싶은 둘만의 버킷리스트 한 가지.',
 
   // 5. 고마움과 애정 표현
   '평소에 너무 자연스럽고 익숙해서 고맙다는 말을 깜빡 놓쳤던 사소한 순간.',
-  '최근 유라를 바라보며 \'참 다정하고 멋진 사람이다\'라고 마음속으로 감탄했던 기억.',
-  '유라의 수많은 표정 중에 내가 유독 좋아하는 표정이나 눈빛은?',
-  '지친 유라를 위해 오늘 밤 내가 선물해주고 싶은 마음의 온도는?',
-  '유라가 내 곁에 있어줘서 참 다행이라고 마음 깊이 실감했던 순간.',
+  '최근 {partner}를 바라보며 \'참 다정하고 멋진 사람이다\'라고 마음속으로 감탄했던 기억.',
+  '{partner}의 수많은 표정 중에 내가 유독 좋아하는 표정이나 눈빛은?',
+  '지친 {partner}를 위해 오늘 밤 내가 선물해주고 싶은 마음의 온도는?',
+  '{partner}가 내 곁에 있어줘서 참 다행이라고 마음 깊이 실감했던 순간.',
 
   // 6. 유쾌한 IF 상상
   '만약 우리가 학창 시절에 같은 반 짝꿍이었다면 우린 어떻게 친해졌을까?',
-  '하루 동안 유라와 내 성격이나 능력을 바꿀 수 있다면 제일 먼저 해보고 싶은 것.',
+  '하루 동안 {partner}와 내 성격이나 능력을 바꿀 수 있다면 제일 먼저 해보고 싶은 것.',
   '만약 둘만의 무인도 아지트를 꾸민다면 꼭 가져갈 세 가지 물건은?',
   '둘만의 타임머신이 있다면 우리의 과거 중 언제로 다시 함께 돌아가 보고 싶어?',
   '만약 100억 복권에 당첨된다면 둘이서 제일 먼저 비밀로 하고 저지를 일은?',
 
   // 7. 가치관과 인생관
-  '유라를 만나고 나서 내 세상이나 시야가 긍정적으로 달라진 부분이 있다면?',
+  '{partner}를 만나고 나서 내 세상이나 시야가 긍정적으로 달라진 부분이 있다면?',
   '내가 생각하는 \'좋은 사람\', \'따뜻한 어른\'의 모습은 어떤 모습일까?',
   '서로의 다름을 발견했을 때, 오히려 그게 매력적이거나 고맙게 느껴졌던 기억.',
   '어떤 일이 있어도 이것만은 서로 꼭 지키고 싶은 둘만의 가치관이나 약속.',
 
   // 8. 일상 속 쉼과 온기
-  '오늘 하루 중 유라에게 가장 먼저 말해주고 싶었던 사소한 순간은?',
+  '오늘 하루 중 {partner}에게 가장 먼저 말해주고 싶었던 사소한 순간은?',
   '오늘 하루 나를 가장 웃게 만들었거나 뭉클하게 했던 작은 일 한 가지.',
-  '아무것도 안 하고 가만히 누워있어도 유라와 함께라면 충분히 행복했던 날의 기억.',
+  '아무것도 안 하고 가만히 누워있어도 {partner}와 함께라면 충분히 행복했던 날의 기억.',
   '오늘 하루 고생한 나 자신과 서로에게 건네고 싶은 다정한 위로 한 마디.',
 ];
 
 export async function getRandomPrompt(
-  partnerName: string = '유라'
+  partnerName?: string
 ): Promise<string> {
+  const cleanName = (partnerName || '').trim();
+
   // 1) 서버 프록시 우선 시도 (보안 100%)
-  const proxyData = await callGeminiProxy('randomPrompt', { partnerName });
+  const proxyData = await callGeminiProxy('randomPrompt', { partnerName: cleanName });
   if (proxyData?.candidates?.[0]?.content?.parts?.[0]?.text) {
-    const text = proxyData.candidates[0].content.parts[0].text.trim().replace(/^["'“”]/, '').replace(/["'“”]$/, '');
-    if (text.length >= 6 && text.length <= 60) {
-      return text;
+    const raw = proxyData.candidates[0].content.parts[0].text.trim().replace(/^["'“”]/, '').replace(/["'“”]$/, '');
+    const sanitized = sanitizePromptText(raw, cleanName);
+    if (sanitized.length >= 6 && sanitized.length <= 60) {
+      return sanitized;
     }
   }
 
@@ -372,17 +417,22 @@ export async function getRandomPrompt(
   const apiKey = getSecureGeminiKey();
   if (apiKey) {
     try {
+      const hasSpecificName = cleanName && cleanName !== '상대방' && cleanName !== '파트너';
+      const nameInstruction = hasSpecificName
+        ? `상대방의 실제 이름인 '${cleanName}'을 자연스럽게 부르거나(예: "${cleanName}에게~", "${cleanName}를 보며~"), '너' 또는 '우리'를 사용하세요. (실제 지정되지 않은 다른 가상의 인명은 절대 사용 금지)`
+        : `특정 사람 이름을 임의로 지어내지 마시고, '너', '그대', '우리'와 같은 2인칭 대명사만 사용하세요. (임의의 가상 인명 절대 사용 금지)`;
+
       const promptInstruction = `당신은 아날로그 1:1 비밀 교환일기 '온기'의 다정한 감성 에디터입니다.
 날씨나 계절, 시간대에만 얽매이지 않고, 연인이 서로를 더 깊고 다정하게 알아갈 수 있는 무궁무진하고 특별한 질문을 만들어주세요.
 
 이번 글감 테마: [${randomTheme.title}] (${randomTheme.description})
 
-일기 작성자가 상대방(${partnerName})에게 일기를 쓸 때 특별한 영감을 얻을 수 있는 '오늘의 질문'을 딱 1개 만들어주세요.
+일기 작성자가 상대방에게 일기를 쓸 때 특별한 영감을 얻을 수 있는 '오늘의 질문'을 딱 1개 만들어주세요.
 
 규칙:
 1. 단순한 날씨, 계절, 퇴근길 같은 뻔한 주제에 국한되지 마세요. 연인 간의 추억, 사소한 취향, 깊은 속마음, 재미있는 상상, 미래 로망 등 다채로운 주제를 다루세요.
 2. 질문은 연인이 서로에게 따뜻하고 진솔하게 속마음을 털어놓을 수 있도록 다정하고 친근한 어투여야 합니다.
-3. 반드시 상대방 이름("${partnerName}")을 자연스럽고 다정하게 포함하세요. (예: "${partnerName}에게 아직 말하지 못했던~", "${partnerName}를 보며 문득~")
+3. [호칭 규칙]: ${nameInstruction}
 4. 질문은 45자 이내로 간결하고 시적으로 작성하세요.
 5. 설명, 안내문, 따옴표 없이 오직 질문 한 문장만 순수 텍스트로 응답하세요.`;
 
@@ -412,9 +462,10 @@ export async function getRandomPrompt(
         const data = await res.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
         if (text) {
-          const cleaned = text.replace(/^["'“”]/, '').replace(/["'“”]$/, '').trim();
-          if (cleaned.length >= 6 && cleaned.length <= 60) {
-            return cleaned;
+          const raw = text.replace(/^["'“”]/, '').replace(/["'“”]$/, '').trim();
+          const sanitized = sanitizePromptText(raw, cleanName);
+          if (sanitized.length >= 6 && sanitized.length <= 60) {
+            return sanitized;
           }
         }
       }
@@ -423,9 +474,9 @@ export async function getRandomPrompt(
     }
   }
 
-  // Fallback: 다채로운 풀에서 랜덤 선택 후 파트너 이름 치환
+  // Fallback: 다채로운 풀에서 랜덤 선택 후 파트너 이름 치환 및 살균
   const index = Math.floor(Math.random() * DAILY_PROMPTS_POOL.length);
-  return DAILY_PROMPTS_POOL[index].replace(/유라/g, partnerName);
+  return sanitizePromptText(DAILY_PROMPTS_POOL[index], cleanName);
 }
 
 /* ---------------- 내부 스마트 휴리스틱 엔진 ---------------- */

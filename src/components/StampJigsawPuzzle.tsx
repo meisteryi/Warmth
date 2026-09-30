@@ -698,7 +698,7 @@ function generateTornPaths(stampWidth: number, stampHeight: number): TornData {
 
 export default function StampJigsawPuzzle({
   onSolve,
-  partnerName = '유라',
+  partnerName = '상대방',
 }: StampJigsawPuzzleProps) {
   const [tornData, setTornData] = useState<TornData | null>(null);
   const [themeIdx, setThemeIdx] = useState<number>(() => Math.floor(Math.random() * STAMP_THEMES.length));

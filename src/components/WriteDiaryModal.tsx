@@ -58,7 +58,12 @@ export default function WriteDiaryModal({
   const [isCompressing, setIsCompressing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [photoError, setPhotoError] = useState('');
-  const [dailyPrompt, setDailyPrompt] = useState<string>('오늘 하루 중 유라에게 가장 먼저 말해주고 싶었던 사소한 순간은?');
+  const [dailyPrompt, setDailyPrompt] = useState<string>(() => {
+    const clean = partnerName && partnerName.trim() && partnerName !== '상대방' && partnerName !== '파트너'
+      ? `${partnerName.trim()}에게`
+      : '너에게';
+    return `오늘 하루 중 ${clean} 가장 먼저 말해주고 싶었던 사소한 순간은?`;
+  });
   const [isRefreshingPrompt, setIsRefreshingPrompt] = useState(false);
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -66,6 +71,11 @@ export default function WriteDiaryModal({
   // 모달이 열릴 때마다 오늘의 온기 글감 추천 로드
   useEffect(() => {
     if (isOpen) {
+      const clean = partnerName && partnerName.trim() && partnerName !== '상대방' && partnerName !== '파트너'
+        ? `${partnerName.trim()}에게`
+        : '너에게';
+      setDailyPrompt(`오늘 하루 중 ${clean} 가장 먼저 말해주고 싶었던 사소한 순간은?`);
+
       fetchDailyPrompt(partnerName).then((prompt) => {
         if (prompt) setDailyPrompt(prompt);
       });

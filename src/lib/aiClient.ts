@@ -12,8 +12,8 @@ import {
  */
 export async function fetchAiQuiz(
   previousContent: string | null,
-  authorName: string = '주형',
-  partnerName: string = '유라',
+  authorName: string = '',
+  partnerName: string = '',
   previousAuthorName?: string
 ): Promise<{ prompt: string; answer: string; hint: string }> {
   try {
@@ -34,8 +34,8 @@ export async function fetchAiQuiz(
 export async function fetchWarmthScore(
   title: string,
   content: string,
-  authorName: string = '주형',
-  partnerName: string = '유라'
+  authorName: string = '',
+  partnerName: string = ''
 ): Promise<WarmthScore | null> {
   try {
     return await analyzeWarmthTemperature(title, content, authorName, partnerName);
@@ -48,12 +48,15 @@ export async function fetchWarmthScore(
 /**
  * 3. 🕯️ '오늘 뭐 쓰지?' 둘만의 맞춤형 질문/글감 추천
  */
-export async function fetchDailyPrompt(partnerName: string = '유라'): Promise<string> {
+export async function fetchDailyPrompt(partnerName: string = ''): Promise<string> {
   try {
     return await getRandomPrompt(partnerName);
   } catch (e) {
     console.warn('fetchDailyPrompt error:', e);
-    return `오늘 하루 중 ${partnerName}에게 가장 먼저 말해주고 싶었던 사소한 순간은 무엇이었나요?`;
+    const clean = partnerName && partnerName.trim() && partnerName !== '상대방' && partnerName !== '파트너'
+      ? `${partnerName.trim()}에게`
+      : '너에게';
+    return `오늘 하루 중 ${clean} 가장 먼저 말해주고 싶었던 사소한 순간은 무엇이었나요?`;
   }
 }
 

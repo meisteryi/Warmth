@@ -17,7 +17,7 @@ const GRID_SIZE = 3; // 3x3 퍼즐
 export default function PhotoSlidingPuzzle({
   imageUrl = 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=600&q=80',
   onSolve,
-  partnerName = '유라',
+  partnerName = '상대방',
 }: PhotoSlidingPuzzleProps) {
   // 타일 배열: 인덱스는 위치(0~8), 값은 원래 타일 번호 (0~7은 조각, 8은 빈 칸)
   const [tiles, setTiles] = useState<number[]>([0, 1, 2, 3, 4, 5, 6, 7, 8]);

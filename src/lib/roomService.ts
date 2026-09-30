@@ -190,7 +190,7 @@ export async function createRoomInFirestore(creatorNickname: string): Promise<st
     members: [myUid],
     memberInfo: {
       [myUid]: {
-        nickname: creatorNickname || '주형',
+        nickname: creatorNickname || '나',
         role: 'CREATOR',
       },
     },
@@ -309,7 +309,7 @@ export async function joinRoomInFirestore(
   const updatedMemberInfo = {
     ...room.memberInfo,
     [myUid]: {
-      nickname: partnerNickname || '유라',
+      nickname: partnerNickname || '상대방',
       role: 'PARTNER' as const,
     },
   };
@@ -451,7 +451,7 @@ export async function sendKnockInFirestore(
   await updateDoc(roomRef, {
     latestKnock: {
       senderUid: myUid,
-      senderName: senderName || '주형',
+      senderName: senderName || '나',
       message: encryptedMsg,
       knockedAt: new Date().toISOString(),
     },

@@ -80,12 +80,19 @@ export async function POST(req: Request) {
       generationConfig = { responseMimeType: 'application/json', temperature: 0.2 };
     } else if (action === 'randomPrompt') {
       const { partnerName } = payload;
+      const cleanPartner = typeof partnerName === 'string' ? partnerName.trim() : '';
+      const hasSpecificName = cleanPartner && cleanPartner !== '상대방' && cleanPartner !== '파트너';
+      const nameInstruction = hasSpecificName
+        ? `상대방의 실제 이름인 '${cleanPartner}'을 자연스럽게 부르거나(예: "${cleanPartner}에게~", "${cleanPartner}를 보며~"), '너' 또는 '우리'를 사용하세요. (실제 지정되지 않은 다른 가상의 인명은 절대 사용 금지)`
+        : `특정 사람 이름을 임의로 지어내지 마시고, '너', '그대', '우리'와 같은 2인칭 대명사만 사용하세요. (주형, 유라 등 임의의 가상 인명 절대 사용 금지)`;
+
       const promptInstruction = `당신은 아날로그 교환일기 '온기(Warmth)'의 감성 에디터입니다.
-연인(${partnerName})에게 보낼 오늘의 교환일기 글감(질문/주제)을 딱 1개만 지어주세요.
+${hasSpecificName ? `연인(${cleanPartner})에게 보낼 오늘의 교환일기 글감(질문/주제)을 딱 1개만 지어주세요.` : '연인에게 보낼 오늘의 교환일기 글감(질문/주제)을 딱 1개만 지어주세요.'}
 규칙:
 1. 연인 사이에 자연스럽게 속마음을 털어놓거나 사소한 취향을 나눌 수 있는 질문이어야 합니다.
 2. 질문은 45자 이내로 간결하고 시적으로 작성하세요.
-3. 설명, 안내문, 따옴표 없이 오직 질문 한 문장만 순수 텍스트로 응답하세요.`;
+3. [호칭 규칙]: ${nameInstruction}
+4. 설명, 안내문, 따옴표 없이 오직 질문 한 문장만 순수 텍스트로 응답하세요.`;
 
       contents = [{ role: 'user', parts: [{ text: promptInstruction }] }];
       generationConfig = { temperature: 0.9 };
@@ -115,8 +122,10 @@ export async function POST(req: Request) {
         });
       }
 
+      const cleanAuthor = (authorName || '').trim() || '작성자';
+      const cleanPartner = (partnerName || '').trim() || '상대방';
       const tempPrompt = `당신은 아날로그 교환일기 '온기(Warmth)'의 감성 온도 분석가입니다.
-작성자(${authorName})가 연인(${partnerName})에게 쓴 편지를 읽고 '온기의 온도'를 측정해주세요.
+작성자(${cleanAuthor})가 연인(${cleanPartner})에게 쓴 편지를 읽고 '온기의 온도'를 측정해주세요.
 
 ★ 매우 중요한 규칙:
 1. 편지 내용이 너무 짧거나(단문), 단순 사실/일정 나열에 불과하여 감정이나 정서적 온도를 확실하게 파악할 수 없을 때는 절대로 억지로 온도를 부여하지 말고 {"hasDistinctEmotion": false, "temperature": null, "comment": null, "keywords": []} 로 응답하세요.
@@ -158,6 +167,32 @@ export async function POST(req: Request) {
     }
 
     const data = await response.json();
+
+    // 글감 추천일 경우, 실제 파트너 이름이 아닌데 실수로 들어간 '주형'/'유라' 정제
+    if (action === 'randomPrompt' && data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+      const cleanPartner = typeof payload?.partnerName === 'string' ? payload.partnerName.trim() : '';
+      let text = data.candidates[0].content.parts[0].text;
+      if (cleanPartner !== '주형') {
+        text = text
+          .replace(/주형이가|주형이는/g, (m: string) => (m === '주형이가' ? '네가' : '너는'))
+          .replace(/주형이에게|주형에게/g, '너에게')
+          .replace(/주형이와|주형과/g, '너와')
+          .replace(/주형이를|주형을/g, '너를')
+          .replace(/주형이의|주형의/g, '너의')
+          .replace(/주형아|주형이|주형/g, '너');
+      }
+      if (cleanPartner !== '유라') {
+        text = text
+          .replace(/유라가|유라는/g, (m: string) => (m === '유라가' ? '네가' : '너는'))
+          .replace(/유라에게/g, '너에게')
+          .replace(/유라와/g, '너와')
+          .replace(/유라를/g, '너를')
+          .replace(/유라의/g, '너의')
+          .replace(/유라야|유라/g, '너');
+      }
+      data.candidates[0].content.parts[0].text = text;
+    }
+
     return NextResponse.json(data);
   } catch (err: any) {
     console.error('Server Gemini Proxy Error:', err);
