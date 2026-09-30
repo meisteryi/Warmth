@@ -146,24 +146,108 @@ export async function analyzeWarmthTemperature(
 }
 
 /**
- * 3. 🕯️ '오늘 뭐 쓰지?' 둘만의 맞춤형 질문/글감 추천
+ * 3. 🕯️ 계절, 요일, 시간대를 반영한 Gemini AI 맞춤형 오늘의 글감 동적 생성
  */
+function getCurrentTimeContext() {
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const day = now.getDay();
+  const hour = now.getHours();
+
+  // 계절
+  let season = '가을';
+  if (month >= 3 && month <= 5) season = '봄';
+  else if (month >= 6 && month <= 8) season = '여름';
+  else if (month >= 9 && month <= 11) season = '가을';
+  else season = '겨울';
+
+  // 요일 분위기
+  const days = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+  const dayName = days[day];
+  let dayVibe = '평일';
+  if (day === 5) dayVibe = '주말을 앞둔 금요일 저녁';
+  else if (day === 6 || day === 0) dayVibe = '여유로운 주말';
+  else if (day === 1) dayVibe = '새로운 한 주를 여는 월요일';
+
+  // 시간대
+  let timeOfDay = '오후';
+  if (hour >= 5 && hour < 12) timeOfDay = '아침';
+  else if (hour >= 12 && hour < 18) timeOfDay = '오후';
+  else if (hour >= 18 && hour < 23) timeOfDay = '저녁';
+  else timeOfDay = '깊은 밤';
+
+  return { season, dayName, dayVibe, timeOfDay };
+}
+
 export const DAILY_PROMPTS_POOL = [
-  '오늘 하루 중 유라에게 가장 먼저 말해주고 싶었던 사소한 순간은 무엇이었나요?',
+  '오늘 하루 중 유라에게 가장 먼저 말해주고 싶었던 사소한 순간은?',
   '우리가 처음 만났던 날 유라의 첫인상은 어땠어? 아직도 생생한 기억이 있다면.',
-  '오늘 하루 나를 가장 웃게 만들었거나 울컥하게 했던 작은 일 한 가지.',
+  '오늘 하루 나를 가장 웃게 만들었거나 뭉클하게 했던 작은 일 한 가지.',
   '이번 주말 유라와 함께 가고 싶거나, 따뜻하게 나눠 먹고 싶은 음식은?',
   '유라에게 요즘 가장 고마웠지만 쑥스러워서 말로 다 못 전했던 이야기.',
   '10년 뒤 오늘, 우리는 어떤 모습으로 서로의 손을 잡고 있을까?',
-  '퇴근길/하굣길 문득 유라가 떠올랐던 순간의 풍경이나 날씨.',
+  '퇴근길 문득 유라가 떠올랐던 순간의 풍경이나 바람.',
   '오늘 하루 고생한 나 자신과 서로에게 건네고 싶은 다정한 위로 한 마디.',
-  '최근 우리가 함께 들었던 음악이나 나누었던 대화 중 귓가에 맴도는 것.',
   '유라의 수많은 표정 중에 내가 유독 좋아하는 표정이나 행동은?',
+  '오늘 날씨와 바람을 느끼며 문득 함께 걷고 싶었던 골목길이 있었나요?',
 ];
 
 export async function getRandomPrompt(
   partnerName: string = '유라'
 ): Promise<string> {
+  const { season, dayName, dayVibe, timeOfDay } = getCurrentTimeContext();
+
+  if (GEMINI_API_KEY) {
+    try {
+      const promptInstruction = `당신은 아날로그 1:1 비밀 교환일기 '온기'의 다정한 감성 에디터입니다.
+현재 시점:
+- 계절: ${season}
+- 요일: ${dayName} (${dayVibe})
+- 시간대: ${timeOfDay}
+
+일기 작성자가 상대방(${partnerName})에게 일기를 쓸 때 영감을 얻을 수 있는 '오늘의 글감 질문'을 딱 1개 만들어주세요.
+
+규칙:
+1. 현재 계절(${season}), 요일(${dayName}), 시간대(${timeOfDay})의 분위기를 자연스럽게 녹여내세요. (예: 쌀쌀한 가을밤, 나른한 일요일 오후, 퇴근길 저녁 등)
+2. 서로의 사소한 하루, 따뜻한 기억, 고마움, 함께 먹고 싶은 음식 등을 나눌 수 있는 다정하고 감성적인 질문이어야 합니다.
+3. 반드시 상대방 이름("${partnerName}")을 다정하게 포함하세요.
+4. 설명이나 따옴표 없이 오직 35자 이내의 질문 한 문장만 순수 텍스트로 응답하세요.`;
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: 'user',
+                parts: [{ text: promptInstruction }],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.85,
+            },
+          }),
+        }
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        if (text) {
+          const cleaned = text.replace(/^["'“”]/, '').replace(/["'“”]$/, '').trim();
+          if (cleaned.length >= 6 && cleaned.length <= 60) {
+            return cleaned;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Gemini dynamic prompt fallback:', e);
+    }
+  }
+
+  // Fallback: 풀에서 랜덤 선택 후 파트너 이름 치환
   const index = Math.floor(Math.random() * DAILY_PROMPTS_POOL.length);
   return DAILY_PROMPTS_POOL[index].replace(/유라/g, partnerName);
 }

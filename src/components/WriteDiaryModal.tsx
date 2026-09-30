@@ -51,6 +51,7 @@ export default function WriteDiaryModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [photoError, setPhotoError] = useState('');
   const [dailyPrompt, setDailyPrompt] = useState<string>('오늘 하루 중 유라에게 가장 먼저 말해주고 싶었던 사소한 순간은?');
+  const [isRefreshingPrompt, setIsRefreshingPrompt] = useState(false);
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -63,11 +64,19 @@ export default function WriteDiaryModal({
     }
   }, [isOpen, partnerName]);
 
-  // 다른 글감 뽑기
+  // 다른 글감 뽑기 (Gemini AI 실시간 생성)
   const handleRefreshPrompt = async () => {
+    if (isRefreshingPrompt) return;
+    setIsRefreshingPrompt(true);
     soundEngine.playTileSlideSound();
-    const nextPrompt = await fetchDailyPrompt(partnerName);
-    setDailyPrompt(nextPrompt);
+    try {
+      const nextPrompt = await fetchDailyPrompt(partnerName);
+      if (nextPrompt) setDailyPrompt(nextPrompt);
+    } catch (e) {
+      console.warn('Failed to refresh prompt:', e);
+    } finally {
+      setIsRefreshingPrompt(false);
+    }
   };
 
   // 글감을 일기 작성창에 쏙 적용
@@ -287,10 +296,11 @@ export default function WriteDiaryModal({
                 <button
                   type="button"
                   onClick={handleRefreshPrompt}
+                  disabled={isRefreshingPrompt}
                   title="다른 글감 뽑기"
-                  className="p-1.5 rounded-lg bg-white/90 hover:bg-white text-stone-600 hover:text-stone-900 border border-stone-200 transition-all active:scale-95 shadow-xs cursor-pointer"
+                  className="p-1.5 rounded-lg bg-white/90 hover:bg-white text-stone-600 hover:text-stone-900 border border-stone-200 transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-50"
                 >
-                  <Dices className="w-3.5 h-3.5" />
+                  <Dices className={`w-3.5 h-3.5 transition-transform ${isRefreshingPrompt ? 'animate-spin text-[#6B1724]' : ''}`} />
                 </button>
                 <button
                   type="button"
