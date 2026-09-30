@@ -93,10 +93,10 @@ export async function analyzeWarmthTemperature(
       const prompt = `당신은 아날로그 교환일기 '온기(Warmth)'의 감성 분석가입니다.
 작성자(${authorName})가 연인(${partnerName})에게 쓴 편지를 읽고 '온기의 온도'를 측정해주세요.
 규칙:
-1. temperature: 사람의 기본 체온(36.5도)을 기준으로, 다정함/애정/위로/고마움의 깊이에 따라 36.6 ~ 41.2 사이의 소수점 한 자리 숫자로 산출하세요.
+1. temperature: 다정함/애정/위로/고마움 등 편지에 포함되어 있는 감정의 깊이에 따라 0 ~ 100 사이의 정수로 산출하세요.
 2. comment: 편지의 정서를 감성적이고 시적으로 묘사한 25자 이내의 한 줄 코멘트 (예: "지친 퇴근길을 포근하게 안아주는 봄날의 온기")
 3. keywords: 이 편지의 핵심 단어/감정 해시태그 3개 (예: ["#퇴근길", "#붕어빵", "#다정한위로"])
-4. 반드시 순수 JSON 형태로만 응답하세요: {"temperature": 37.8, "comment": "...", "keywords": ["...", "...", "..."]}`;
+4. 반드시 순수 JSON 형태로만 응답하세요: {"temperature": 88, "comment": "...", "keywords": ["...", "...", "..."]}`;
 
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
@@ -127,10 +127,10 @@ export async function analyzeWarmthTemperature(
           const parsed = JSON.parse(text);
           if (typeof parsed.temperature === 'number') {
             return {
-              temperature: Math.min(42.0, Math.max(36.5, Number(parsed.temperature.toFixed(1)))),
+              temperature: Math.min(100, Math.max(0, Math.round(Number(parsed.temperature)))),
               comment: parsed.comment || '서로를 향한 다정한 온기가 깃든 편지',
-              keywords: Array.isArray(parsed.keywords) && parsed.keywords.length > 0 
-                ? parsed.keywords.slice(0, 3) 
+              keywords: Array.isArray(parsed.keywords) && parsed.keywords.length > 0
+                ? parsed.keywords.slice(0, 3)
                 : ['#둘만의온기', '#소소한하루', '#고마움'],
             };
           }

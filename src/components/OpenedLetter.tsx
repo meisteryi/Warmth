@@ -75,8 +75,8 @@ export default function OpenedLetter({
                       <span className="text-[10px] font-sans-ui text-stone-500 font-semibold tracking-wider">
                         오늘의 온기 온도
                       </span>
-                      <span className="text-xs font-serif-warm font-bold text-rose-900 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200 shadow-2xs">
-                        {diary.warmthScore.temperature.toFixed(1)}°C
+                      <span className="text-xs font-serif-warm font-bold text-rose-900 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200 shadow-2xs">
+                        {Math.round(diary.warmthScore.temperature)}°C
                       </span>
                     </div>
                     <p className="text-xs sm:text-sm font-serif-warm text-stone-700 mt-0.5 font-medium">
