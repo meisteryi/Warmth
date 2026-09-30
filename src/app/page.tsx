@@ -164,6 +164,7 @@ export default function HomePage() {
   const [isLastPersonRemaining, setIsLastPersonRemaining] = useState(false);
   const [isLastLeaverWarningOpen, setIsLastLeaverWarningOpen] = useState(false);
   const [hasCopiedLeaveCode, setHasCopiedLeaveCode] = useState(false);
+  const isLeavingRef = useRef(false);
 
   // 턴 로테이션 판별:
   // 1) 아직 일기가 없는 초기 상태: "코드를 써서 로그인하면, 무조건 방장이 아닌 사람이 편지를 먼저 써야 해."
@@ -282,6 +283,7 @@ export default function HomePage() {
     const myUid = getOrCreateUserId();
 
     const unsubscribe = subscribeRoom(roomCode, async (room) => {
+      if (isLeavingRef.current) return;
       // 0. 방 멤버 정보로부터 내 역할(CREATOR vs PARTNER) 동기화
       if (room.memberInfo) {
         const myUid = getOrCreateUserId();
@@ -443,46 +445,38 @@ export default function HomePage() {
     showToast(`🎉 ${partner} 님과 연결되었습니다! 둘만의 서재에 오신 것을 환영합니다.`);
   };
 
-  // 방 나가기 (1차 감성 인앱 확인 모달 표시)
+  // 방 나가기 (1단계로 깔끔하게 처리)
   const handleLeaveRoom = () => {
-    setIsLeaveConfirmOpen(true);
+    // 둘 중 마지막에 나가는 사람은 곧바로 방 코드 기억 경고 모달을 띄워 1단계로 안내
+    if (isLastPersonRemaining) {
+      setIsLastLeaverWarningOpen(true);
+    } else {
+      setIsLeaveConfirmOpen(true);
+    }
   };
 
   // 1차 모달에서 '연결 해제하기'를 눌렀을 때
   const confirmLeaveRoom = () => {
     setIsLeaveConfirmOpen(false);
-
-    // 둘 중 마지막에 나가는 사람은 방 코드를 기억해야 하므로 경고창을 한 번 더 띄움!
-    if (isLastPersonRemaining) {
-      setIsLastLeaverWarningOpen(true);
-      return;
-    }
-
     executeLeaveRoom(false);
   };
 
   // 상대방이 먼저 방을 나가서 뜬 모달에서 '확인(시작 화면으로 이동)'을 눌렀을 때
   const handleAcknowledgePartnerDisconnect = () => {
     setIsPartnerDisconnectedModalOpen(false);
-    // 상대방이 이미 나갔으므로 본인이 마지막 사람임 -> 경고창 한 번 더 띄움!
-    setIsLastLeaverWarningOpen(true);
+    executeLeaveRoom(false);
   };
 
-  // 실제 방 나가기 및 세션 클리어 수행
+  // 실제 방 나가기 및 세션 클리어 수행 (경쟁 상태 없이 1번에 즉각 퇴장)
   const executeLeaveRoom = async (withCopyNotice: boolean = false) => {
+    isLeavingRef.current = true;
     setIsLeaveConfirmOpen(false);
     setIsLastLeaverWarningOpen(false);
+    setIsPartnerDisconnectedModalOpen(false);
 
-    // Firestore에 나가기 상태 동기화 (상대방 기기에 실시간 알림 전송)
-    if (roomCode) {
-      try {
-        const myUid = getOrCreateUserId();
-        await leaveRoomInFirestore(roomCode, myUid, userName);
-      } catch (e) {
-        console.warn('Failed to leave room in firestore:', e);
-      }
-    }
+    const targetRoomCode = roomCode;
 
+    // 즉시 로컬 세션 삭제 및 온보딩 화면으로 전환 (UI 즉각 반영)
     sessionStore.remove(STORAGE_KEYS.ROOM_CODE);
     sessionStore.remove(STORAGE_KEYS.USER_NAME);
     sessionStore.remove(STORAGE_KEYS.PARTNER_NAME);
@@ -492,11 +486,26 @@ export default function HomePage() {
     setRoomCode('');
     setIsLastPersonRemaining(false);
     setUiState('VIEW_ONBOARDING');
+
     if (withCopyNotice) {
       showToast('초대코드가 복사되었습니다. 일기장 연결이 해제되었습니다.');
     } else {
       showToast('일기장 연결이 해제되었습니다.');
     }
+
+    // 백그라운드에서 Firestore 비동기 상태 갱신
+    if (targetRoomCode) {
+      try {
+        const myUid = getOrCreateUserId();
+        await leaveRoomInFirestore(targetRoomCode, myUid, userName);
+      } catch (e) {
+        console.warn('Failed to leave room in firestore:', e);
+      }
+    }
+
+    setTimeout(() => {
+      isLeavingRef.current = false;
+    }, 1000);
   };
 
 
@@ -805,8 +814,34 @@ export default function HomePage() {
                 <br />
                 함께 작성했던 소중한 시간들이 마무리되었습니다.
                 <br />
-                새로운 일기장을 시작하시려면 초기 화면으로 이동해주세요.
+                나중에 다시 접속하시려면 아래 초대코드를 기억해주세요.
               </p>
+
+              {/* 방 코드 복사 카드 */}
+              {roomCode && (
+                <div className="mt-2 p-2.5 rounded-xl bg-amber-50/90 border border-amber-300/80 flex items-center justify-between shadow-inner">
+                  <div className="text-left">
+                    <div className="text-[10px] text-amber-800 font-sans-ui font-medium">우리 둘만의 초대코드</div>
+                    <div className="text-lg font-mono font-bold tracking-widest text-[#6B1724]">
+                      #{roomCode}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (navigator.clipboard) {
+                        navigator.clipboard.writeText(roomCode);
+                        setHasCopiedLeaveCode(true);
+                        showToast('초대코드가 클립보드에 복사되었습니다.');
+                        setTimeout(() => setHasCopiedLeaveCode(false), 3000);
+                      }
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-white hover:bg-amber-100/60 border border-amber-300 text-amber-900 text-xs font-sans-ui font-semibold shadow-2xs transition-colors cursor-pointer active:scale-95"
+                  >
+                    {hasCopiedLeaveCode ? '복사됨 ✓' : '코드 복사'}
+                  </button>
+                </div>
+              )}
             </div>
             <div className="pt-2">
               <button
