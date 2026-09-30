@@ -175,8 +175,8 @@ export async function analyzeWarmthTemperature(
 ): Promise<WarmthScore | null> {
   const fullText = `${title || ''} ${content || ''}`.trim();
 
-  // 내용이 없거나 2자 미만인 경우 온도를 매기지 않음
-  if (fullText.length < 2) {
+  // 내용이 없거나 10자 미만인 경우 온도를 매기지 않음
+  if (fullText.length < 10) {
     return null;
   }
 
