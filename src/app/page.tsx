@@ -182,8 +182,25 @@ export default function HomePage() {
     return () => clearInterval(timer);
   }, []);
 
-  // 오늘 일기가 현재 04:00 주기 내에 이미 작성되었는지 판별 (하루 1통 제한)
-  const isTodayDiaryWritten = isDiaryWrittenInCurrentCycle(diary?.createdAt);
+  // 내가 오늘(새벽 4시 이후) 이미 편지를 썼는지 검사 (각자 하루 1통 규칙)
+  const hasMyQuotaBeenUsedToday = useMemo(() => {
+    // 1) Firestore roomData의 lastWrittenByUser 확인
+    const myUid = getOrCreateUserId();
+    const myLastTime = roomData?.lastWrittenByUser?.[myUid] || roomData?.lastWrittenByUser?.[userName];
+    if (myLastTime && isDiaryWrittenInCurrentCycle(myLastTime)) {
+      return true;
+    }
+    // 2) 현재 최신 일기가 내가 작성한 것이고 오늘 주기인 경우
+    if (diary && diary.authorName === userName && isDiaryWrittenInCurrentCycle(diary.createdAt)) {
+      return true;
+    }
+    // 3) 로컬 세션스토리지 확인 (네트워크 지연 시 즉각 반영)
+    const localLast = sessionStore.get(`warmth_last_written_${roomCode}_${userName}`);
+    if (localLast && isDiaryWrittenInCurrentCycle(localLast)) {
+      return true;
+    }
+    return false;
+  }, [roomData, diary, userName, roomCode]);
 
   // 턴 로테이션 판별:
   // 1) 아직 일기가 없는 초기 상태: "코드를 써서 로그인하면, 무조건 방장이 아닌 사람이 편지를 먼저 써야 해."
@@ -196,8 +213,8 @@ export default function HomePage() {
   }, [diary, userRole, userName]);
 
   const handleOpenWriteModal = (initialTitle?: string) => {
-    if (isTodayDiaryWritten) {
-      showToast(`하루에 한 통씩만 작성할 수 있어요. 다음 편지는 새벽 04:00(남은 시간: ${countdown.formattedKorean})에 열립니다.`);
+    if (hasMyQuotaBeenUsedToday) {
+      showToast(`오늘의 일기는 이미 작성하셨습니다 (하루 각자 1통). 다음 편지는 내일 새벽 04:00(남은 시간: ${countdown.formattedKorean})에 열립니다.`);
       return;
     }
     if (!isMyTurn) {
@@ -567,6 +584,8 @@ export default function HomePage() {
       isWaxBroken: false,
       openedAt: null,
     };
+    const nowIso = new Date().toISOString();
+    sessionStore.set(`warmth_last_written_${roomCode}_${userName}`, nowIso);
     setDiary(updated);
     setUiState('VIEW_WAITING');
     showToast(`📮 일기가 왁스로 단단히 봉인되어 ${partnerName} 님에게 전달되었습니다!`);
@@ -606,7 +625,7 @@ export default function HomePage() {
         userName={userName}
         partnerName={partnerName}
         isMyTurn={isMyTurn}
-        isTodayDiaryWritten={isTodayDiaryWritten}
+        isTodayDiaryWritten={hasMyQuotaBeenUsedToday}
         countdownFormatted={countdown.formatted}
       />
 
@@ -633,6 +652,7 @@ export default function HomePage() {
             roomData={roomData}
             diary={diary}
             isMyTurn={isMyTurn}
+            hasMyQuotaBeenUsedToday={hasMyQuotaBeenUsedToday}
             userRole={userRole}
             onOpenWriteModal={handleOpenWriteModal}
             onOpenArchive={() => setIsArchiveOpen(true)}

@@ -43,6 +43,7 @@ interface HomeViewProps {
   roomData?: RoomData | null;
   diary?: DiaryData | null;
   isMyTurn: boolean;
+  hasMyQuotaBeenUsedToday?: boolean;
   userRole?: 'CREATOR' | 'PARTNER';
   onOpenWriteModal: (initialTitle?: string) => void;
   onOpenArchive: () => void;
@@ -58,6 +59,7 @@ export default function HomeView({
   roomData,
   diary,
   isMyTurn,
+  hasMyQuotaBeenUsedToday,
   onOpenWriteModal,
   onOpenArchive,
   onSendKnock,
@@ -210,7 +212,7 @@ export default function HomeView({
             <span>매일 04:00 리셋</span>
             <span className="text-stone-300">·</span>
             <span className="font-mono font-bold text-[#6B1724]">
-              {isTodayDiaryWritten ? `다음 일기까지 ${countdown.formatted}` : `오늘 작성 가능 (${countdown.formatted} 남음)`}
+              {hasMyQuotaBeenUsedToday ? `오늘 작성 완료 (다음 편지까지 ${countdown.formatted})` : `오늘 작성 가능 (${countdown.formatted} 남음)`}
             </span>
           </div>
         </div>
@@ -233,8 +235,8 @@ export default function HomeView({
                 오늘의 교환일기
               </h3>
               <p className="text-[11px] text-stone-500 font-sans-ui">
-                {isTodayDiaryWritten
-                  ? `오늘 교환일기 작성 완료 (새벽 04시 리셋)`
+                {hasMyQuotaBeenUsedToday
+                  ? `오늘 나의 온기 작성 완료 (새벽 04시 리셋)`
                   : isMyTurn
                   ? '내가 오늘 편지를 쓸 차례'
                   : `${partnerName} 님의 오늘 작성 차례`}
@@ -244,15 +246,15 @@ export default function HomeView({
 
           <span
             className={`text-xs px-2.5 py-1 rounded-full font-serif-warm font-bold border ${
-              isTodayDiaryWritten
+              hasMyQuotaBeenUsedToday
                 ? 'bg-amber-100/80 text-amber-950 border-amber-300'
                 : isMyTurn
                 ? 'bg-[#6B1724]/10 text-[#6B1724] border-[#6B1724]/30'
                 : 'bg-stone-100 text-stone-600 border-stone-200'
             }`}
           >
-            {isTodayDiaryWritten
-              ? '오늘 교환 완료 🌙'
+            {hasMyQuotaBeenUsedToday
+              ? '오늘 작성 완료 🌙'
               : isMyTurn
               ? '내 턴 ✍️'
               : '상대방 턴 ⏳'}
@@ -361,9 +363,9 @@ export default function HomeView({
               >
                 편지 다시 읽기
               </button>
-              {isTodayDiaryWritten ? (
+              {hasMyQuotaBeenUsedToday ? (
                 <div
-                  title={`하루에 한 통씩만 교환할 수 있어요. 내일 새벽 04:00 이후에 답장을 쓸 수 있습니다. (남은 시간: ${countdown.formatted})`}
+                  title={`오늘 일기는 이미 작성하셨습니다 (하루 각자 1통). 내일 새벽 04:00 이후에 답장을 쓸 수 있습니다. (남은 시간: ${countdown.formatted})`}
                   className="flex-1 py-2 px-2.5 rounded-xl bg-stone-100 border border-stone-200 text-stone-500 text-xs font-serif-warm font-medium flex items-center justify-center gap-1.5 shadow-2xs select-none"
                 >
                   <Clock className="w-3.5 h-3.5 text-amber-800 shrink-0" />

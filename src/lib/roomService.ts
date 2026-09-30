@@ -379,27 +379,39 @@ export async function saveDiaryToFirestore(
 
       // 파트너 UID 결정 (턴 넘기기용)
       const partnerUid = roomData.members.find((id) => id !== diary.authorId) || diary.recipientId || 'partner';
+      const nowIso = new Date().toISOString();
+      const existingLastWritten = roomData.lastWrittenByUser || {};
 
       transaction.set(diaryRef, {
         ...encryptedDiary,
-        createdAt: new Date().toISOString(),
+        createdAt: nowIso,
       });
 
       transaction.update(roomRef, {
         latestDiaryId: diary.diaryId,
         currentTurn: partnerUid,
+        lastWrittenByUser: {
+          ...existingLastWritten,
+          ...(diary.authorId ? { [diary.authorId]: nowIso } : {}),
+          ...(diary.authorName ? { [diary.authorName]: nowIso } : {}),
+        },
         updatedAt: serverTimestamp(),
       });
     } else {
+      const nowIso = new Date().toISOString();
       transaction.set(diaryRef, {
         ...encryptedDiary,
-        createdAt: new Date().toISOString(),
+        createdAt: nowIso,
       });
       transaction.set(roomRef, {
         roomId: roomCode,
         roomCode: roomCode,
         latestDiaryId: diary.diaryId,
         currentTurn: diary.recipientId || 'partner',
+        lastWrittenByUser: {
+          ...(diary.authorId ? { [diary.authorId]: nowIso } : {}),
+          ...(diary.authorName ? { [diary.authorName]: nowIso } : {}),
+        },
         updatedAt: serverTimestamp(),
       }, { merge: true });
     }

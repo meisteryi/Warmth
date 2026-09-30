@@ -111,5 +111,8 @@ export interface RoomData {
   createdAt?: string;
   matchedAt?: string;
   anniversaryDate?: string;
+  lastWrittenByUser?: {
+    [uidOrName: string]: string;
+  };
 }
 
