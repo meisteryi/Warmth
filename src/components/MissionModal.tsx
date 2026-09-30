@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MissionData } from '@/types/diary';
 import { soundEngine } from '@/lib/audio';
 import confetti from 'canvas-confetti';
-import { Puzzle, Stamp, HelpCircle, X, Sparkles, Lightbulb, CheckCircle2 } from 'lucide-react';
+import { Puzzle, Stamp, HelpCircle, X, Sparkles, Lightbulb, CheckCircle2, Loader2 } from 'lucide-react';
+import { verifyFlexibleQuizAnswer } from '@/lib/aiClient';
 import PhotoSlidingPuzzle from './PhotoSlidingPuzzle';
 import StampJigsawPuzzle from './StampJigsawPuzzle';
 
@@ -38,6 +39,7 @@ export default function MissionModal({
   const [showHint, setShowHint] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isCheckingAnswer, setIsCheckingAnswer] = useState(false);
   const [wrongCount, setWrongCount] = useState(0);
 
   // 모달이 열릴 때 상태 초기화
@@ -47,6 +49,7 @@ export default function MissionModal({
       setShowHint(false);
       setErrorMsg('');
       setIsSuccess(false);
+      setIsCheckingAnswer(false);
       setWrongCount(0);
     }
   }, [isOpen, mission]);
@@ -76,30 +79,8 @@ export default function MissionModal({
     }, 1000);
   };
 
-  // 3. 깜짝 퀴즈 정답 검증 및 제출
-  const handleQuizSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg('');
-
-    if (!quizInput.trim()) {
-      setErrorMsg('정답을 입력해주세요.');
-      return;
-    }
-
-    // 공백 및 대소문자 무시 비교
-    const normalizedInput = quizInput.trim().replace(/\s+/g, '').toLowerCase();
-    const normalizedAnswer = quizAnswer.trim().replace(/\s+/g, '').toLowerCase();
-
-    if (normalizedInput !== normalizedAnswer) {
-      const nextCount = wrongCount + 1;
-      setWrongCount(nextCount);
-      setErrorMsg(`정답이 아닙니다. (${nextCount}회 시도)`);
-      setShowHint(true); // 오답 시 자동으로 힌트 노출
-      soundEngine.playTileSlideSound();
-      return;
-    }
-
-    // 정답 통과!
+  // 퀴즈 정답 통과 공통 핸들러
+  const handlePassQuizSuccess = (displayAnswer: string) => {
     setIsSuccess(true);
     soundEngine.playMissionPassChime();
     confetti({
@@ -110,10 +91,59 @@ export default function MissionModal({
     });
 
     setTimeout(() => {
-      onPassMission(`💡 깜짝 퀴즈 정답 통과: "${quizAnswer}"`);
+      onPassMission(`💡 깜짝 퀴즈 정답 통과: "${displayAnswer}"`);
       setIsSuccess(false);
       onClose();
     }, 1200);
+  };
+
+  // 3. 깜짝 퀴즈 정답 검증 및 제출 (AI 기반 유연한 유사 정답 판정)
+  const handleQuizSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isCheckingAnswer || isSuccess) return;
+    setErrorMsg('');
+
+    if (!quizInput.trim()) {
+      setErrorMsg('정답을 입력해주세요.');
+      return;
+    }
+
+    // 1) 0ms 빠른 단순 일치 검사
+    const normalizedInput = quizInput.trim().replace(/\s+/g, '').toLowerCase();
+    const normalizedAnswer = quizAnswer.trim().replace(/\s+/g, '').toLowerCase();
+
+    if (normalizedInput === normalizedAnswer) {
+      handlePassQuizSuccess(quizAnswer);
+      return;
+    }
+
+    // 2) API 및 스마트 휴리스틱 유연 채점 (러닝 <-> 조깅 등 의미상 거의 맞으면 정답 인정)
+    setIsCheckingAnswer(true);
+    try {
+      const result = await verifyFlexibleQuizAnswer(quizPrompt, quizAnswer, quizInput);
+      setIsCheckingAnswer(false);
+
+      if (result.isCorrect) {
+        const displayAnswer =
+          quizInput.trim() !== quizAnswer.trim()
+            ? `${quizInput.trim()} (정답 인정 / 원문: ${quizAnswer})`
+            : quizAnswer;
+        handlePassQuizSuccess(displayAnswer);
+      } else {
+        const nextCount = wrongCount + 1;
+        setWrongCount(nextCount);
+        setErrorMsg(`정답이 아닙니다. (${nextCount}회 시도)`);
+        setShowHint(true); // 오답 시 자동으로 힌트 노출
+        soundEngine.playTileSlideSound();
+      }
+    } catch {
+      setIsCheckingAnswer(false);
+      const nextCount = wrongCount + 1;
+      setWrongCount(nextCount);
+      setErrorMsg(`정답이 아닙니다. (${nextCount}회 시도)`);
+      setShowHint(true);
+      soundEngine.playTileSlideSound();
+    }
   };
 
   return (
@@ -232,11 +262,15 @@ export default function MissionModal({
                     </label>
                     <input
                       type="text"
+                      disabled={isCheckingAnswer || isSuccess}
                       value={quizInput}
                       onChange={(e) => setQuizInput(e.target.value)}
-                      placeholder="정답을 입력하세요..."
-                      className="w-full p-3 rounded-xl border border-stone-300 bg-white font-serif-warm text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724]"
+                      placeholder="정답을 입력하세요... (예: 러닝, 조깅)"
+                      className="w-full p-3 rounded-xl border border-stone-300 bg-white font-serif-warm text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] disabled:opacity-60"
                     />
+                    <p className="mt-1 text-[11px] text-stone-400 font-sans-ui">
+                      💡 글자가 완전히 같지 않아도 의미가 통하면 정답으로 인정돼요. (예: 러닝 ↔ 조깅)
+                    </p>
                   </div>
 
                   {errorMsg && (
@@ -248,10 +282,15 @@ export default function MissionModal({
 
                   <button
                     type="submit"
-                    disabled={isSuccess}
-                    className="w-full py-3 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] active:scale-[0.99] text-amber-50 font-serif-warm font-semibold text-sm shadow-md transition-all flex items-center justify-center gap-2"
+                    disabled={isSuccess || isCheckingAnswer}
+                    className="w-full py-3 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] active:scale-[0.99] text-amber-50 font-serif-warm font-semibold text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
                   >
-                    {isSuccess ? (
+                    {isCheckingAnswer ? (
+                      <>
+                        <Loader2 className="w-4 h-4 text-amber-200 animate-spin" />
+                        <span>답변 확인 중...</span>
+                      </>
+                    ) : isSuccess ? (
                       <>
                         <CheckCircle2 className="w-4 h-4 text-emerald-300" />
                         <span>정답입니다! 봉인 해제 중...</span>

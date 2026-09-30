@@ -393,3 +393,187 @@ function generateFallbackWarmth(title: string, content: string): WarmthScore {
     keywords: keywords.slice(0, 3),
   };
 }
+
+/* ---------------- 4. 🎯 깜짝 퀴즈 유연한 유사 정답 검증 (의미상 거의 맞으면 정답 인정) ---------------- */
+
+function normalizeQuizWord(str: string): string {
+  return str
+    .trim()
+    .toLowerCase()
+    .replace(/[\s\-_.,!?~^;:'"()]+/g, '');
+}
+
+function stripKoreanParticles(str: string): string {
+  return str.replace(
+    /(이야|에요|예요|입니다|이다|이요|요|임|함|하기|먹기|가기|하기로한거|한거|인거|거|것|이|가|을|를|랑|과|와|도)$/,
+    ''
+  );
+}
+
+function levenshteinDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (a[i - 1] === b[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1];
+      } else {
+        dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+      }
+    }
+  }
+  return dp[m][n];
+}
+
+function fallbackFlexibleAnswerCheck(expected: string, user: string): { isCorrect: boolean; reason?: string } {
+  // 1) 부분 포함 (길이 2 이상)
+  if (expected.length >= 2 && user.length >= 2) {
+    if (expected.includes(user) || user.includes(expected)) {
+      return { isCorrect: true, reason: '유사 단어 포함 인정' };
+    }
+  }
+
+  // 2) 대표 동의어/유의어 사전 (예: 러닝 <-> 조깅/달리기, 아메리카노 <-> 아아)
+  const synonymGroups = [
+    ['러닝', '조깅', '달리기', '뜀걸음', '뜀박질', '뛰기', '런닝'],
+    ['통화', '전화', '통화하기', '전화통화', '목소리', '통화한거'],
+    ['아이스아메리카노', '아메리카노', '아아', '커피', '아이스커피', '아메'],
+    ['붕어빵', '잉어빵', '팥붕어빵', '슈크림붕어빵', '붕방', '팥붕', '슈붕'],
+    ['고마움', '감사', '감사함', '고마운마음', '고마운거'],
+    ['서촌', '통인동', '서촌마을', '경복궁', '경복궁서쪽'],
+    ['삼겹살', '고기', '돼지고기', '삼겹'],
+    ['행복', '행복함', '기쁨', '즐거움'],
+  ];
+
+  for (const group of synonymGroups) {
+    const normGroup = group.map((w) => normalizeQuizWord(w));
+    const userInGroup = normGroup.some((w) => user.includes(w) || w.includes(user));
+    const expInGroup = normGroup.some((w) => expected.includes(w) || w.includes(expected));
+    if (userInGroup && expInGroup) {
+      return { isCorrect: true, reason: '유의어 인정' };
+    }
+  }
+
+  // 3) 오타 참작 레벤슈타인 거리 (1글자 오타 허용)
+  if (levenshteinDistance(expected, user) <= 1 && Math.min(expected.length, user.length) >= 2) {
+    return { isCorrect: true, reason: '오타 참작 인정' };
+  }
+
+  return { isCorrect: false, reason: '정답 불일치' };
+}
+
+/**
+ * 퀴즈 답변을 Gemini API를 통해 의미상 유연하게 채점합니다.
+ * 러닝 <-> 조깅, 아메리카노 <-> 아아 등 거의 맞은 답변을 정답으로 처리합니다.
+ */
+export async function evaluateQuizAnswerFlexibly(
+  question: string,
+  expectedAnswer: string,
+  userAnswer: string
+): Promise<{ isCorrect: boolean; reason?: string }> {
+  // 1) 0ms 빠른 정확도 검사 (공백/문장부호/조사 제거)
+  const cleanExp = normalizeQuizWord(expectedAnswer);
+  const cleanUser = normalizeQuizWord(userAnswer);
+
+  if (!cleanUser) {
+    return { isCorrect: false, reason: '답변이 비어있습니다.' };
+  }
+
+  // 완전 일치
+  if (cleanExp === cleanUser) {
+    return { isCorrect: true, reason: '정확한 정답' };
+  }
+
+  // 한국어 어미/조사(은/는/이/가/을/를/이야/에요/요/임 등) 제거 후 일치 비교
+  const stemExp = stripKoreanParticles(cleanExp);
+  const stemUser = stripKoreanParticles(cleanUser);
+  if (stemExp && stemUser && stemExp === stemUser) {
+    return { isCorrect: true, reason: '조사/어미 일치 정답' };
+  }
+
+  // 2) Gemini AI 유연 채점
+  const apiKey = getSecureGeminiKey();
+  if (apiKey) {
+    try {
+      const prompt = `당신은 연인 간의 교환일기 퀴즈를 채점하는 다정하고 유연한 AI 채점관입니다.
+질문: "${question}"
+원래 출제자가 설정한 정답: "${expectedAnswer}"
+상대방이 제출한 답변: "${userAnswer}"
+
+채점 기준:
+1. 답변이 원래 정답과 글자 그대로 완전히 일치하지 않더라도, **의미상 거의 같거나 유의어/동의어, 문맥상 동일한 대상을 지칭하는 경우 관대하고 유도리 있게 정답(isCorrect: true)**으로 인정해주세요.
+   - 예시 (모두 정답 인정):
+     * 정답: "러닝" / 답변: "조깅", "달리기", "뜀박질", "뛰기" -> 정답 (isCorrect: true)
+     * 정답: "아이스 아메리카노" / 답변: "아아", "아메리카노", "커피", "아이스커피" -> 정답 (isCorrect: true)
+     * 정답: "붕어빵" / 답변: "붕방", "잉어빵", "팥붕", "슈붕" -> 정답 (isCorrect: true)
+     * 정답: "통화" / 답변: "전화", "밤에 전화한 거", "목소리 들은 거", "전화통화" -> 정답 (isCorrect: true)
+     * 정답: "서촌" / 답변: "경복궁 옆", "통인동", "서촌마을" -> 정답 (isCorrect: true)
+     * 정답: "삼겹살" / 답변: "고기", "삼겹살구이", "돼지고기" -> 정답 (isCorrect: true)
+     * 정답: "고마움" / 답변: "감사", "고마운 마음", "고마워하는 마음" -> 정답 (isCorrect: true)
+     * 오타나 맞춤법 오차(예: "떡복이", "설레임" 등)도 의도가 맞으면 정답 인정.
+2. 완전히 다른 대상이거나 반대되는 의미, 명백한 오답인 경우에만 오답(isCorrect: false)으로 판정하세요.
+   - 오답 예시:
+     * 정답: "치킨" / 답변: "피자" -> 오답 (isCorrect: false)
+     * 정답: "봄" / 답변: "겨울" -> 오답 (isCorrect: false)
+     * 정답: "행복" / 답변: "슬픔" -> 오답 (isCorrect: false)
+
+반드시 순수 JSON 형식으로만 응답하세요:
+{"isCorrect": true, "reason": "유의어이므로 정답 인정"} 또는
+{"isCorrect": false, "reason": "서로 다른 의미이므로 오답"}`;
+
+      // 타임아웃 2.5초 설정
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 2500);
+
+      const res = await fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent',
+        {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey,
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: 'user',
+                parts: [{ text: prompt }],
+              },
+            ],
+            generationConfig: {
+              responseMimeType: 'application/json',
+              temperature: 0.2,
+            },
+          }),
+          signal: controller.signal,
+        }
+      );
+      clearTimeout(timer);
+
+      if (res.ok) {
+        const data = await res.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+          const cleanedJson = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+          const parsed = JSON.parse(cleanedJson);
+          if (typeof parsed.isCorrect === 'boolean') {
+            return {
+              isCorrect: parsed.isCorrect,
+              reason: parsed.reason || (parsed.isCorrect ? '유사 정답 인정' : '오답'),
+            };
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Gemini evaluateQuizAnswerFlexibly error:', e);
+    }
+  }
+
+  // 3) 스마트 휴리스틱 대체 (오프라인 / API 장애 시)
+  return fallbackFlexibleAnswerCheck(stemExp || cleanExp, stemUser || cleanUser);
+}

@@ -3,6 +3,7 @@ import {
   generateCustomQuiz,
   analyzeWarmthTemperature,
   getRandomPrompt,
+  evaluateQuizAnswerFlexibly,
 } from '@/lib/gemini';
 
 /**
@@ -57,5 +58,23 @@ export async function fetchDailyPrompt(partnerName: string = '유라'): Promise<
   } catch (e) {
     console.warn('fetchDailyPrompt error:', e);
     return `오늘 하루 중 ${partnerName}에게 가장 먼저 말해주고 싶었던 사소한 순간은 무엇이었나요?`;
+  }
+}
+
+/**
+ * 4. 💡 깜짝 퀴즈 답변 유연한 유사 정답 검증 (러닝 <-> 조깅 등 의미상 거의 맞으면 정답 인정)
+ */
+export async function verifyFlexibleQuizAnswer(
+  question: string,
+  expectedAnswer: string,
+  userAnswer: string
+): Promise<{ isCorrect: boolean; reason?: string }> {
+  try {
+    return await evaluateQuizAnswerFlexibly(question, expectedAnswer, userAnswer);
+  } catch (e) {
+    console.warn('verifyFlexibleQuizAnswer error:', e);
+    const cleanExp = expectedAnswer.trim().toLowerCase().replace(/\s+/g, '');
+    const cleanUser = userAnswer.trim().toLowerCase().replace(/\s+/g, '');
+    return { isCorrect: cleanExp === cleanUser, reason: cleanExp === cleanUser ? '일치' : '불일치' };
   }
 }
