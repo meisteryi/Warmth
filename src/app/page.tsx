@@ -128,6 +128,11 @@ export default function HomePage() {
   const [partnerDisconnectedNickname, setPartnerDisconnectedNickname] = useState('');
   const handledDisconnectionTimeRef = useRef<string | null>(null);
 
+  // 마지막 남은 퇴장자 여부 및 2차 방 코드 기억 경고 모달 상태
+  const [isLastPersonRemaining, setIsLastPersonRemaining] = useState(false);
+  const [isLastLeaverWarningOpen, setIsLastLeaverWarningOpen] = useState(false);
+  const [hasCopiedLeaveCode, setHasCopiedLeaveCode] = useState(false);
+
   // 턴 로테이션 판별:
   // 1) 아직 일기가 없는 초기 상태: "코드를 써서 로그인하면, 무조건 방장이 아닌 사람이 편지를 먼저 써야 해."
   // 2) 이미 일기가 있는 상태: 번갈아가며 로테이션 (마지막 일기를 쓴 사람이 아니면 내 턴)
@@ -185,6 +190,14 @@ export default function HomePage() {
                   setUserRole(role);
                   localStorage.setItem(STORAGE_KEYS.USER_ROLE, role);
                 }
+              }
+              if (roomData.members) {
+                const myUid = getOrCreateUserId();
+                const partnerLeft = Boolean(
+                  (roomData.lastDisconnection && roomData.lastDisconnection.leaverUid !== myUid) ||
+                  (roomData.members.length === 1 && roomData.members.includes(myUid))
+                );
+                setIsLastPersonRemaining(partnerLeft);
               }
               if (roomData.latestDiaryId) {
                 const diaryRef = doc(db, 'rooms', savedRoom, 'diaries', roomData.latestDiaryId);
@@ -248,6 +261,15 @@ export default function HomePage() {
             localStorage.setItem(STORAGE_KEYS.USER_ROLE, role);
           } catch {}
         }
+      }
+
+      // 0-1. 마지막 남은 사람(상대방이 이미 퇴장함) 여부 판별
+      if (room.members) {
+        const partnerLeft = Boolean(
+          (room.lastDisconnection && room.lastDisconnection.leaverUid !== myUid) ||
+          (room.members.length === 1 && room.members.includes(myUid))
+        );
+        setIsLastPersonRemaining(partnerLeft);
       }
 
       // 1. 방에 상대방이 보낸 새 노크가 있는지 실시간 감지 & E2EE 복호화
@@ -391,13 +413,35 @@ export default function HomePage() {
     showToast(`🎉 ${partner} 님과 연결되었습니다! 둘만의 서재에 오신 것을 환영합니다.`);
   };
 
-  // 방 나가기 (감성 인앱 확인 모달 표시)
+  // 방 나가기 (1차 감성 인앱 확인 모달 표시)
   const handleLeaveRoom = () => {
     setIsLeaveConfirmOpen(true);
   };
 
-  const confirmLeaveRoom = async () => {
+  // 1차 모달에서 '연결 해제하기'를 눌렀을 때
+  const confirmLeaveRoom = () => {
     setIsLeaveConfirmOpen(false);
+
+    // 둘 중 마지막에 나가는 사람은 방 코드를 기억해야 하므로 경고창을 한 번 더 띄움!
+    if (isLastPersonRemaining) {
+      setIsLastLeaverWarningOpen(true);
+      return;
+    }
+
+    executeLeaveRoom(false);
+  };
+
+  // 상대방이 먼저 방을 나가서 뜬 모달에서 '확인(시작 화면으로 이동)'을 눌렀을 때
+  const handleAcknowledgePartnerDisconnect = () => {
+    setIsPartnerDisconnectedModalOpen(false);
+    // 상대방이 이미 나갔으므로 본인이 마지막 사람임 -> 경고창 한 번 더 띄움!
+    setIsLastLeaverWarningOpen(true);
+  };
+
+  // 실제 방 나가기 및 세션 클리어 수행
+  const executeLeaveRoom = async (withCopyNotice: boolean = false) => {
+    setIsLeaveConfirmOpen(false);
+    setIsLastLeaverWarningOpen(false);
 
     // Firestore에 나가기 상태 동기화 (상대방 기기에 실시간 알림 전송)
     if (roomCode) {
@@ -420,26 +464,13 @@ export default function HomePage() {
 
     setDiary(null);
     setRoomCode('');
+    setIsLastPersonRemaining(false);
     setUiState('VIEW_ONBOARDING');
-    showToast('일기장 연결이 해제되었습니다.');
-  };
-
-  // 상대방의 연결 해제 확인 후 세션 정리 및 시작 화면 복귀
-  const handleAcknowledgePartnerDisconnect = () => {
-    setIsPartnerDisconnectedModalOpen(false);
-
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.removeItem(STORAGE_KEYS.ROOM_CODE);
-        localStorage.removeItem(STORAGE_KEYS.USER_NAME);
-        localStorage.removeItem(STORAGE_KEYS.PARTNER_NAME);
-        localStorage.removeItem(STORAGE_KEYS.USER_ROLE);
-      } catch {}
+    if (withCopyNotice) {
+      showToast('초대코드가 복사되었습니다. 일기장 연결이 해제되었습니다.');
+    } else {
+      showToast('일기장 연결이 해제되었습니다.');
     }
-
-    setDiary(null);
-    setRoomCode('');
-    setUiState('VIEW_ONBOARDING');
   };
 
 
@@ -758,6 +789,83 @@ export default function HomePage() {
                 className="w-full py-2.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-xs font-bold font-sans-ui shadow-xs cursor-pointer active:scale-95 transition-all"
               >
                 확인 (시작 화면으로 이동)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 둘 중 마지막에 나가는 사람을 위한 방 코드 기억 경고 모달 */}
+      {isLastLeaverWarningOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/65 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-sm bg-[#FFFDF9] rounded-2xl p-5 sm:p-6 paper-texture border border-[#E8DFC8] shadow-2xl space-y-4">
+            <div className="w-12 h-12 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-xl mx-auto shadow-2xs">
+              ⚠️
+            </div>
+            <div className="text-center space-y-2">
+              <span className="inline-block px-2.5 py-0.5 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-[11px] font-sans-ui font-semibold">
+                마지막 퇴장 전 필수 확인
+              </span>
+              <h3 className="font-serif-warm font-bold text-stone-900 text-lg">
+                방 코드를 꼭 기억해두세요!
+              </h3>
+              <p className="text-xs text-stone-600 font-serif-warm leading-relaxed">
+                상대방이 이미 일기장을 떠나 <strong className="text-stone-900">{userName}</strong> 님이 마지막으로 방을 나가게 됩니다.
+                <br />
+                둘 다 방을 나가면, 아래 <strong>6자리 초대코드</strong>를 알고 있어야만 나중에 다시 접속하여 소중한 추억들을 열람할 수 있습니다.
+              </p>
+
+              {/* 코드 복사 카드 */}
+              <div className="mt-2 p-3 rounded-xl bg-amber-50/90 border border-amber-300/80 flex items-center justify-between shadow-inner">
+                <div className="text-left">
+                  <div className="text-[10px] text-amber-800 font-sans-ui font-medium">우리 둘만의 초대코드</div>
+                  <div className="text-xl font-mono font-bold tracking-widest text-[#6B1724]">
+                    #{roomCode}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (navigator.clipboard) {
+                      navigator.clipboard.writeText(roomCode);
+                      setHasCopiedLeaveCode(true);
+                      showToast('초대코드가 클립보드에 복사되었습니다.');
+                      setTimeout(() => setHasCopiedLeaveCode(false), 3000);
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-white hover:bg-amber-100/60 border border-amber-300 text-amber-900 text-xs font-sans-ui font-semibold shadow-2xs transition-colors cursor-pointer active:scale-95"
+                >
+                  {hasCopiedLeaveCode ? '복사됨 ✓' : '코드 복사'}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (navigator.clipboard) {
+                    navigator.clipboard.writeText(roomCode);
+                  }
+                  executeLeaveRoom(true);
+                }}
+                className="w-full py-2.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-xs font-bold font-sans-ui shadow-xs cursor-pointer active:scale-95 transition-all"
+              >
+                초대코드 복사하고 나가기
+              </button>
+              <button
+                type="button"
+                onClick={() => executeLeaveRoom(false)}
+                className="w-full py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 text-xs font-semibold font-sans-ui cursor-pointer active:scale-95 transition-all"
+              >
+                코드 기억했으니 바로 나가기
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsLastLeaverWarningOpen(false)}
+                className="w-full py-1.5 text-center text-[11px] text-stone-400 hover:text-stone-600 font-sans-ui transition-colors cursor-pointer"
+              >
+                취소 (서재에 머무르기)
               </button>
             </div>
           </div>
