@@ -319,11 +319,11 @@ export default function HomePage() {
         partnerName={partnerName}
       />
 
-      {/* 메인 뷰 컨테이너 */}
-      <main className="flex-1 flex flex-col items-center justify-center p-2 sm:p-4 relative overflow-y-auto sm:overflow-visible">
-        {/* 토스트 알림 */}
+      {/* 메인 뷰 컨테이너 (iOS 스크롤 및 키보드 오버플로우 방지) */}
+      <main className="flex-1 flex flex-col items-center justify-start sm:justify-center p-2 sm:p-4 pb-[max(env(safe-area-inset-bottom,0px),1rem)] relative overflow-y-auto sm:overflow-visible">
+        {/* 토스트 알림 (iOS 홈 바 위로 안전 배치) */}
         {toastMessage && (
-          <div className="fixed bottom-[max(env(safe-area-inset-bottom),1.5rem)] z-50 px-4 py-2.5 rounded-full bg-stone-900/90 text-amber-100 text-xs sm:text-sm font-sans-ui shadow-2xl backdrop-blur-md animate-fade-in border border-amber-900/40 max-w-[90vw] text-center">
+          <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] z-50 px-4 py-2.5 rounded-full bg-stone-900/90 text-amber-100 text-xs sm:text-sm font-sans-ui shadow-2xl backdrop-blur-md animate-fade-in border border-amber-900/40 max-w-[90vw] text-center">
             {toastMessage}
           </div>
         )}
@@ -413,8 +413,8 @@ export default function HomePage() {
         }}
       />
 
-      {/* 푸터 */}
-      <footer className="py-1.5 sm:py-3 pb-[max(env(safe-area-inset-bottom),0.5rem)] text-center text-[10px] sm:text-[11px] text-stone-400 font-serif-warm border-t border-[#EAE1D5]/40 bg-[#FAF7F2]/50 px-3 shrink-0">
+      {/* 푸터 (iOS 홈 인디케이터 제스처 여백 확보) */}
+      <footer className="py-2 sm:py-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.6rem)] text-center text-[10px] sm:text-[11px] text-stone-400 font-serif-warm border-t border-[#EAE1D5]/40 bg-[#FAF7F2]/50 px-3 shrink-0">
         <p>온기 (Warmth) · 하루걸러 띄우는 우리 둘만의 아날로그 비밀 교환일기</p>
       </footer>
     </div>

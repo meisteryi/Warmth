@@ -59,9 +59,9 @@ export default function ArchiveModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-stone-900/60 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] bg-stone-900/60 backdrop-blur-sm animate-fade-in">
       <div 
-        className="w-full max-w-2xl max-h-[88vh] flex flex-col bg-[#FAF7F2] rounded-3xl shadow-2xl border border-[#E8DFD3] overflow-hidden"
+        className="w-full max-w-2xl max-h-[90dvh] flex flex-col bg-[#FAF7F2] rounded-3xl shadow-2xl border border-[#E8DFD3] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 모달 상단 헤더 */}
@@ -202,8 +202,8 @@ export default function ArchiveModal({
           )}
         </div>
 
-        {/* 하단 닫기 바 */}
-        <div className="px-5 py-3 border-t border-[#E8DFD3] bg-[#FAF7F2] flex justify-end shrink-0">
+        {/* 하단 닫기 바 (iOS 홈 제스처 바 여백 확보) */}
+        <div className="px-5 py-3 pb-[max(env(safe-area-inset-bottom,0px),0.75rem)] border-t border-[#E8DFD3] bg-[#FAF7F2] flex justify-end shrink-0">
           <button
             onClick={onClose}
             className="px-5 py-2 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-serif-warm font-bold transition-all cursor-pointer"

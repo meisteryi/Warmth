@@ -38,7 +38,7 @@ export default function RoomHeader({
   const isMatched = currentState !== 'VIEW_ONBOARDING';
 
   return (
-    <header className="w-full bg-[#FAF7F2]/95 backdrop-blur-md border-b border-[#E8DFD3] sticky top-0 z-40 px-3.5 sm:px-5 pt-[max(env(safe-area-inset-top),0.6rem)] pb-2 sm:pb-3 shrink-0 shadow-2xs">
+    <header className="w-full bg-[#FAF7F2]/95 backdrop-blur-md border-b border-[#E8DFD3] sticky top-0 z-40 px-3.5 sm:px-5 pt-[calc(env(safe-area-inset-top,0px)+0.65rem)] pb-2 sm:pb-3 shrink-0 shadow-2xs">
       <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3">
         {/* 상단 정보 행 (모바일에서는 로고/이름과 우측 간편 액션 분할) */}
         <div className="flex items-center justify-between">

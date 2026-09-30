@@ -22,7 +22,7 @@ export default function KnockNotificationModal({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pt-[calc(env(safe-area-inset-top,0px)+1rem)] pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] bg-black/40 backdrop-blur-sm">
         <motion.div
           initial={{ opacity: 0, scale: 0.92, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}

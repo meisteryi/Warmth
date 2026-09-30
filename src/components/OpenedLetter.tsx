@@ -165,11 +165,11 @@ export default function OpenedLetter({
         </div>
       </div>
 
-      {/* 하단 턴 액션 버튼 */}
-      <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+      {/* 하단 턴 액션 버튼 (iOS 하단 제스처 여백 확보) */}
+      <div className="mt-8 mb-6 pb-[max(env(safe-area-inset-bottom,0px),1rem)] flex flex-col sm:flex-row items-center justify-center gap-4">
         <button
           onClick={onWriteReply}
-          className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-[#6B1724] hover:bg-[#831D2D] active:scale-95 text-amber-50 font-serif-warm text-base font-semibold shadow-xl transition-all flex items-center justify-center gap-2"
+          className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-[#6B1724] hover:bg-[#831D2D] active:scale-95 text-amber-50 font-serif-warm text-base font-semibold shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
         >
           <PenLine className="w-5 h-5 text-amber-200" />
           <span>답장 쓰기 (내 턴 시작하기)</span>

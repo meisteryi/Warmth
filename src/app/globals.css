@@ -17,9 +17,15 @@
   --safe-right: env(safe-area-inset-right, 0px);
 }
 
+html {
+  height: -webkit-fill-available;
+  -webkit-text-size-adjust: 100%;
+}
+
 html, body {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  overscroll-behavior-y: none;
 }
 
 body {
@@ -30,6 +36,7 @@ body {
     radial-gradient(ellipse at 50% 10%, rgba(245, 235, 220, 0.6) 0%, rgba(244, 239, 234, 0) 70%),
     radial-gradient(circle at 10% 20%, rgba(230, 220, 205, 0.4) 0%, transparent 40%);
   min-height: 100vh;
+  min-height: -webkit-fill-available;
   min-height: 100dvh;
   margin: 0;
   -webkit-font-smoothing: antialiased;
