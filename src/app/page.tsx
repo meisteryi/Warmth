@@ -74,12 +74,42 @@ const STORAGE_KEYS = {
   USER_ROLE: 'warmth_active_user_role',
 };
 
+// 동일 브라우저 다중 탭/창 격리 및 새로고침/PWA 복원을 지원하는 하이브리드 세션 스토리지
+const sessionStore = {
+  get: (key: string): string | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const sess = sessionStorage.getItem(key);
+      if (sess !== null && sess !== '') return sess;
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  set: (key: string, val: string) => {
+    if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.setItem(key, val);
+      localStorage.setItem(key, val);
+    } catch {}
+  },
+  remove: (key: string) => {
+    if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.removeItem(key);
+      localStorage.removeItem(key);
+    } catch {}
+  },
+};
+
 export default function HomePage() {
   const [uiState, setUiState] = useState<UIState>('VIEW_ONBOARDING');
   const [roomCode, setRoomCode] = useState('829104');
   const [userName, setUserName] = useState(() => {
     if (typeof window !== 'undefined') {
       try {
+        const saved = sessionStore.get(STORAGE_KEYS.USER_NAME);
+        if (saved) return saved;
         const param = new URLSearchParams(window.location.search).get('user');
         if (param === 'yura') return '유라';
       } catch {}
@@ -89,6 +119,8 @@ export default function HomePage() {
   const [partnerName, setPartnerName] = useState(() => {
     if (typeof window !== 'undefined') {
       try {
+        const saved = sessionStore.get(STORAGE_KEYS.PARTNER_NAME);
+        if (saved) return saved;
         const param = new URLSearchParams(window.location.search).get('user');
         if (param === 'yura') return '주형';
       } catch {}
@@ -100,7 +132,7 @@ export default function HomePage() {
   const [userRole, setUserRole] = useState<'CREATOR' | 'PARTNER'>(() => {
     if (typeof window !== 'undefined') {
       try {
-        const saved = localStorage.getItem(STORAGE_KEYS.USER_ROLE) as 'CREATOR' | 'PARTNER';
+        const saved = sessionStore.get(STORAGE_KEYS.USER_ROLE) as 'CREATOR' | 'PARTNER';
         if (saved === 'CREATOR' || saved === 'PARTNER') return saved;
         const param = new URLSearchParams(window.location.search).get('user');
         if (param === 'yura') return 'PARTNER';
@@ -165,9 +197,9 @@ export default function HomePage() {
     if (typeof window === 'undefined') return;
     registerServiceWorker();
     try {
-      const savedRoom = localStorage.getItem(STORAGE_KEYS.ROOM_CODE);
-      const savedUser = localStorage.getItem(STORAGE_KEYS.USER_NAME);
-      const savedPartner = localStorage.getItem(STORAGE_KEYS.PARTNER_NAME);
+      const savedRoom = sessionStore.get(STORAGE_KEYS.ROOM_CODE);
+      const savedUser = sessionStore.get(STORAGE_KEYS.USER_NAME);
+      const savedPartner = sessionStore.get(STORAGE_KEYS.PARTNER_NAME);
 
       if (savedRoom && savedUser && savedPartner) {
         setRoomCode(savedRoom);
@@ -183,12 +215,12 @@ export default function HomePage() {
               if (roomData.memberInfo) {
                 const myUid = getOrCreateUserId();
                 const entry = Object.entries(roomData.memberInfo).find(([uid, info]: any) => {
-                  return uid === myUid || (info.nickname && info.nickname.trim().toLowerCase() === savedUser.trim().toLowerCase());
+                  return (info.nickname && info.nickname.trim().toLowerCase() === savedUser.trim().toLowerCase()) || uid === myUid;
                 });
                 if (entry) {
                   const role = (entry[1] as any).role as 'CREATOR' | 'PARTNER';
                   setUserRole(role);
-                  localStorage.setItem(STORAGE_KEYS.USER_ROLE, role);
+                  sessionStore.set(STORAGE_KEYS.USER_ROLE, role);
                 }
               }
               if (roomData.members) {
@@ -228,9 +260,10 @@ export default function HomePage() {
               showToast(`📖 ${savedPartner} 님과의 일기장으로 복귀했습니다.`);
             } else {
               // 방이 삭제되었거나 존재하지 않는 경우 초기화
-              localStorage.removeItem(STORAGE_KEYS.ROOM_CODE);
-              localStorage.removeItem(STORAGE_KEYS.USER_NAME);
-              localStorage.removeItem(STORAGE_KEYS.PARTNER_NAME);
+              sessionStore.remove(STORAGE_KEYS.ROOM_CODE);
+              sessionStore.remove(STORAGE_KEYS.USER_NAME);
+              sessionStore.remove(STORAGE_KEYS.PARTNER_NAME);
+              sessionStore.remove(STORAGE_KEYS.USER_ROLE);
               setUiState('VIEW_ONBOARDING');
             }
           } catch (err) {
@@ -253,13 +286,13 @@ export default function HomePage() {
       if (room.memberInfo) {
         const myUid = getOrCreateUserId();
         const entry = Object.entries(room.memberInfo).find(([uid, info]) => {
-          return uid === myUid || (info.nickname && info.nickname.trim().toLowerCase() === userName.trim().toLowerCase());
+          return (info.nickname && info.nickname.trim().toLowerCase() === userName.trim().toLowerCase()) || uid === myUid;
         });
         if (entry) {
           const role = entry[1].role;
           setUserRole(role);
           try {
-            localStorage.setItem(STORAGE_KEYS.USER_ROLE, role);
+            sessionStore.set(STORAGE_KEYS.USER_ROLE, role);
           } catch {}
         }
       }
@@ -368,17 +401,11 @@ export default function HomePage() {
     const detectedRole = role || (userRole === 'PARTNER' ? 'PARTNER' : 'CREATOR');
     setUserRole(detectedRole);
 
-    // 세션 영구 보관 (PWA 재접속 시 자동 매칭 복구)
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(STORAGE_KEYS.ROOM_CODE, code);
-        localStorage.setItem(STORAGE_KEYS.USER_NAME, me);
-        localStorage.setItem(STORAGE_KEYS.PARTNER_NAME, partner);
-        localStorage.setItem(STORAGE_KEYS.USER_ROLE, detectedRole);
-      } catch (e) {
-        console.warn('Failed to save session to localStorage:', e);
-      }
-    }
+    // 세션 영구 보관 (PWA 재접속 시 자동 매칭 복구 & 탭 격리 보장)
+    sessionStore.set(STORAGE_KEYS.ROOM_CODE, code);
+    sessionStore.set(STORAGE_KEYS.USER_NAME, me);
+    sessionStore.set(STORAGE_KEYS.PARTNER_NAME, partner);
+    sessionStore.set(STORAGE_KEYS.USER_ROLE, detectedRole);
 
     // 방에 기존 일기가 있는지 Firestore에서 즉시 확인
     try {
@@ -456,14 +483,10 @@ export default function HomePage() {
       }
     }
 
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.removeItem(STORAGE_KEYS.ROOM_CODE);
-        localStorage.removeItem(STORAGE_KEYS.USER_NAME);
-        localStorage.removeItem(STORAGE_KEYS.PARTNER_NAME);
-        localStorage.removeItem(STORAGE_KEYS.USER_ROLE);
-      } catch {}
-    }
+    sessionStore.remove(STORAGE_KEYS.ROOM_CODE);
+    sessionStore.remove(STORAGE_KEYS.USER_NAME);
+    sessionStore.remove(STORAGE_KEYS.PARTNER_NAME);
+    sessionStore.remove(STORAGE_KEYS.USER_ROLE);
 
     setDiary(null);
     setRoomCode('');

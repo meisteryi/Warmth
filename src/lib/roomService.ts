@@ -91,7 +91,20 @@ export function resetJoinRateLimit(): void {
   sessionStorage.removeItem(RATE_LIMIT_KEY_LOCKOUT);
 }
 
-// 사용자 고유 클라이언트 ID 생성/가져오기 (역할 및 URL 파라미터 기반 분리 지원)
+// 사용자 고유 클라이언트 ID 신규 발급 (동일 브라우저 탭 격리 및 신규 세션 생성용)
+export function createNewTabUserId(role: string = 'default'): string {
+  if (typeof window === 'undefined') return 'user_ssr';
+  const storageKey = `warmth_user_uid_${role}`;
+  const newUid = `user_${role}_` + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36);
+  try {
+    sessionStorage.setItem(storageKey, newUid);
+    sessionStorage.setItem('warmth_active_uid', newUid);
+    localStorage.setItem(storageKey, newUid);
+  } catch {}
+  return newUid;
+}
+
+// 사용자 고유 클라이언트 ID 생성/가져오기 (동일 브라우저 탭 격리를 위해 sessionStorage 우선)
 export function getOrCreateUserId(userRoleKey?: string): string {
   if (typeof window === 'undefined') return 'user_ssr';
   let role = userRoleKey;
@@ -104,10 +117,26 @@ export function getOrCreateUserId(userRoleKey?: string): string {
     }
   }
   const storageKey = `warmth_user_uid_${role}`;
-  let uid = localStorage.getItem(storageKey);
+  let uid: string | null = null;
+  try {
+    uid = sessionStorage.getItem('warmth_active_uid') || sessionStorage.getItem(storageKey);
+  } catch {}
+
   if (!uid) {
-    uid = `user_${role}_` + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36);
-    localStorage.setItem(storageKey, uid);
+    try {
+      uid = localStorage.getItem(storageKey);
+    } catch {}
+
+    if (!uid) {
+      uid = `user_${role}_` + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36);
+      try {
+        localStorage.setItem(storageKey, uid);
+      } catch {}
+    }
+    try {
+      sessionStorage.setItem(storageKey, uid);
+      sessionStorage.setItem('warmth_active_uid', uid);
+    } catch {}
   }
   return uid;
 }
@@ -131,7 +160,8 @@ export function subscribeDiary(
 
 // 1. 방 생성 (6자리 난수 코드 발급, 128비트 암호학적 솔트 발급 및 충돌 방지 루프)
 export async function createRoomInFirestore(creatorNickname: string): Promise<string> {
-  const myUid = getOrCreateUserId();
+  // 방 생성 시 이 탭의 고유 UID를 신규 발급하여 동일 브라우저의 다른 창과 충돌 방지
+  const myUid = createNewTabUserId('CREATOR');
   
   // 6자리 난수 코드 생성 (충돌 방지 최대 10회 검증 루프 - MEDIUM 3.2 해결)
   let roomCode = '';
@@ -191,7 +221,7 @@ export async function joinRoomInFirestore(
     };
   }
 
-  const myUid = getOrCreateUserId();
+  let myUid = getOrCreateUserId();
   const roomRef = doc(db, 'rooms', roomCode);
   const snap = await getDoc(roomRef);
 
@@ -211,13 +241,23 @@ export async function joinRoomInFirestore(
     setCachedRoomSalt(roomCode, room.roomSalt);
   }
 
-  // 1) 이미 현재 UID가 members에 속해 있는 경우 즉시 재입장
-  if (room.members.includes(myUid)) {
-    resetJoinRateLimit();
-    return { success: true, message: '기존 방에 재입장했습니다.', room };
-  }
-
   const normalizedNick = (partnerNickname || '').trim().toLowerCase();
+
+  // 1) 이미 현재 UID가 members에 속해 있는 경우:
+  // 등록된 닉네임과 지금 입력한 닉네임이 일치할 때만 정상 재입장으로 인정.
+  // 만약 닉네임이 다르면(동일 브라우저 2개 창 테스트 등으로 방장 UID를 공유받은 경우),
+  // 이 참여자 창을 위한 고유 UID를 신규 발급하여 정상적인 신규 매칭 진행!
+  if (room.members.includes(myUid)) {
+    const existingMemberInfo = room.memberInfo ? room.memberInfo[myUid] : null;
+    const existingNick = (existingMemberInfo?.nickname || '').trim().toLowerCase();
+
+    if (existingNick === normalizedNick) {
+      resetJoinRateLimit();
+      return { success: true, message: '기존 방에 재입장했습니다.', room };
+    } else {
+      myUid = createNewTabUserId('PARTNER');
+    }
+  }
 
   // 2) iOS Safari ↔ PWA(홈 화면 추가) 세션 분리(LocalStorage 파티셔닝) 대응:
   // 입력한 닉네임이 기존 방 참여자 중 일치하는 슬롯이 있으면, 해당 슬롯의 UID를 현재 myUid로 자동 갱신 및 복구
