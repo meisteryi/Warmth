@@ -1,10 +1,5 @@
 import { WarmthScore } from '@/types/diary';
-
-// Google Gemini API Key (서버 사이드 환경변수 우선, 없으면 NEXT_PUBLIC_GEMINI_API_KEY)
-const GEMINI_API_KEY =
-  process.env.GEMINI_API_KEY ||
-  process.env.NEXT_PUBLIC_GEMINI_API_KEY ||
-  '';
+import { getSecureGeminiKey } from './secureKeys';
 
 /**
  * 1. ✉️ 일기 본문 기반 '맞춤형 관문 퀴즈' 생성
@@ -22,7 +17,8 @@ export async function generateCustomQuiz(
     };
   }
 
-  if (GEMINI_API_KEY) {
+  const apiKey = getSecureGeminiKey();
+  if (apiKey) {
     try {
       const systemInstruction = `당신은 아날로그 교환일기 '온기(Warmth)'의 다정한 어시스턴트입니다.
 작성자(${authorName})가 연인(${partnerName})에게 쓴 일기를 읽고, ${partnerName}가 일기를 열기 위해 풀 재미있고 사랑스러운 '맞춤 퀴즈'를 1개 만들어주세요.
@@ -33,10 +29,13 @@ export async function generateCustomQuiz(
 4. 반드시 순수 JSON 형태로만 응답하세요: {"prompt": "...", "answer": "...", "hint": "..."}`;
 
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent',
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey,
+          },
           body: JSON.stringify({
             contents: [
               {
@@ -88,7 +87,8 @@ export async function analyzeWarmthTemperature(
 ): Promise<WarmthScore> {
   const fullText = `${title}\n${content}`;
 
-  if (GEMINI_API_KEY && fullText.trim().length > 5) {
+  const apiKey = getSecureGeminiKey();
+  if (apiKey && fullText.trim().length > 5) {
     try {
       const prompt = `당신은 아날로그 교환일기 '온기(Warmth)'의 감성 분석가입니다.
 작성자(${authorName})가 연인(${partnerName})에게 쓴 편지를 읽고 '온기의 온도'를 측정해주세요.
@@ -99,10 +99,13 @@ export async function analyzeWarmthTemperature(
 4. 반드시 순수 JSON 형태로만 응답하세요: {"temperature": 88, "comment": "...", "keywords": ["...", "...", "..."]}`;
 
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent',
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey,
+          },
           body: JSON.stringify({
             contents: [
               {
@@ -197,7 +200,8 @@ export async function getRandomPrompt(
 ): Promise<string> {
   const { season, dayName, dayVibe, timeOfDay } = getCurrentTimeContext();
 
-  if (GEMINI_API_KEY) {
+  const apiKey = getSecureGeminiKey();
+  if (apiKey) {
     try {
       const promptInstruction = `당신은 아날로그 1:1 비밀 교환일기 '온기'의 다정한 감성 에디터입니다.
 현재 시점:
@@ -214,10 +218,13 @@ export async function getRandomPrompt(
 4. 설명이나 따옴표 없이 오직 35자 이내의 질문 한 문장만 순수 텍스트로 응답하세요.`;
 
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent',
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey,
+          },
           body: JSON.stringify({
             contents: [
               {
