@@ -13,6 +13,7 @@ import KnockNotificationModal from '@/components/KnockNotificationModal';
 import ArchiveModal from '@/components/ArchiveModal';
 import { DiaryData, KnockData, UIState, WaxColor } from '@/types/diary';
 import { soundEngine } from '@/lib/audio';
+import { LogOut } from 'lucide-react';
 import { 
   saveDiaryToFirestore, 
   updateMissionInFirestore, 
@@ -98,6 +99,7 @@ export default function HomePage() {
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false);
   const [isWriteModalOpen, setIsWriteModalOpen] = useState(false);
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
+  const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // 실시간 노크 수신 상태
@@ -297,12 +299,13 @@ export default function HomePage() {
     showToast(`🎉 ${partner} 님과 연결되었습니다! 첫 편지를 작성해보세요.`);
   };
 
-  // 방 나가기 (일기장 연결 해제)
+  // 방 나가기 (감성 인앱 확인 모달 표시)
   const handleLeaveRoom = () => {
-    const confirmed = window.confirm(
-      '현재 일기장과의 연결을 해제하고 방을 나가시겠습니까?\n(초대코드로 언제든 다시 연결할 수 있습니다)'
-    );
-    if (!confirmed) return;
+    setIsLeaveConfirmOpen(true);
+  };
+
+  const confirmLeaveRoom = () => {
+    setIsLeaveConfirmOpen(false);
 
     if (typeof window !== 'undefined') {
       try {
@@ -550,6 +553,46 @@ export default function HomePage() {
           showToast(`📖 ${selectedDiary.authorName} 님의 '${selectedDiary.title}' 일기를 서재에서 펼쳤습니다.`);
         }}
       />
+
+      {/* 일기장 연결 해제 확인 인앱 모달 */}
+      {isLeaveConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-sm bg-[#FFFDF9] rounded-2xl p-5 sm:p-6 paper-texture border border-[#E8DFC8] shadow-2xl space-y-4">
+            <div className="w-12 h-12 rounded-full bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-700 mx-auto shadow-2xs">
+              <LogOut className="w-6 h-6" />
+            </div>
+            <div className="text-center space-y-1.5">
+              <h3 className="font-serif-warm font-bold text-stone-900 text-lg">
+                일기장 연결을 해제하시겠습니까?
+              </h3>
+              <p className="text-xs text-stone-600 font-serif-warm leading-relaxed">
+                현재 기기에서 일기장의 연결을 끊고 초기 화면으로 돌아갑니다.
+                <br />
+                <span className="font-mono font-semibold text-amber-950 bg-amber-100/70 px-1.5 py-0.5 rounded border border-amber-200">
+                  초대코드 #{roomCode}
+                </span>{' '}
+                로 언제든 다시 연결하실 수 있습니다.
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsLeaveConfirmOpen(false)}
+                className="flex-1 py-2.5 rounded-xl border border-stone-300 hover:bg-stone-100 text-stone-700 text-xs font-semibold font-sans-ui cursor-pointer active:scale-95 transition-all"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={confirmLeaveRoom}
+                className="flex-1 py-2.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-xs font-bold font-sans-ui shadow-xs cursor-pointer active:scale-95 transition-all"
+              >
+                연결 해제하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 푸터 (iOS 홈 인디케이터 제스처 여백 확보) */}
       <footer className="py-2 sm:py-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.6rem)] text-center text-[10px] sm:text-[11px] text-stone-400 font-serif-warm border-t border-[#EAE1D5]/40 bg-[#FAF7F2]/50 px-3 shrink-0">
