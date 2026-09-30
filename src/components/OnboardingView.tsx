@@ -193,16 +193,16 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-3 sm:mb-6"
+        className="text-center mb-3 sm:mb-5"
       >
-        <div className="w-14 h-14 sm:w-16 sm:h-16 mx-auto rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center font-serif-warm text-2xl sm:text-3xl font-bold shadow-md border-2 border-amber-200/40 mb-2.5 sm:mb-3">
+        <div className="w-12 h-12 sm:w-14 sm:h-14 mx-auto rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center font-serif-warm text-xl sm:text-2xl font-bold shadow-md border-2 border-amber-200/40 mb-2">
           溫
         </div>
         <h1 className="font-serif-warm text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight leading-tight">
-          온기 · 둘만의 비밀 교환일기
+          온기
         </h1>
-        <p className="mt-1.5 text-stone-600 font-serif-warm text-sm sm:text-base font-medium">
-          둘만의 따뜻한 아날로그 교환일기
+        <p className="mt-1 text-stone-600 font-serif-warm text-sm font-medium">
+          둘만의 비밀 교환일기
         </p>
       </motion.div>
 
@@ -394,12 +394,6 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
           </form>
         )}
       </motion.div>
-
-      {/* 하단 감성 가이드 문구 */}
-      <div className="mt-6 sm:mt-8 text-center text-stone-500 text-xs sm:text-sm font-serif-warm flex items-center gap-1.5 font-medium">
-        <span className="w-1.5 h-1.5 rounded-full bg-[#6B1724]" />
-        <span>우리 둘만의 비밀 공간입니다</span>
-      </div>
     </div>
   );
 }

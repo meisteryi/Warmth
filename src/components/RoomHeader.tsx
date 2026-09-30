@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { UIState } from '@/types/diary';
-import { Heart, PenLine, RotateCcw, Scroll, Users, ArrowLeftRight, BookOpen, ShieldCheck } from 'lucide-react';
+import { Heart, PenLine, RotateCcw, Scroll, Users, ArrowLeftRight, BookOpen } from 'lucide-react';
 
 interface RoomHeaderProps {
   currentState: UIState;
@@ -82,14 +82,10 @@ export default function RoomHeader({
             {isMatched && (
               <button
                 onClick={onOpenArchive}
-                title="둘만의 서재 (암호화 보관함)"
-                className="p-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-100 text-sm min-h-[38px] min-w-[38px] flex items-center justify-center active:scale-95 cursor-pointer shadow-2xs relative"
+                title="둘만의 서재"
+                className="p-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-100 text-sm min-h-[38px] min-w-[38px] flex items-center justify-center active:scale-95 cursor-pointer shadow-2xs"
               >
                 <BookOpen className="w-4 h-4 text-[#6B1724]" />
-                <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                </span>
               </button>
             )}
             <button
@@ -135,12 +131,11 @@ export default function RoomHeader({
           {isMatched && (
             <button
               onClick={onOpenArchive}
-              title="둘만의 서재 (암호화 보관함 열기)"
+              title="둘만의 서재"
               className="hidden sm:flex px-3 py-2 rounded-xl border border-stone-300 hover:border-[#6B1724]/40 bg-white hover:bg-stone-50 text-stone-800 text-xs font-serif-warm font-bold shadow-2xs items-center gap-1.5 shrink-0 cursor-pointer active:scale-95 transition-all"
             >
               <BookOpen className="w-4 h-4 text-[#6B1724]" />
               <span>둘만의 서재</span>
-              <span className="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 text-[10px] font-mono font-semibold">E2EE</span>
             </button>
           )}
 

@@ -272,15 +272,12 @@ export default function WriteDiaryModal({
               </span>
             </div>
 
-            {/* AI 오늘의 글감 추천 배너 (Feature 4) */}
+            {/* 오늘의 글감 추천 배너 */}
             <div className="p-2.5 sm:p-3 rounded-xl bg-gradient-to-r from-[#FAF4EC] via-[#F6ECE0] to-[#F2E5D6] border border-[#E4D5BF] shadow-xs flex items-center justify-between gap-2.5">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-base select-none shrink-0">🕯️</span>
                 <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-sans-ui text-amber-900 font-bold uppercase tracking-wider">오늘의 온기 글감</span>
-                    <span className="text-[10px] text-stone-400">· 쓸 말이 고민될 때</span>
-                  </div>
+                  <span className="text-[10px] font-sans-ui text-amber-900 font-bold tracking-wider">오늘의 글감</span>
                   <p className="text-xs font-serif-warm text-stone-800 truncate font-medium mt-0.5">
                     &ldquo;{dailyPrompt}&rdquo;
                   </p>
@@ -316,7 +313,7 @@ export default function WriteDiaryModal({
                   required
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="예: 서촌 골목길을 걷다가 문득..."
+                  placeholder="오늘의 제목을 적어주세요"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-base sm:text-sm text-stone-900"
                 />
               </div>
@@ -568,12 +565,12 @@ export default function WriteDiaryModal({
                   {isSubmitting ? (
                     <>
                       <Loader2 className="w-4 h-4 text-amber-200 animate-spin" />
-                      <span>실링 왁스로 봉인 중...</span>
+                      <span>일기 봉인 중...</span>
                     </>
                   ) : (
                     <>
                       <Send className="w-4 h-4 text-amber-200" />
-                      <span>실링 왁스로 꾹 봉인하여 발송하기</span>
+                      <span>일기 봉인하여 보내기</span>
                     </>
                   )}
                 </button>

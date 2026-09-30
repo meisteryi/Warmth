@@ -125,18 +125,13 @@ export default function MissionModal({
             </button>
 
             {/* 헤더 */}
-            <div className="flex items-center gap-2 mb-2 sm:mb-3.5 pr-8">
+            <div className="flex items-center gap-2.5 mb-3 sm:mb-4 pr-8">
               <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#6B1724]/10 border border-[#6B1724]/20 flex items-center justify-center text-[#6B1724] shrink-0">
                 <Puzzle className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
-              <div>
-                <span className="text-[9px] sm:text-[10px] font-sans-ui text-[#6B1724] font-semibold tracking-wider uppercase">
-                  DAILY UNLOCK GATE
-                </span>
-                <h3 className="font-serif-warm text-sm sm:text-xl font-bold text-stone-900 leading-tight">
-                  봉인을 풀기 위한 관문
-                </h3>
-              </div>
+              <h3 className="font-serif-warm text-base sm:text-xl font-bold text-stone-900 leading-tight">
+                오늘의 미션
+              </h3>
             </div>
 
             {/* 3가지 관문 선택 탭 (사진 퍼즐 / 우표 맞추기 / 깜짝 퀴즈) */}

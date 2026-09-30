@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { DiaryData } from '@/types/diary';
 import { getRoomDiariesFromFirestore } from '@/lib/roomService';
-import { BookOpen, ShieldCheck, Lock, Calendar, Heart, Sparkles, X, RefreshCw, ChevronRight } from 'lucide-react';
+import { BookOpen, Calendar, Heart, Sparkles, X, RefreshCw, ChevronRight } from 'lucide-react';
 import { soundEngine } from '@/lib/audio';
 
 interface ArchiveModalProps {
@@ -71,19 +71,11 @@ export default function ArchiveModal({
               <BookOpen className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg sm:text-xl font-serif-warm font-bold text-stone-900">
-                  둘만의 서재 보관함
-                </h2>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-100/90 text-emerald-800 text-[11px] font-sans-ui font-semibold inline-flex items-center gap-1 border border-emerald-300/60">
-                  <ShieldCheck className="w-3 h-3 text-emerald-700" />
-                  E2EE 종단 암호화
-                </span>
-              </div>
-              <p className="text-xs text-stone-500 font-sans-ui mt-0.5 flex items-center gap-1">
-                <span>방 번호 #{roomCode}</span>
-                <span>·</span>
-                <span className="text-stone-600 font-medium">{currentUserName} & {partnerName}</span>
+              <h2 className="text-lg sm:text-xl font-serif-warm font-bold text-stone-900">
+                둘만의 서재
+              </h2>
+              <p className="text-xs text-stone-500 font-sans-ui mt-0.5">
+                #{roomCode} · {currentUserName} & {partnerName}
               </p>
             </div>
           </div>
@@ -106,20 +98,12 @@ export default function ArchiveModal({
           </div>
         </div>
 
-        {/* 보안 안내 띠배너 */}
-        <div className="px-5 sm:px-6 py-2.5 bg-emerald-50/70 border-b border-emerald-100 flex items-center gap-2 text-xs text-emerald-900 font-sans-ui shrink-0">
-          <Lock className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-          <p className="leading-snug">
-            <strong>영지식 보안(Zero-Knowledge):</strong> 일기 본문과 퀴즈는 오직 이 방의 두 기기에서만 복호화됩니다. 서버 관리자나 외부인은 어떤 내용도 열람할 수 없습니다.
-          </p>
-        </div>
-
         {/* 일기 목록 영역 */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3">
           {isLoading ? (
             <div className="py-16 text-center text-stone-500 font-serif-warm">
               <RefreshCw className="w-6 h-6 animate-spin mx-auto text-[#6B1724] mb-2" />
-              <p className="text-sm">암호화된 편지들을 복호화하여 서재를 정리하고 있습니다...</p>
+              <p className="text-sm">보관된 일기를 불러오는 중입니다...</p>
             </div>
           ) : diaries.length === 0 ? (
             <div className="py-16 px-4 text-center">
@@ -130,7 +114,7 @@ export default function ArchiveModal({
                 아직 보관된 일기가 없습니다
               </h3>
               <p className="text-xs text-stone-500 max-w-sm mx-auto leading-relaxed">
-                서로 일기를 주고받으면, 오직 두 사람만이 열람할 수 있도록 안전하게 암호화되어 이 서재에 차곡차곡 보관됩니다.
+                서로 주고받은 일기가 이곳에 보관됩니다.
               </p>
             </div>
           ) : (
