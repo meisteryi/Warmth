@@ -119,19 +119,19 @@ body {
   box-shadow: 0 4px 12px rgba(44, 42, 41, 0.12), 0 0 0 1px #EADECE;
 }
 
-/* 커스텀 스크롤바 */
-::-webkit-scrollbar {
-  width: 6px;
+/* 모든 인터페이스에서 스크롤바 완전 숨김 (스크롤 터치/휠 기능은 100% 정상 작동) */
+*, *::before, *::after {
+  -ms-overflow-style: none !important; /* IE and Edge */
+  scrollbar-width: none !important; /* Firefox */
 }
-::-webkit-scrollbar-track {
-  background: #F4EFEA;
-}
-::-webkit-scrollbar-thumb {
-  background: #D8CEBE;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #C4B7A2;
+
+*::-webkit-scrollbar,
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none !important; /* Chrome, Safari, iOS, Opera */
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
 }
 
 /* iOS Safari 터치 최적화 유틸리티 */
