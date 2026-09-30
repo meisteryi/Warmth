@@ -1,5 +1,6 @@
 export type UIState = 
   | 'VIEW_ONBOARDING'     // 초기 방 생성 / 초대코드 입력 & 매칭 화면
+  | 'VIEW_HOME'           // 둘만의 아늑한 홈 화면 (이어진 지 N일 차, 오늘 편지 상태 및 바로가기)
   | 'VIEW_EMPTY'          // 초기 상태: 아직 작성된 편지 없음 -> 편지 쓰기가 제일 먼저 나옴
   | 'VIEW_WAITING'        // 상대방이 일기 작성 중 (답장 대기)
   | 'VIEW_SEALED_LETTER'  // 편지 도착 -> 편지 까는 메뉴 (봉인 해제 관문 열기)
@@ -107,5 +108,8 @@ export interface RoomData {
   latestDiaryId?: string;
   latestKnock?: KnockData | null;
   lastDisconnection?: DisconnectionData | null;
+  createdAt?: string;
+  matchedAt?: string;
+  anniversaryDate?: string;
 }
 

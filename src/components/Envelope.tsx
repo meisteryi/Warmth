@@ -11,6 +11,7 @@ interface EnvelopeProps {
   isLocked: boolean;
   onOpenMission: () => void;
   onUnsealComplete: () => void;
+  onGoHome?: () => void;
 }
 
 export default function Envelope({
@@ -18,6 +19,7 @@ export default function Envelope({
   isLocked,
   onOpenMission,
   onUnsealComplete,
+  onGoHome,
 }: EnvelopeProps) {
   return (
     <div className="relative w-full max-w-sm sm:max-w-md mx-auto px-3 sm:px-4 py-2 sm:py-6 flex flex-col items-center justify-center my-auto">
@@ -127,7 +129,7 @@ export default function Envelope({
       </motion.div>
 
       {/* 하단 인터랙션 가이드 */}
-      <div className="mt-3 sm:mt-5 flex flex-col items-center text-center">
+      <div className="mt-3 sm:mt-5 flex flex-col items-center text-center gap-2">
         {isLocked ? (
           <button
             onClick={onOpenMission}
@@ -141,6 +143,16 @@ export default function Envelope({
             <span className="w-2 h-2 rounded-full bg-[#6B1724]" />
             <span>손가락으로 인장을 <strong>3초 동안 꾹</strong> 누르면 왁스가 부서집니다</span>
           </p>
+        )}
+
+        {onGoHome && (
+          <button
+            type="button"
+            onClick={onGoHome}
+            className="text-xs text-stone-400 hover:text-stone-700 font-serif-warm py-1 px-3 rounded-lg hover:bg-stone-200/50 transition-colors cursor-pointer mt-1"
+          >
+            ← 홈 화면으로
+          </button>
         )}
       </div>
     </div>

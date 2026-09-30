@@ -14,6 +14,7 @@ import {
   Volume2,
   Volume1,
   VolumeX,
+  Home,
 } from 'lucide-react';
 import { getNotificationStatus, requestNotificationPermission } from '@/lib/notifications';
 import { soundEngine } from '@/lib/audio';
@@ -25,6 +26,7 @@ interface RoomHeaderProps {
   onOpenWriteModal: () => void;
   onOpenArchive?: () => void;
   onLeaveRoom?: () => void;
+  onGoHome?: () => void;
   roomCode: string;
   userName: string;
   partnerName: string;
@@ -36,6 +38,7 @@ export default function RoomHeader({
   onOpenWriteModal,
   onOpenArchive,
   onLeaveRoom,
+  onGoHome,
   roomCode,
   userName,
   partnerName,
@@ -95,9 +98,13 @@ export default function RoomHeader({
   return (
     <header className="w-full bg-[#FAF7F2]/95 backdrop-blur-md border-b border-[#E8DFD3] sticky top-0 z-40 px-3.5 sm:px-6 pt-[calc(env(safe-area-inset-top,0px)+0.65rem)] pb-2.5 sm:pb-3 shrink-0 shadow-2xs">
       <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
-        {/* 좌측: 로고 및 다정한 커플 상태 */}
-        <div className="flex items-center gap-2.5 sm:gap-3">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-sm border border-amber-200/20 shrink-0">
+        {/* 좌측: 로고 및 다정한 커플 상태 (클릭 시 홈으로 이동) */}
+        <div 
+          onClick={onGoHome}
+          className={`flex items-center gap-2.5 sm:gap-3 ${onGoHome ? 'cursor-pointer group' : ''}`}
+          title={onGoHome ? '홈 화면으로 이동' : undefined}
+        >
+          <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-sm border border-amber-200/20 shrink-0 ${onGoHome ? 'group-hover:scale-105 transition-transform' : ''}`}>
             <WarmthHanjaIcon className="w-5 h-5 sm:w-5.5 sm:h-5.5 text-amber-100" />
           </div>
           <div>
@@ -109,7 +116,10 @@ export default function RoomHeader({
               {isMatched && (
                 <button
                   type="button"
-                  onClick={handleCopyCode}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCopyCode();
+                  }}
                   title="초대코드 복사하기"
                   className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100/90 hover:bg-amber-200/80 text-amber-950 text-xs font-mono font-bold border border-amber-300/60 transition-colors cursor-pointer active:scale-95"
                 >
@@ -136,9 +146,25 @@ export default function RoomHeader({
           </div>
         </div>
 
-        {/* 우측: 정식 서비스 전용 액션 (둘만의 서재, 일기 쓰기, 더보기) */}
+        {/* 우측: 정식 서비스 전용 액션 (홈, 둘만의 서재, 일기 쓰기, 더보기) */}
         {isMatched && (
           <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* 홈 바로가기 버튼 */}
+            {onGoHome && (
+              <button
+                onClick={onGoHome}
+                title="홈 화면 (이어진 날짜 및 온기 대시보드)"
+                className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border text-xs font-serif-warm font-bold shadow-2xs flex items-center gap-1.5 min-h-[36px] sm:min-h-[38px] active:scale-95 transition-all cursor-pointer ${
+                  currentState === 'VIEW_HOME'
+                    ? 'bg-[#6B1724]/10 text-[#6B1724] border-[#6B1724]/30'
+                    : 'border-stone-300/90 hover:border-[#6B1724]/40 bg-white hover:bg-stone-50 text-stone-800'
+                }`}
+              >
+                <Home className="w-4 h-4 text-[#6B1724]" />
+                <span className="hidden xs:inline">홈</span>
+              </button>
+            )}
+
             {/* 둘만의 서재 버튼 */}
             <button
               onClick={onOpenArchive}

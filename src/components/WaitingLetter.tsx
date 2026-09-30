@@ -14,11 +14,13 @@ const KNOCK_PRESETS = [
 interface WaitingLetterProps {
   partnerName: string;
   onSendKnock?: (message: string) => Promise<void> | void;
+  onGoHome?: () => void;
 }
 
 export default function WaitingLetter({
   partnerName,
   onSendKnock,
+  onGoHome,
 }: WaitingLetterProps) {
   const [selectedMessage, setSelectedMessage] = useState(KNOCK_PRESETS[0]);
   const [isSending, setIsSending] = useState(false);
@@ -169,6 +171,19 @@ export default function WaitingLetter({
             </p>
           )}
         </AnimatePresence>
+
+        {/* 홈 화면으로 돌아가기 버튼 */}
+        {onGoHome && (
+          <div className="mt-4 pt-3 border-t border-[#E3DACB]/60">
+            <button
+              type="button"
+              onClick={onGoHome}
+              className="w-full py-2.5 rounded-xl border border-stone-300 hover:bg-white text-stone-700 text-xs font-serif-warm font-semibold transition-all cursor-pointer shadow-2xs active:scale-98"
+            >
+              ← 홈 화면으로 돌아가기
+            </button>
+          </div>
+        )}
       </motion.div>
     </div>
   );

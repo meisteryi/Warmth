@@ -320,6 +320,7 @@ export async function joinRoomInFirestore(
     memberInfo: updatedMemberInfo,
     currentTurn: myUid, // 코드로 입장한 방장이 아닌 사람이 첫 편지 작성 턴을 가짐
     lastDisconnection: null,
+    matchedAt: room.matchedAt || new Date().toISOString(),
     updatedAt: serverTimestamp(),
   });
 
@@ -531,6 +532,23 @@ export async function leaveRoomInFirestore(
       updatedAt: serverTimestamp(),
     });
   } catch (e) {
-    console.warn('Failed to leave room in Firestore:', e);
+    console.warn('Failed to leave room in firestore:', e);
   }
 }
+
+// 11. 커플 기념일 / 이어진 시작일 수정 저장
+export async function updateAnniversaryDateInFirestore(
+  roomCode: string,
+  anniversaryDate: string
+): Promise<void> {
+  try {
+    const roomRef = doc(db, 'rooms', roomCode);
+    await updateDoc(roomRef, {
+      anniversaryDate,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (e) {
+    console.warn('Failed to update anniversary date in Firestore:', e);
+  }
+}
+

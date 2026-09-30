@@ -32,6 +32,7 @@ interface WriteDiaryModalProps {
   partnerName: string;
   roomCode?: string;
   fallbackPreviousDiary?: DiaryData | null;
+  initialTitle?: string;
 }
 
 export default function WriteDiaryModal({
@@ -42,8 +43,9 @@ export default function WriteDiaryModal({
   partnerName,
   roomCode = '829104',
   fallbackPreviousDiary,
+  initialTitle,
 }: WriteDiaryModalProps) {
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(initialTitle || '');
   const [content, setContent] = useState('');
   const [selectedColor, setSelectedColor] = useState<WaxColor>('#6B1724');
   const [customColor, setCustomColor] = useState<string>('#9E2A3C');
@@ -72,6 +74,9 @@ export default function WriteDiaryModal({
   // 모달이 열릴 때마다 오늘의 온기 글감 추천 로드
   useEffect(() => {
     if (isOpen) {
+      if (initialTitle) {
+        setTitle(initialTitle);
+      }
       const clean = partnerName && partnerName.trim() && partnerName !== '상대방' && partnerName !== '파트너'
         ? `${partnerName.trim()}에게`
         : '너에게';
@@ -81,7 +86,7 @@ export default function WriteDiaryModal({
         if (prompt) setDailyPrompt(prompt);
       });
     }
-  }, [isOpen, partnerName]);
+  }, [isOpen, partnerName, initialTitle]);
 
   // 다른 글감 뽑기 (Gemini AI 실시간 생성)
   const handleRefreshPrompt = async () => {

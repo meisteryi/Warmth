@@ -15,6 +15,7 @@ interface OpenedLetterProps {
 export default function OpenedLetter({
   diary,
   onWriteReply,
+  onResetView,
 }: OpenedLetterProps) {
   const warmth = (diary.warmthScore && typeof diary.warmthScore.temperature === 'number')
     ? diary.warmthScore
@@ -192,7 +193,15 @@ export default function OpenedLetter({
       </div>
 
       {/* 하단 턴 액션 버튼 (iOS 하단 제스처 여백 확보) */}
-      <div className="mt-8 mb-6 pb-[max(env(safe-area-inset-bottom,0px),1rem)] flex flex-col sm:flex-row items-center justify-center gap-4">
+      <div className="mt-8 mb-6 pb-[max(env(safe-area-inset-bottom,0px),1rem)] flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+        {onResetView && (
+          <button
+            onClick={onResetView}
+            className="w-full sm:w-auto px-6 py-3.5 rounded-full bg-white hover:bg-stone-50 active:scale-95 text-stone-700 font-serif-warm text-sm font-semibold border border-stone-300 shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <span>← 홈 화면으로</span>
+          </button>
+        )}
         <button
           onClick={onWriteReply}
           className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-[#6B1724] hover:bg-[#831D2D] active:scale-95 text-amber-50 font-serif-warm text-base font-semibold shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
