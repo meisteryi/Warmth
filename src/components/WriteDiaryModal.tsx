@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { WaxColor, WAX_COLORS, MissionData, DiaryData } from '@/types/diary';
+import { WaxColor, WAX_COLORS, MissionData, DiaryData, WarmthScore } from '@/types/diary';
 import { soundEngine } from '@/lib/audio';
 import { compressImage, uploadPhotoIfPossible, CompressedImageResult } from '@/lib/imageUtils';
+import { fetchAiQuiz, fetchWarmthScore, fetchDailyPrompt } from '@/lib/aiClient';
 import { 
   X, 
   Send, 
@@ -16,7 +17,8 @@ import {
   Camera, 
   Check, 
   Loader2, 
-  Trash2 
+  Trash2,
+  Dices
 } from 'lucide-react';
 
 interface WriteDiaryModalProps {
@@ -48,7 +50,58 @@ export default function WriteDiaryModal({
   const [isCompressing, setIsCompressing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [photoError, setPhotoError] = useState('');
+  const [dailyPrompt, setDailyPrompt] = useState<string>('오늘 하루 중 유라에게 가장 먼저 말해주고 싶었던 사소한 순간은?');
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 모달이 열릴 때마다 오늘의 온기 글감 추천 로드
+  useEffect(() => {
+    if (isOpen) {
+      fetchDailyPrompt(partnerName).then((prompt) => {
+        if (prompt) setDailyPrompt(prompt);
+      });
+    }
+  }, [isOpen, partnerName]);
+
+  // 다른 글감 뽑기
+  const handleRefreshPrompt = async () => {
+    soundEngine.playTileSlideSound();
+    const nextPrompt = await fetchDailyPrompt(partnerName);
+    setDailyPrompt(nextPrompt);
+  };
+
+  // 글감을 일기 작성창에 쏙 적용
+  const handleApplyPrompt = () => {
+    soundEngine.playTileSlideSound();
+    if (!title.trim()) {
+      setTitle(dailyPrompt.slice(0, 30));
+    }
+    const prefix = `[💡 오늘의 질문: ${dailyPrompt}]\n\n`;
+    if (!content.includes(dailyPrompt)) {
+      setContent((prev) => (prev ? `${prefix}${prev}` : prefix));
+    }
+  };
+
+  // AI 퀴즈 자동 생성
+  const handleGenerateAiQuiz = async () => {
+    if (!content.trim()) {
+      alert('일기 본문을 먼저 몇 줄 작성해주시면, AI가 내용을 읽고 꼭 맞는 퀴즈를 만들어 드려요!');
+      return;
+    }
+    setIsGeneratingQuiz(true);
+    soundEngine.playTileSlideSound();
+    try {
+      const quiz = await fetchAiQuiz(content, currentUserName, partnerName);
+      setCustomPrompt(quiz.prompt);
+      setCustomQuizAnswer(quiz.answer);
+      setCustomQuizHint(quiz.hint);
+      soundEngine.playMissionPassChime();
+    } catch (e) {
+      console.warn('AI quiz error:', e);
+    } finally {
+      setIsGeneratingQuiz(false);
+    }
+  };
 
   // 기기 내 사진 파일 선택 시 클라이언트 사이드 압축 처리
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -143,6 +196,21 @@ export default function WriteDiaryModal({
         };
       }
 
+      // AI 온기 온도 및 감성 분석 (최대 1.2초 타임아웃으로 UI 지연 절대 방지)
+      let warmthScore: WarmthScore | null = null;
+      try {
+        warmthScore = await Promise.race([
+          fetchWarmthScore(title, content, currentUserName, partnerName),
+          new Promise<WarmthScore>((_, reject) => setTimeout(() => reject('timeout'), 1200)),
+        ]);
+      } catch {
+        warmthScore = {
+          temperature: 37.8,
+          comment: '하루를 포근하게 감싸주는 다정하고 따뜻한 온기',
+          keywords: ['#둘만의온기', '#소소한하루', '#고마움'],
+        };
+      }
+
       onSaveDiary({
         title,
         content,
@@ -153,6 +221,7 @@ export default function WriteDiaryModal({
         recipientName: partnerName,
         createdAt: new Date().toISOString(),
         isWaxBroken: false,
+        warmthScore,
       });
 
       // 입력 폼 초기화
@@ -201,6 +270,39 @@ export default function WriteDiaryModal({
               <span className="text-xs text-stone-500 font-sans-ui ml-auto">
                 To. {partnerName}
               </span>
+            </div>
+
+            {/* AI 오늘의 글감 추천 배너 (Feature 4) */}
+            <div className="p-2.5 sm:p-3 rounded-xl bg-gradient-to-r from-[#FAF4EC] via-[#F6ECE0] to-[#F2E5D6] border border-[#E4D5BF] shadow-xs flex items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-base select-none shrink-0">🕯️</span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-sans-ui text-amber-900 font-bold uppercase tracking-wider">오늘의 온기 글감</span>
+                    <span className="text-[10px] text-stone-400">· 쓸 말이 고민될 때</span>
+                  </div>
+                  <p className="text-xs font-serif-warm text-stone-800 truncate font-medium mt-0.5">
+                    &ldquo;{dailyPrompt}&rdquo;
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleRefreshPrompt}
+                  title="다른 글감 뽑기"
+                  className="p-1.5 rounded-lg bg-white/90 hover:bg-white text-stone-600 hover:text-stone-900 border border-stone-200 transition-all active:scale-95 shadow-xs cursor-pointer"
+                >
+                  <Dices className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApplyPrompt}
+                  className="px-2.5 py-1.5 rounded-lg bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-[11px] font-sans-ui font-semibold transition-all active:scale-95 shadow-xs cursor-pointer"
+                >
+                  글감 적용
+                </button>
+              </div>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
@@ -414,7 +516,21 @@ export default function WriteDiaryModal({
                 )}
 
                 {missionType === 'CUSTOM' && (
-                  <div className="space-y-2 p-3 bg-amber-50/50 rounded-xl border border-amber-200/60">
+                  <div className="space-y-2.5 p-3 bg-amber-50/60 rounded-xl border border-amber-200/70">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-sans-ui text-amber-900 font-bold flex items-center gap-1">
+                        <span>❓ 직접 퀴즈 & 관문</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleGenerateAiQuiz}
+                        disabled={isGeneratingQuiz || !content.trim()}
+                        className="px-2.5 py-1 rounded-lg bg-amber-200/80 hover:bg-amber-300 text-amber-950 text-[11px] font-sans-ui font-semibold flex items-center gap-1 transition-all disabled:opacity-50 shadow-xs cursor-pointer"
+                      >
+                        <Sparkles className={`w-3.5 h-3.5 text-amber-800 ${isGeneratingQuiz ? 'animate-spin' : ''}`} />
+                        <span>{isGeneratingQuiz ? 'AI가 퀴즈 짓는 중...' : '✨ 일기 기반 AI 퀴즈 생성'}</span>
+                      </button>
+                    </div>
                     <input
                       type="text"
                       placeholder="질문 (예: 내가 오늘 점심에 먹은 메뉴는?)"
@@ -425,14 +541,14 @@ export default function WriteDiaryModal({
                     <div className="flex gap-2">
                       <input
                         type="text"
-                        placeholder="정답 (예: 김치찌개)"
+                        placeholder="정답 (예: 붕어빵)"
                         value={customQuizAnswer}
                         onChange={(e) => setCustomQuizAnswer(e.target.value)}
                         className="flex-1 px-3 py-1.5 rounded-lg border border-stone-200 bg-white text-xs font-serif-warm"
                       />
                       <input
                         type="text"
-                        placeholder="힌트 (예: 얼큰한 찌개)"
+                        placeholder="힌트 (예: 달콤하고 따뜻한 간식)"
                         value={customQuizHint}
                         onChange={(e) => setCustomQuizHint(e.target.value)}
                         className="flex-1 px-3 py-1.5 rounded-lg border border-stone-200 bg-white text-xs font-serif-warm"

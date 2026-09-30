@@ -3,7 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { DiaryData } from '@/types/diary';
-import { Feather, Calendar, Heart, MessageSquareQuote, PenLine } from 'lucide-react';
+import { Feather, Calendar, Heart, MessageSquareQuote, PenLine, ThermometerSun } from 'lucide-react';
 
 interface OpenedLetterProps {
   diary: DiaryData;
@@ -56,6 +56,50 @@ export default function OpenedLetter({
               {diary.title}
             </h1>
           </div>
+
+          {/* AI 온기 온도계 & 감정 날씨 배지 (Feature 3) */}
+          {diary.warmthScore && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="my-5 p-3.5 sm:p-4 rounded-xl bg-gradient-to-r from-[#FFF7ED] via-[#FDF8F3] to-[#F7EDE2] border border-[#ECDCCB] shadow-xs"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#EBD6C2]/60">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-rose-100/90 border border-rose-200/80 flex items-center justify-center text-rose-800 shadow-2xs shrink-0">
+                    <ThermometerSun className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-sans-ui text-stone-500 font-semibold tracking-wider">
+                        오늘의 온기 온도
+                      </span>
+                      <span className="text-xs font-serif-warm font-bold text-rose-900 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200 shadow-2xs">
+                        {diary.warmthScore.temperature.toFixed(1)}°C
+                      </span>
+                    </div>
+                    <p className="text-xs sm:text-sm font-serif-warm text-stone-700 mt-0.5 font-medium">
+                      &ldquo;{diary.warmthScore.comment}&rdquo;
+                    </p>
+                  </div>
+                </div>
+              </div>
+              {diary.warmthScore.keywords && diary.warmthScore.keywords.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
+                  <span className="text-[10px] font-sans-ui text-stone-400">마음 키워드:</span>
+                  {diary.warmthScore.keywords.map((kw, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2 py-0.5 rounded-md bg-white/90 border border-[#DFCEBA] text-[11px] font-serif-warm text-stone-600 shadow-2xs"
+                    >
+                      {kw.startsWith('#') ? kw : `#${kw}`}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
 
           {/* 사진 갤러리 (폴라로이드 스타일) */}
           {diary.photos && diary.photos.length > 0 && (

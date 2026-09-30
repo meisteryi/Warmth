@@ -53,6 +53,12 @@ export interface MissionData {
   isPassed: boolean;
 }
 
+export interface WarmthScore {
+  temperature: number; // e.g. 37.8
+  comment: string; // e.g. "추운 하루 속 서로를 포근하게 안아주는 따뜻한 온기"
+  keywords: string[]; // e.g. ["#퇴근길", "#붕어빵", "#다정한위로"]
+}
+
 export interface DiaryData {
   diaryId: string;
   authorId: string;
@@ -67,6 +73,7 @@ export interface DiaryData {
   mission: MissionData;
   isWaxBroken: boolean;
   openedAt?: string | null;
+  warmthScore?: WarmthScore | null;
 }
 
 export interface KnockData {

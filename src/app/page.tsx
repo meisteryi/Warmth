@@ -54,6 +54,11 @@ const INITIAL_DIARY: DiaryData = {
   },
   isWaxBroken: false,
   openedAt: null,
+  warmthScore: {
+    temperature: 37.8,
+    comment: '서촌 골목길의 바람마저 다정하게 녹여낸 따뜻한 온기',
+    keywords: ['#서촌골목길', '#돌담길시집', '#따뜻한차한잔'],
+  },
 };
 
 export default function HomePage() {
