@@ -211,9 +211,9 @@ export default function WriteDiaryModal({
       } else if (missionType === 'CUSTOM') {
         mission = {
           type: 'QUIZ',
-          prompt: customPrompt || '내가 오늘 가장 맛있게 먹었던 음식은 무엇일까요?',
-          quizAnswer: customQuizAnswer || '된장찌개',
-          quizHint: customQuizHint || '구수한 국물 요리야!',
+          prompt: customPrompt || '지난 편지에서 내가 제일 먹고 싶다고 했던 음식이 뭐였게?',
+          quizAnswer: customQuizAnswer || '붕어빵',
+          quizHint: customQuizHint || '달콤하고 따뜻한 겨울 간식이야!',
           isCustom: true,
           submission: null,
           isPassed: false,
