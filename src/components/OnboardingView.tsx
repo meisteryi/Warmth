@@ -187,7 +187,7 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
         animate={{ opacity: 1, y: 0 }}
         className="text-center mb-3 sm:mb-6"
       >
-        <div className="w-11 h-11 sm:w-14 sm:h-14 mx-auto rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center font-serif-warm text-xl sm:text-2xl font-bold shadow-md border-2 border-amber-200/30 mb-2">
+        <div className="w-14 h-14 sm:w-16 sm:h-16 mx-auto rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center font-serif-warm text-2xl sm:text-3xl font-bold shadow-md border-2 border-amber-200/40 mb-2.5 sm:mb-3">
           溫
         </div>
         <h1 className="font-serif-warm text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight leading-tight">

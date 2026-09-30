@@ -36,60 +36,60 @@ export default function RoomHeader({
   const isMatched = currentState !== 'VIEW_ONBOARDING';
 
   return (
-    <header className="w-full bg-[#FAF7F2]/95 backdrop-blur-md border-b border-[#E8DFD3] sticky top-0 z-40 px-2.5 sm:px-4 pt-[max(env(safe-area-inset-top),0.4rem)] pb-1.5 sm:pb-2.5 shrink-0">
-      <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-1.5 sm:gap-2.5">
+    <header className="w-full bg-[#FAF7F2]/95 backdrop-blur-md border-b border-[#E8DFD3] sticky top-0 z-40 px-3.5 sm:px-5 pt-[max(env(safe-area-inset-top),0.6rem)] pb-2 sm:pb-3 shrink-0 shadow-2xs">
+      <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3">
         {/* 상단 정보 행 (모바일에서는 로고/이름과 우측 간편 액션 분할) */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center font-serif-warm font-bold text-xs sm:text-sm shadow-sm shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center font-serif-warm font-bold text-base sm:text-lg shadow-sm border border-amber-200/20 shrink-0">
               溫
             </div>
             <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-serif-warm font-bold text-stone-900 text-sm sm:text-base leading-tight">온기</span>
-                <span className="text-[11px] font-serif-warm text-stone-500 hidden xs:inline">· Warmth</span>
+              <div className="flex items-center gap-2">
+                <span className="font-serif-warm font-bold text-stone-900 text-lg sm:text-xl leading-tight">온기</span>
+                <span className="text-xs font-serif-warm text-stone-500 hidden xs:inline">· Warmth</span>
                 {isMatched && (
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 text-[10px] font-mono font-medium">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-100/90 text-amber-900 text-xs font-mono font-bold border border-amber-200/60">
                     #{roomCode}
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-stone-500 font-sans-ui leading-tight mt-0.5">
+              <div className="flex items-center gap-1.5 text-xs text-stone-600 font-sans-ui leading-tight mt-0.5">
                 {isMatched ? (
                   <>
                     <button
                       type="button"
                       onClick={onSwitchUser}
                       title="클릭하여 상대방 시점으로 전환 (2인 시뮬레이션)"
-                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-stone-100 hover:bg-amber-100/80 border border-stone-200 hover:border-amber-300 text-stone-700 hover:text-amber-900 transition-all active:scale-95 text-[10px] font-medium"
+                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-stone-100 hover:bg-amber-100/80 border border-stone-200 hover:border-amber-300 text-stone-700 hover:text-amber-900 transition-all active:scale-95 text-xs font-semibold cursor-pointer shadow-2xs"
                     >
-                      <span className="font-bold text-[#6B1724]">👤 {userName} 시점</span>
-                      <ArrowLeftRight className="w-2.5 h-2.5 text-stone-400" />
-                      <span className="text-stone-500">{partnerName}</span>
+                      <span className="font-bold text-[#6B1724]">👤 {userName}</span>
+                      <ArrowLeftRight className="w-3 h-3 text-stone-400" />
+                      <span className="text-stone-500 font-normal">{partnerName}</span>
                     </button>
                   </>
                 ) : (
-                  <span className="text-amber-800 font-medium">새 일기장 페어링 대기 중</span>
+                  <span className="text-amber-800 font-medium text-xs">일기장 연결 대기 중</span>
                 )}
               </div>
             </div>
           </div>
 
           {/* 모바일 우측 빠른 액션 */}
-          <div className="flex sm:hidden items-center gap-1">
+          <div className="flex sm:hidden items-center gap-1.5">
             <button
               onClick={onResetDemo}
               title="초기 상태로 되돌리기"
-              className="p-1 rounded-lg border border-stone-300 text-stone-600 hover:bg-stone-100 text-xs min-h-[30px] min-w-[30px] flex items-center justify-center active:scale-95"
+              className="p-2 rounded-xl border border-stone-300 text-stone-700 hover:bg-stone-100 text-sm min-h-[38px] min-w-[38px] flex items-center justify-center active:scale-95 cursor-pointer shadow-2xs"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className="w-4 h-4" />
             </button>
             {isMatched && (
               <button
                 onClick={onOpenWriteModal}
-                className="px-2 py-1 rounded-lg bg-[#6B1724] text-amber-50 text-[11px] font-serif-warm font-medium shadow-xs flex items-center gap-1 min-h-[30px] active:scale-95"
+                className="px-3.5 py-2 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-xs font-serif-warm font-bold shadow-xs flex items-center gap-1.5 min-h-[38px] active:scale-95 cursor-pointer"
               >
-                <PenLine className="w-3 h-3 text-amber-200" />
+                <PenLine className="w-3.5 h-3.5 text-amber-200" />
                 <span>일기 쓰기</span>
               </button>
             )}
@@ -97,21 +97,21 @@ export default function RoomHeader({
         </div>
 
         {/* 데모 상태 전환 컨트롤러 (모바일에서 부드러운 가로 스와이프) */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 -mx-1 px-1">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 -mx-1 px-1">
           {/* 상태 탭 셀렉터 */}
-          <div className="inline-flex bg-stone-200/70 p-0.5 sm:p-1 rounded-xl text-xs font-sans-ui shrink-0">
+          <div className="inline-flex bg-stone-200/70 p-1 rounded-xl text-xs font-sans-ui shrink-0">
             {states.map((st) => (
               <button
                 key={st.id}
                 onClick={() => onSelectState(st.id)}
-                className={`px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg transition-all flex items-center gap-1 whitespace-nowrap min-h-[26px] sm:min-h-[32px] ${
+                className={`px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap min-h-[30px] sm:min-h-[34px] font-medium cursor-pointer ${
                   currentState === st.id
                     ? 'bg-white shadow-xs text-stone-900 font-bold'
                     : 'text-stone-600 hover:text-stone-900'
                 }`}
               >
-                <span className="text-[11px] sm:text-xs">{st.icon}</span>
-                <span className="text-[10px] sm:text-xs">{st.label}</span>
+                <span className="text-xs sm:text-sm">{st.icon}</span>
+                <span className="text-xs sm:text-sm">{st.label}</span>
               </button>
             ))}
           </div>
@@ -119,7 +119,7 @@ export default function RoomHeader({
           <button
             onClick={onResetDemo}
             title="초기 상태로 되돌리기"
-            className="hidden sm:flex p-1.5 rounded-lg border border-stone-300 text-stone-600 hover:bg-stone-100 text-xs shrink-0"
+            className="hidden sm:flex p-2 rounded-xl border border-stone-300 text-stone-600 hover:bg-stone-100 text-sm shrink-0 cursor-pointer shadow-2xs"
           >
             <RotateCcw className="w-4 h-4" />
           </button>
@@ -127,9 +127,9 @@ export default function RoomHeader({
           {isMatched && (
             <button
               onClick={onOpenWriteModal}
-              className="hidden sm:flex px-3 py-1.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-xs font-serif-warm font-medium shadow-sm transition-all items-center gap-1.5 active:scale-95 whitespace-nowrap shrink-0"
+              className="hidden sm:flex px-3.5 py-2 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-xs font-serif-warm font-bold shadow-sm transition-all items-center gap-1.5 active:scale-95 whitespace-nowrap shrink-0 cursor-pointer"
             >
-              <PenLine className="w-3.5 h-3.5 text-amber-200" />
+              <PenLine className="w-4 h-4 text-amber-200" />
               <span>일기 쓰기</span>
             </button>
           )}
