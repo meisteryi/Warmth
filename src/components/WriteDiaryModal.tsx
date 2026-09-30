@@ -88,7 +88,7 @@ export default function WriteDiaryModal({
   const handleApplyPrompt = () => {
     soundEngine.playTileSlideSound();
     if (!title.trim()) {
-      setTitle(dailyPrompt.slice(0, 30));
+      setTitle(dailyPrompt.slice(0, 60));
     }
     const prefix = `[💡 오늘의 질문: ${dailyPrompt}]\n\n`;
     if (!content.includes(dailyPrompt)) {
@@ -305,35 +305,36 @@ export default function WriteDiaryModal({
               </span>
             </div>
 
-            {/* 오늘의 글감 추천 배너 */}
-            <div className="p-2.5 sm:p-3 rounded-xl bg-gradient-to-r from-[#FAF4EC] via-[#F6ECE0] to-[#F2E5D6] border border-[#E4D5BF] shadow-xs flex items-center justify-between gap-2.5">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-base select-none shrink-0">🕯️</span>
-                <div className="min-w-0">
-                  <span className="text-[10px] font-sans-ui text-amber-900 font-bold tracking-wider">오늘의 글감</span>
-                  <p className="text-xs font-serif-warm text-stone-800 truncate font-medium mt-0.5">
-                    &ldquo;{dailyPrompt}&rdquo;
-                  </p>
+            {/* 오늘의 글감 추천 배너 (긴 글감도 잘림 없이 전체 표시) */}
+            <div className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-[#FAF4EC] via-[#F6ECE0] to-[#F2E5D6] border border-[#E4D5BF] shadow-xs">
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm select-none">🕯️</span>
+                  <span className="text-[11px] font-sans-ui text-amber-900 font-bold tracking-wider">오늘의 추천 글감</span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleRefreshPrompt}
+                    disabled={isRefreshingPrompt}
+                    title="다른 글감 뽑기"
+                    className="p-1.5 px-2 rounded-lg bg-white/90 hover:bg-white text-stone-600 hover:text-stone-900 border border-stone-200 transition-all active:scale-95 shadow-2xs cursor-pointer disabled:opacity-50 flex items-center gap-1 text-[11px] font-sans-ui"
+                  >
+                    <Dices className={`w-3.5 h-3.5 ${isRefreshingPrompt ? 'animate-spin text-[#6B1724]' : ''}`} />
+                    <span className="hidden xs:inline">다른 글감</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleApplyPrompt}
+                    className="px-2.5 py-1.5 rounded-lg bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-[11px] font-sans-ui font-semibold transition-all active:scale-95 shadow-xs cursor-pointer"
+                  >
+                    글감 적용
+                  </button>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <button
-                  type="button"
-                  onClick={handleRefreshPrompt}
-                  disabled={isRefreshingPrompt}
-                  title="다른 글감 뽑기"
-                  className="p-1.5 rounded-lg bg-white/90 hover:bg-white text-stone-600 hover:text-stone-900 border border-stone-200 transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-50"
-                >
-                  <Dices className={`w-3.5 h-3.5 transition-transform ${isRefreshingPrompt ? 'animate-spin text-[#6B1724]' : ''}`} />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleApplyPrompt}
-                  className="px-2.5 py-1.5 rounded-lg bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-[11px] font-sans-ui font-semibold transition-all active:scale-95 shadow-xs cursor-pointer"
-                >
-                  글감 적용
-                </button>
-              </div>
+              <p className="text-xs sm:text-sm font-serif-warm text-stone-850 font-medium leading-relaxed break-keep">
+                &ldquo;{dailyPrompt}&rdquo;
+              </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
