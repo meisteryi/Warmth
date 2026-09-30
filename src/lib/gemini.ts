@@ -71,7 +71,7 @@ export async function generateCustomQuiz(
         'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent',
         {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             'x-goog-api-key': apiKey,
           },
@@ -142,7 +142,7 @@ export async function analyzeWarmthTemperature(
         'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent',
         {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             'x-goog-api-key': apiKey,
           },
@@ -209,14 +209,14 @@ export const DAILY_PROMPTS_POOL = [
   '연애 초반, 유라에게 너무 긴장해서 차마 말하지 못했던 귀여운 속마음이 있어?',
   '유라를 보며 \'아, 이 사람과 오래 함께하고 싶다\'고 확신이 들었던 찰나의 순간.',
   '우리가 처음 손잡았던 날의 공기와 그때 느꼈던 솔직한 심장 소리.',
-  
+
   // 2. 사소한 취향과 TMI
   '나만 알고 있는 유라만의 사랑스럽거나 귀여운 사소한 버릇 한 가지.',
   '요즘 내 플레이리스트에서 가장 아끼는 한 곡과, 그 노래를 들으면 떠오르는 유라의 표정.',
   '혼자만의 시간이 생겼을 때 나를 가장 위로해주는 음식이나 힐링 루틴은?',
   '만약 내일 단 하루, 둘만을 위한 순간이동 티켓이 생긴다면 유라와 어디로 가고 싶어?',
   '유라가 좋아하는 음식 중에, 유라가 먹는 모습만 봐도 덩달아 기분 좋아지는 메뉴는?',
-  
+
   // 3. 속마음과 고민
   '요즘 마음 한구석을 남몰래 무겁게 채우고 있던 고민이나 생각이 있었나요?',
   '어른이 되었다고 느끼지만, 여전히 유라 앞에서는 아이처럼 서툴다고 느껴지는 순간.',
@@ -284,7 +284,7 @@ export async function getRandomPrompt(
         'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent',
         {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             'x-goog-api-key': apiKey,
           },
@@ -556,7 +556,7 @@ export async function evaluateQuizAnswerFlexibly(
         'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent',
         {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
             'x-goog-api-key': apiKey,
           },
