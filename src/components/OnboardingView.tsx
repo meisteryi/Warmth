@@ -5,15 +5,15 @@ import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { soundEngine } from '@/lib/audio';
 import { createRoomInFirestore, joinRoomInFirestore, subscribeRoom } from '@/lib/roomService';
-import { 
-  KeyRound, 
-  Copy, 
-  Check, 
-  Share2, 
-  Sparkles, 
-  BookHeart, 
-  HeartHandshake, 
-  Clock, 
+import {
+  KeyRound,
+  Copy,
+  Check,
+  Share2,
+  Sparkles,
+  BookHeart,
+  HeartHandshake,
+  Clock,
   UserCheck,
   Loader2
 } from 'lucide-react';
@@ -28,7 +28,7 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
       try {
         const param = new URLSearchParams(window.location.search).get('user');
         if (param === 'yura') return 'JOIN';
-      } catch {}
+      } catch { }
     }
     return 'CREATE';
   });
@@ -39,7 +39,7 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
         const param = new URLSearchParams(window.location.search).get('user');
         if (param === 'yura') return '유라';
         if (param === 'joohyoung') return '주형';
-      } catch {}
+      } catch { }
     }
     return '주형';
   });
@@ -96,7 +96,7 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
   // 클립보드 복사
   const handleCopyCode = () => {
     if (!generatedCode) return;
-    navigator.clipboard.writeText(generatedCode).catch(() => {});
+    navigator.clipboard.writeText(generatedCode).catch(() => { });
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -105,7 +105,7 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
   const handleShareInvite = () => {
     if (!generatedCode) return;
     const shareText = `📮 [온기: 둘만의 비밀 교환일기]\n${myName} 님이 보낸 교환일기 초대코드입니다: [${generatedCode}]\n아날로그 서재에서 함께 일기를 써보아요.`;
-    navigator.clipboard.writeText(shareText).catch(() => {});
+    navigator.clipboard.writeText(shareText).catch(() => { });
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -194,7 +194,7 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
           온기 · 둘만의 비밀 교환일기
         </h1>
         <p className="mt-1 text-stone-600 font-serif-warm text-[11px] sm:text-sm">
-          서재 책상 위, 오직 둘만의 따뜻한 온기가 머무는 교환일기장을 열어보세요.
+          책상 위, 오직 둘만의 따뜻한 온기가 깃든 교환일기장을 열어보세요.
         </p>
       </motion.div>
 
@@ -212,11 +212,10 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
               setActiveTab('CREATE');
               setJoinError('');
             }}
-            className={`flex-1 py-1.5 sm:py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-1.5 ${
-              activeTab === 'CREATE'
-                ? 'bg-white shadow-xs text-stone-900 font-bold'
-                : 'text-stone-500 hover:text-stone-800'
-            }`}
+            className={`flex-1 py-1.5 sm:py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-1.5 ${activeTab === 'CREATE'
+              ? 'bg-white shadow-xs text-stone-900 font-bold'
+              : 'text-stone-500 hover:text-stone-800'
+              }`}
           >
             <BookHeart className="w-3.5 h-3.5 text-[#6B1724]" />
             <span>새 일기장 만들기</span>
@@ -227,11 +226,10 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
               setActiveTab('JOIN');
               setJoinError('');
             }}
-            className={`flex-1 py-1.5 sm:py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-1.5 ${
-              activeTab === 'JOIN'
-                ? 'bg-white shadow-xs text-stone-900 font-bold'
-                : 'text-stone-500 hover:text-stone-800'
-            }`}
+            className={`flex-1 py-1.5 sm:py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-1.5 ${activeTab === 'JOIN'
+              ? 'bg-white shadow-xs text-stone-900 font-bold'
+              : 'text-stone-500 hover:text-stone-800'
+              }`}
           >
             <KeyRound className="w-3.5 h-3.5 text-amber-800" />
             <span>초대코드 입력하기</span>
