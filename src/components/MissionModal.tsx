@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MissionData } from '@/types/diary';
 import { soundEngine } from '@/lib/audio';
@@ -26,20 +26,30 @@ export default function MissionModal({
   diaryPhoto = 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=600&q=80',
   partnerName = '유라',
 }: MissionModalProps) {
-  // 모달 초기 탭: 일기 작성자가 지정한 미션에 맞추되, 언제든 3가지 중 자유롭게 전환 가능
-  const initialMode =
+  // 편지 작성자가 지정한 관문 (수신자는 작성자가 지정한 미션만 수행할 수 있음)
+  const assignedMode: 'PHOTO_PUZZLE' | 'STAMP_PUZZLE' | 'SURPRISE_QUIZ' =
     mission.type === 'PUZZLE_STAMP'
       ? 'STAMP_PUZZLE'
-      : mission.type === 'QUIZ'
+      : mission.type === 'QUIZ' || mission.type === 'TEXT'
       ? 'SURPRISE_QUIZ'
       : 'PHOTO_PUZZLE';
 
-  const [activeTab, setActiveTab] = useState<'PHOTO_PUZZLE' | 'STAMP_PUZZLE' | 'SURPRISE_QUIZ'>(initialMode);
   const [quizInput, setQuizInput] = useState('');
   const [showHint, setShowHint] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
   const [wrongCount, setWrongCount] = useState(0);
+
+  // 모달이 열릴 때 상태 초기화
+  useEffect(() => {
+    if (isOpen) {
+      setQuizInput('');
+      setShowHint(false);
+      setErrorMsg('');
+      setIsSuccess(false);
+      setWrongCount(0);
+    }
+  }, [isOpen, mission]);
 
   // 퀴즈 문제 및 정답 (작성자가 지정한 값 또는 기본값)
   const quizPrompt = mission.prompt || '오늘 내가 가장 행복했던 순간이 언제였게?';
@@ -127,57 +137,43 @@ export default function MissionModal({
             {/* 헤더 */}
             <div className="flex items-center gap-2.5 mb-3 sm:mb-4 pr-8">
               <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#6B1724]/10 border border-[#6B1724]/20 flex items-center justify-center text-[#6B1724] shrink-0">
-                <Puzzle className="w-4 h-4 sm:w-5 sm:h-5" />
+                {assignedMode === 'PHOTO_PUZZLE' && <Puzzle className="w-4 h-4 sm:w-5 sm:h-5 text-[#6B1724]" />}
+                {assignedMode === 'STAMP_PUZZLE' && <Stamp className="w-4 h-4 sm:w-5 sm:h-5 text-amber-800" />}
+                {assignedMode === 'SURPRISE_QUIZ' && <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5 text-rose-700" />}
               </div>
-              <h3 className="font-serif-warm text-base sm:text-xl font-bold text-stone-900 leading-tight">
-                오늘의 미션
-              </h3>
+              <div>
+                <h3 className="font-serif-warm text-base sm:text-xl font-bold text-stone-900 leading-tight">
+                  {assignedMode === 'PHOTO_PUZZLE' && '하루 사진 조각 맞추기'}
+                  {assignedMode === 'STAMP_PUZZLE' && '빈티지 우표 맞추기'}
+                  {assignedMode === 'SURPRISE_QUIZ' && '봉인 해제 깜짝 퀴즈'}
+                </h3>
+              </div>
             </div>
 
-            {/* 3가지 관문 선택 탭 (사진 퍼즐 / 우표 맞추기 / 깜짝 퀴즈) */}
-            <div className="flex bg-[#F4EFEA] p-1 rounded-xl mb-3 sm:mb-5 text-xs font-sans-ui">
-              <button
-                type="button"
-                onClick={() => setActiveTab('PHOTO_PUZZLE')}
-                className={`flex-1 py-1.5 rounded-lg font-medium transition-all flex items-center justify-center gap-1.5 ${
-                  activeTab === 'PHOTO_PUZZLE'
-                    ? 'bg-white shadow-xs text-stone-900 font-bold'
-                    : 'text-stone-500 hover:text-stone-800'
-                }`}
-              >
-                <Puzzle className="w-3.5 h-3.5 text-[#6B1724]" />
-                <span>사진 퍼즐</span>
-              </button>
+            {/* 편지 작성자가 지정한 봉인 해제 관문 안내 (선택 변경 불가) */}
+            <div className="flex items-center justify-between p-2.5 sm:p-3 rounded-xl bg-[#F4EFEA] border border-[#E8DFC8]/80 mb-3 sm:mb-5">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-6 h-6 rounded-full bg-white shadow-2xs border border-[#E8DFC8] flex items-center justify-center text-stone-700 shrink-0">
+                  {assignedMode === 'PHOTO_PUZZLE' && <Puzzle className="w-3.5 h-3.5 text-[#6B1724]" />}
+                  {assignedMode === 'STAMP_PUZZLE' && <Stamp className="w-3.5 h-3.5 text-amber-800" />}
+                  {assignedMode === 'SURPRISE_QUIZ' && <HelpCircle className="w-3.5 h-3.5 text-rose-700" />}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] sm:text-xs font-serif-warm text-stone-600 truncate">
+                    <strong className="text-stone-900 font-semibold">{partnerName}</strong> 님이 지정한 봉인 해제 관문
+                  </p>
+                </div>
+              </div>
 
-              <button
-                type="button"
-                onClick={() => setActiveTab('STAMP_PUZZLE')}
-                className={`flex-1 py-1.5 rounded-lg font-medium transition-all flex items-center justify-center gap-1.5 ${
-                  activeTab === 'STAMP_PUZZLE'
-                    ? 'bg-white shadow-xs text-stone-900 font-bold'
-                    : 'text-stone-500 hover:text-stone-800'
-                }`}
-              >
-                <Stamp className="w-3.5 h-3.5 text-amber-800" />
-                <span>우표 맞추기</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('SURPRISE_QUIZ')}
-                className={`flex-1 py-1.5 rounded-lg font-medium transition-all flex items-center justify-center gap-1.5 ${
-                  activeTab === 'SURPRISE_QUIZ'
-                    ? 'bg-white shadow-xs text-stone-900 font-bold'
-                    : 'text-stone-500 hover:text-stone-800'
-                }`}
-              >
-                <HelpCircle className="w-3.5 h-3.5 text-rose-700" />
-                <span>깜짝 퀴즈</span>
-              </button>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-sans-ui font-semibold bg-white text-stone-800 shadow-2xs border border-stone-200 shrink-0 ml-2">
+                {assignedMode === 'PHOTO_PUZZLE' && '사진 조각 맞추기'}
+                {assignedMode === 'STAMP_PUZZLE' && '우표 퍼즐 맞추기'}
+                {assignedMode === 'SURPRISE_QUIZ' && '깜짝 퀴즈 풀기'}
+              </span>
             </div>
 
             {/* 모드 1: 사진 슬라이딩 퍼즐 */}
-            {activeTab === 'PHOTO_PUZZLE' && (
+            {assignedMode === 'PHOTO_PUZZLE' && (
               <PhotoSlidingPuzzle
                 imageUrl={diaryPhoto}
                 partnerName={partnerName}
@@ -186,7 +182,7 @@ export default function MissionModal({
             )}
 
             {/* 모드 2: 빈티지 우표 맞추기 */}
-            {activeTab === 'STAMP_PUZZLE' && (
+            {assignedMode === 'STAMP_PUZZLE' && (
               <StampJigsawPuzzle
                 partnerName={partnerName}
                 onSolve={handleStampPuzzleSolved}
@@ -194,7 +190,7 @@ export default function MissionModal({
             )}
 
             {/* 모드 3: 깜짝 퀴즈 풀기 */}
-            {activeTab === 'SURPRISE_QUIZ' && (
+            {assignedMode === 'SURPRISE_QUIZ' && (
               <div className="space-y-4">
                 {/* 퀴즈 문제 카드 */}
                 <div className="p-4 sm:p-5 rounded-2xl bg-[#FAF5EE] border border-[#E8DEC8] shadow-xs">

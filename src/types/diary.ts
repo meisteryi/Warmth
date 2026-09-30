@@ -6,7 +6,7 @@ export type UIState =
   | 'VIEW_WAX_READY'      // 미션 완료, 실링 왁스 봉인 해제 대기 (3초 롱프레스 가능)
   | 'VIEW_OPENED_DIARY';  // 왁스 개봉 완료, 일기 열람 가능
 
-export type WaxColor = '#6B1724' | '#B8860B' | '#2E473B';
+export type WaxColor = string;
 
 export interface WaxOption {
   name: string;

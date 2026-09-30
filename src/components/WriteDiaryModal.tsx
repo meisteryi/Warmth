@@ -45,6 +45,9 @@ export default function WriteDiaryModal({
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [selectedColor, setSelectedColor] = useState<WaxColor>('#6B1724');
+  const [customColor, setCustomColor] = useState<string>('#9E2A3C');
+  const colorInputRef = useRef<HTMLInputElement>(null);
+  const isCustomColor = !WAX_COLORS.some((w) => w.hex.toLowerCase() === selectedColor.toLowerCase());
   const [missionType, setMissionType] = useState<'PUZZLE_PHOTO' | 'PUZZLE_STAMP' | 'SYSTEM' | 'CUSTOM'>('PUZZLE_PHOTO');
   const [customPrompt, setCustomPrompt] = useState('');
   const [customQuizAnswer, setCustomQuizAnswer] = useState('');
@@ -471,30 +474,78 @@ export default function WriteDiaryModal({
                 )}
               </div>
 
-              {/* 실링 왁스 색상 선택 */}
+              {/* 실링 왁스 색상 선택 (버건디 / 골드 / 그린 / 직접 선택) */}
               <div>
                 <label className="block text-xs font-sans-ui text-stone-600 mb-2">
                   봉인할 실링 왁스 인장 색상
                 </label>
-                <div className="flex gap-3">
+                <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
                   {WAX_COLORS.map((wax) => (
                     <button
                       key={wax.hex}
                       type="button"
                       onClick={() => setSelectedColor(wax.hex)}
-                      className={`flex-1 py-2 px-3 rounded-xl border text-xs font-sans-ui flex items-center justify-center gap-2 transition-all ${
-                        selectedColor === wax.hex
-                          ? 'border-stone-800 bg-white shadow-sm ring-2 ring-stone-800/10 font-bold'
+                      className={`py-2 px-1.5 sm:px-2 rounded-xl border text-[11px] sm:text-xs font-sans-ui flex items-center justify-center gap-1.5 transition-all ${
+                        selectedColor.toLowerCase() === wax.hex.toLowerCase()
+                          ? 'border-stone-800 bg-white shadow-sm ring-2 ring-stone-800/10 font-bold text-stone-900'
+                          : 'border-stone-200 bg-stone-50/70 text-stone-600 hover:border-stone-300'
+                      }`}
+                      title={wax.label}
+                    >
+                      <span
+                        className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full shadow-inner shrink-0"
+                        style={{ backgroundColor: wax.hex }}
+                      />
+                      <span className="truncate">
+                        {wax.name === 'Burgundy' ? '버건디' : wax.name === 'Antique Gold' ? '골드' : '그린'}
+                      </span>
+                    </button>
+                  ))}
+
+                  {/* 4번째 옵션: 직접 선택 (포토샵 컬러 휠 원형 팔레트) */}
+                  <div className="relative">
+                    <input
+                      ref={colorInputRef}
+                      type="color"
+                      value={customColor}
+                      onChange={(e) => {
+                        const newColor = e.target.value;
+                        setCustomColor(newColor);
+                        setSelectedColor(newColor);
+                      }}
+                      onInput={(e) => {
+                        const newColor = e.currentTarget.value;
+                        setCustomColor(newColor);
+                        setSelectedColor(newColor);
+                      }}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                      title="포토샵 컬러 휠에서 직접 색상 선택"
+                      aria-label="실링 왁스 인장 색상 직접 선택"
+                    />
+                    <div
+                      className={`w-full h-full py-2 px-1.5 sm:px-2 rounded-xl border text-[11px] sm:text-xs font-sans-ui flex items-center justify-center gap-1.5 transition-all pointer-events-none ${
+                        isCustomColor
+                          ? 'border-stone-800 bg-white shadow-sm ring-2 ring-stone-800/10 font-bold text-stone-900'
                           : 'border-stone-200 bg-stone-50/70 text-stone-600'
                       }`}
                     >
-                      <span
-                        className="w-4 h-4 rounded-full shadow-inner"
-                        style={{ backgroundColor: wax.hex }}
-                      />
-                      <span className="hidden sm:inline">{wax.name}</span>
-                    </button>
-                  ))}
+                      {/* 포토샵 컬러 원형 (Hue Ring) 스타일 아이콘 */}
+                      <div
+                        className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full p-[1.5px] shrink-0 flex items-center justify-center shadow-xs"
+                        style={{
+                          background: 'conic-gradient(from 0deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)',
+                        }}
+                      >
+                        <div
+                          className="w-full h-full rounded-full border border-black/15 shadow-inner transition-colors"
+                          style={{
+                            backgroundColor: isCustomColor ? customColor : '#ffffff',
+                          }}
+                        />
+                      </div>
+                      <span className="truncate">직접 선택</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 

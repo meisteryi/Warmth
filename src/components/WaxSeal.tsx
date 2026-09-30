@@ -37,12 +37,14 @@ export default function WaxSeal({
     setIsCracking(true);
     soundEngine.playWaxCrackSound();
 
-    // Canvas Confetti를 이용한 왁스 파편 파티클 연출
+    // Canvas Confetti를 이용한 왁스 파편 파티클 연출 (커스텀 컬러 대응)
     const colors = color === '#6B1724' 
       ? ['#6B1724', '#8E1D31', '#B8860B', '#FDFBF7'] 
       : color === '#B8860B'
       ? ['#B8860B', '#D4AF37', '#6B1724', '#FFFDF9']
-      : ['#2E473B', '#446E5A', '#B8860B', '#F4EFEA'];
+      : color === '#2E473B'
+      ? ['#2E473B', '#446E5A', '#B8860B', '#F4EFEA']
+      : [color, '#D4AF37', '#FAF7F2', '#3D0B14'];
 
     confetti({
       particleCount: 55,
@@ -185,41 +187,44 @@ export default function WaxSeal({
         whileTap={{ scale: 0.96 }}
       >
         {/* 왁스 자연스러운 유기적 외곽 SVG */}
-        <svg
-          viewBox="0 0 100 100"
-          className="w-full h-full filter drop-shadow-md"
-          style={{
-            filter: `drop-shadow(0 6px 12px ${color}66) drop-shadow(0 2px 4px rgba(0,0,0,0.3))`,
-          }}
-        >
-          <defs>
-            <radialGradient id={`waxGrad-${color}`} cx="35%" cy="30%" r="70%">
-              <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.32" />
-              <stop offset="35%" stopColor={color} />
-              <stop offset="90%" stopColor={color} />
-              <stop offset="100%" stopColor="#1A0508" stopOpacity="0.8" />
-            </radialGradient>
-            <filter id="waxTexture" x="0" y="0" width="100%" height="100%">
-              <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" result="noise" />
-              <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.12 0" />
-              <feComposite in2="SourceGraphic" in="gl" operator="in" />
-            </filter>
-          </defs>
+        {(() => {
+          const safeColorId = color.replace(/[^a-zA-Z0-9]/g, '');
+          return (
+            <svg
+              viewBox="0 0 100 100"
+              className="w-full h-full filter drop-shadow-md"
+              style={{
+                filter: `drop-shadow(0 6px 12px ${color}66) drop-shadow(0 2px 4px rgba(0,0,0,0.3))`,
+              }}
+            >
+              <defs>
+                <radialGradient id={`waxGrad-${safeColorId}`} cx="35%" cy="30%" r="70%">
+                  <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.32" />
+                  <stop offset="35%" stopColor={color} />
+                  <stop offset="90%" stopColor={color} />
+                  <stop offset="100%" stopColor="#1A0508" stopOpacity="0.8" />
+                </radialGradient>
+                <filter id="waxTexture" x="0" y="0" width="100%" height="100%">
+                  <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" result="noise" />
+                  <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.12 0" />
+                  <feComposite in2="SourceGraphic" in="gl" operator="in" />
+                </filter>
+              </defs>
 
-          {/* 울퉁불퉁 자연스러운 왁스 덩어리 외곽 패스 */}
-          <motion.path
-            d="M 50,5 
-               C 65,4 78,12 86,22 
-               C 94,32 97,48 94,62 
-               C 91,76 82,88 68,94 
-               C 54,100 38,98 26,90 
-               C 14,82 6,69 6,54 
-               C 6,39 15,24 28,14 
-               C 38,6 45,5 50,5 Z"
-            fill={`url(#waxGrad-${color})`}
-            animate={isCracking ? { scale: [1, 1.15, 0.4], opacity: [1, 0.8, 0] } : {}}
-            transition={{ duration: 0.6 }}
-          />
+              {/* 울퉁불퉁 자연스러운 왁스 덩어리 외곽 패스 */}
+              <motion.path
+                d="M 50,5 
+                   C 65,4 78,12 86,22 
+                   C 94,32 97,48 94,62 
+                   C 91,76 82,88 68,94 
+                   C 54,100 38,98 26,90 
+                   C 14,82 6,69 6,54 
+                   C 6,39 15,24 28,14 
+                   C 38,6 45,5 50,5 Z"
+                fill={`url(#waxGrad-${safeColorId})`}
+                animate={isCracking ? { scale: [1, 1.15, 0.4], opacity: [1, 0.8, 0] } : {}}
+                transition={{ duration: 0.6 }}
+              />
 
           {/* 중앙 양각 테두리 원 */}
           <circle
@@ -245,6 +250,8 @@ export default function WaxSeal({
           <circle cx="48" cy="65" r="1.4" fill="#FFE5A3" opacity="0.5" />
           <circle cx="65" cy="60" r="1.8" fill="#FFE5A3" opacity="0.4" />
         </svg>
+          );
+        })()}
 
         {/* 왁스 중앙 인장 심볼 */}
         <div className="absolute inset-0 flex flex-col items-center justify-center text-amber-100/90 pointer-events-none">
