@@ -282,16 +282,16 @@ export default function WaxSeal({
                 className="flex flex-col items-center justify-center"
                 animate={isPressing ? { scale: 0.94 } : { scale: 1 }}
               >
-                {/* 만년필 음각 이니셜 W */}
+                {/* 만년필 음각 한자 따뜻할 온 溫 */}
                 <span 
-                  className="font-serif-warm text-2xl font-bold tracking-widest text-amber-100/95"
+                  className="font-serif-warm text-2xl font-bold tracking-widest text-amber-100/95 select-none"
                   style={{
                     textShadow: '0 1px 2px rgba(0,0,0,0.6), 0 -1px 1px rgba(255,255,255,0.3)',
                   }}
                 >
-                  W
+                  溫
                 </span>
-                <span className="text-[9px] tracking-widest text-amber-200/80 font-sans uppercase -mt-1">
+                <span className="text-[9px] tracking-widest text-amber-200/80 font-sans uppercase -mt-0.5 select-none">
                   WARMTH
                 </span>
               </motion.div>

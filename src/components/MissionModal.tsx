@@ -52,7 +52,7 @@ export default function MissionModal({
   }, [isOpen, mission]);
 
   // 퀴즈 문제 및 정답 (작성자가 지정한 값 또는 기본값)
-  const quizPrompt = mission.prompt || '오늘 내가 가장 행복했던 순간이 언제였게?';
+  const quizPrompt = mission.prompt || '저번 편지에서 내가 가장 행복했다고 말했던 순간이 언제였게?';
   const quizAnswer = mission.quizAnswer || '너랑 통화할 때';
   const quizHint = mission.quizHint || '매일 밤 네 목소리가 들리는 시간이야!';
 

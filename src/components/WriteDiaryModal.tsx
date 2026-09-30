@@ -214,7 +214,7 @@ export default function WriteDiaryModal({
       } else if (missionType === 'CUSTOM') {
         mission = {
           type: 'QUIZ',
-          prompt: customPrompt || '지난 편지에서 내가 제일 먹고 싶다고 했던 음식이 뭐였게?',
+          prompt: customPrompt || '저번 편지에서 내가 제일 먹고 싶다고 했던 음식이 뭐였게?',
           quizAnswer: customQuizAnswer || '붕어빵',
           quizHint: customQuizHint || '달콤하고 따뜻한 겨울 간식이야!',
           isCustom: true,
@@ -602,7 +602,7 @@ export default function WriteDiaryModal({
                   <div className="space-y-2.5 p-3 bg-amber-50/60 rounded-xl border border-amber-200/70">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <span className="text-[11px] font-sans-ui text-amber-900 font-bold flex items-center gap-1">
-                        <span>❓ 지난 편지 복습 퀴즈</span>
+                        <span>❓ 저번 편지 복습 퀴즈</span>
                       </span>
                       <button
                         type="button"
@@ -624,7 +624,7 @@ export default function WriteDiaryModal({
 
                     <input
                       type="text"
-                      placeholder="질문 (예: 지난 편지에서 내가 주말에 가자고 했던 곳은?)"
+                      placeholder="질문 (예: 저번 편지에서 내가 주말에 가자고 했던 곳이 어디였게?)"
                       value={customPrompt}
                       onChange={(e) => setCustomPrompt(e.target.value)}
                       className="w-full px-3 py-1.5 rounded-lg border border-stone-200 bg-white text-xs font-serif-warm"
@@ -639,7 +639,7 @@ export default function WriteDiaryModal({
                       />
                       <input
                         type="text"
-                        placeholder="힌트 (예: 지난 편지 셋째 줄에 있어!)"
+                        placeholder="힌트 (예: 저번 편지 셋째 줄에 적어뒀지!)"
                         value={customQuizHint}
                         onChange={(e) => setCustomQuizHint(e.target.value)}
                         className="flex-1 px-3 py-1.5 rounded-lg border border-stone-200 bg-white text-xs font-serif-warm"

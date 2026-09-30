@@ -20,7 +20,7 @@ export async function fetchAiQuiz(
   } catch (e) {
     console.warn('fetchAiQuiz error:', e);
     return {
-      prompt: '지난 편지에서 내가 너한테 가장 전하고 싶었던 마음이 뭐였게?',
+      prompt: '저번 편지에서 내가 너한테 가장 전하고 싶었던 마음이 뭐였게?',
       answer: '고마움',
       hint: '마음을 가득 채운 세 글자야!',
     };

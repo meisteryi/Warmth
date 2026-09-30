@@ -49,7 +49,7 @@ const INITIAL_DIARY: DiaryData = {
   createdAt: '2026-09-28T21:00:00.000Z',
   mission: {
     type: 'QUIZ',
-    prompt: '오늘 내가 가장 행복했던 순간이 언제였게?',
+    prompt: '저번에 내가 가장 행복했다고 말했던 순간이 언제였게?',
     quizAnswer: '너랑 통화할 때',
     quizHint: '매일 밤 네 목소리가 들리는 시간이야!',
     isCustom: true,
