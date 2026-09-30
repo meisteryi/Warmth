@@ -19,11 +19,18 @@ import {
   X,
   Mail,
   Lock,
+  Clock,
   ThermometerSun,
   ThermometerSnowflake,
 } from 'lucide-react';
 import { DiaryData, RoomData } from '@/types/diary';
-import { calculateDaysTogether, DaysTogetherInfo } from '@/lib/dateUtils';
+import { 
+  calculateDaysTogether, 
+  DaysTogetherInfo, 
+  isDiaryWrittenInCurrentCycle, 
+  getTimeUntilNextReset, 
+  ResetCountdownInfo 
+} from '@/lib/dateUtils';
 import { updateAnniversaryDateInFirestore } from '@/lib/roomService';
 import { fetchDailyPrompt } from '@/lib/aiClient';
 import { soundEngine } from '@/lib/audio';
@@ -65,9 +72,22 @@ export default function HomeView({
   const [customStartDate, setCustomStartDate] = useState('');
   const [isSavingDate, setIsSavingDate] = useState(false);
 
+  // 매일 새벽 04:00 초기화 실시간 카운트다운 타이머 (1초 주기 갱신)
+  const [countdown, setCountdown] = useState<ResetCountdownInfo>(() => getTimeUntilNextReset());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown(getTimeUntilNextReset());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   // 이어진 날짜 계산 (기념일 설정값 -> 매칭일 -> 방 생성일 -> 오늘 순 우선순위)
   const effectiveStartDate = roomData?.anniversaryDate || roomData?.matchedAt || roomData?.createdAt || null;
   const daysInfo: DaysTogetherInfo = calculateDaysTogether(effectiveStartDate);
+
+  // 오늘 일기가 현재 주기(새벽 4시 이후)에 이미 작성되었는지 판별 (하루 1통 규칙)
+  const isTodayDiaryWritten = isDiaryWrittenInCurrentCycle(diary?.createdAt);
 
   // 추천 글감 로드
   useEffect(() => {
@@ -184,16 +204,15 @@ export default function HomeView({
             </button>
           </div>
 
-          {/* 다음 기념일 D-Day 뱃지 */}
-          {daysInfo.nextMilestone && (
-            <div className="mt-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 border border-rose-200/70 text-rose-900 text-[11px] font-serif-warm font-semibold shadow-2xs">
-              <Sparkles className="w-3 h-3 text-rose-500" />
-              <span>
-                {daysInfo.nextMilestone.label}까지{' '}
-                <strong className="font-mono text-xs">{daysInfo.nextMilestone.remainingDays}</strong>일 남았어요
-              </span>
-            </div>
-          )}
+          {/* 매일 새벽 04시 초기화 타이머 뱃지 (하루 1통) */}
+          <div className="mt-4 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-950/5 border border-amber-900/15 text-stone-700 text-xs font-serif-warm shadow-2xs">
+            <Clock className="w-3.5 h-3.5 text-amber-800" />
+            <span>매일 04:00 리셋</span>
+            <span className="text-stone-300">·</span>
+            <span className="font-mono font-bold text-[#6B1724]">
+              {isTodayDiaryWritten ? `다음 일기까지 ${countdown.formatted}` : `오늘 작성 가능 (${countdown.formatted} 남음)`}
+            </span>
+          </div>
         </div>
       </motion.div>
 
@@ -214,19 +233,29 @@ export default function HomeView({
                 오늘의 교환일기
               </h3>
               <p className="text-[11px] text-stone-500 font-sans-ui">
-                {isMyTurn ? '내가 편지를 쓸 차례' : `${partnerName} 님의 작성 차례`}
+                {isTodayDiaryWritten
+                  ? `오늘 교환일기 작성 완료 (새벽 04시 리셋)`
+                  : isMyTurn
+                  ? '내가 오늘 편지를 쓸 차례'
+                  : `${partnerName} 님의 오늘 작성 차례`}
               </p>
             </div>
           </div>
 
           <span
             className={`text-xs px-2.5 py-1 rounded-full font-serif-warm font-bold border ${
-              isMyTurn
+              isTodayDiaryWritten
+                ? 'bg-amber-100/80 text-amber-950 border-amber-300'
+                : isMyTurn
                 ? 'bg-[#6B1724]/10 text-[#6B1724] border-[#6B1724]/30'
                 : 'bg-stone-100 text-stone-600 border-stone-200'
             }`}
           >
-            {isMyTurn ? '내 턴 ✍️' : '상대방 턴 ⏳'}
+            {isTodayDiaryWritten
+              ? '오늘 교환 완료 🌙'
+              : isMyTurn
+              ? '내 턴 ✍️'
+              : '상대방 턴 ⏳'}
           </span>
         </div>
 
@@ -270,7 +299,7 @@ export default function HomeView({
                   {partnerName} 님에게 편지를 보냈어요
                 </p>
                 <p className="text-xs text-stone-600 font-serif-warm mt-0.5">
-                  다정한 답장이 돌아올 때까지 편안하게 기다려보세요.
+                  오늘의 온기가 전달되었습니다. 상대방의 다음 답장은 내일 새벽 04:00 리셋 이후 작성됩니다.
                 </p>
               </div>
             </div>
@@ -332,7 +361,15 @@ export default function HomeView({
               >
                 편지 다시 읽기
               </button>
-              {isMyTurn && (
+              {isTodayDiaryWritten ? (
+                <div
+                  title={`하루에 한 통씩만 교환할 수 있어요. 내일 새벽 04:00 이후에 답장을 쓸 수 있습니다. (남은 시간: ${countdown.formatted})`}
+                  className="flex-1 py-2 px-2.5 rounded-xl bg-stone-100 border border-stone-200 text-stone-500 text-xs font-serif-warm font-medium flex items-center justify-center gap-1.5 shadow-2xs select-none"
+                >
+                  <Clock className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                  <span className="truncate">04시 리셋 ({countdown.formatted})</span>
+                </div>
+              ) : isMyTurn ? (
                 <button
                   onClick={() => {
                     soundEngine.playTileSlideSound();
@@ -342,7 +379,7 @@ export default function HomeView({
                 >
                   답장 쓰러 가기 ✍️
                 </button>
-              )}
+              ) : null}
             </div>
           </div>
         ) : (

@@ -15,6 +15,7 @@ import {
   Volume1,
   VolumeX,
   Home,
+  Clock,
 } from 'lucide-react';
 import { getNotificationStatus, requestNotificationPermission } from '@/lib/notifications';
 import { soundEngine } from '@/lib/audio';
@@ -31,6 +32,8 @@ interface RoomHeaderProps {
   userName: string;
   partnerName: string;
   isMyTurn?: boolean;
+  isTodayDiaryWritten?: boolean;
+  countdownFormatted?: string;
 }
 
 export default function RoomHeader({
@@ -43,6 +46,8 @@ export default function RoomHeader({
   userName,
   partnerName,
   isMyTurn,
+  isTodayDiaryWritten,
+  countdownFormatted,
 }: RoomHeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -175,18 +180,35 @@ export default function RoomHeader({
               <span className="hidden xs:inline">둘만의 서재</span>
             </button>
 
-            {/* 일기 쓰기 버튼 (턴 상태 동적 반영) */}
+            {/* 일기 쓰기 버튼 (턴 상태 및 하루 1통 04시 리셋 동적 반영) */}
             <button
               onClick={onOpenWriteModal}
-              title={isMyTurn === false ? `${partnerName} 님의 작성 차례입니다` : "새 일기 쓰기"}
+              title={
+                isTodayDiaryWritten
+                  ? `오늘의 일기는 이미 작성되었습니다. 내일 새벽 04:00에 리셋됩니다 (남은 시간: ${countdownFormatted || ''})`
+                  : isMyTurn === false
+                  ? `${partnerName} 님의 작성 차례입니다`
+                  : '새 일기 쓰기'
+              }
               className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-serif-warm font-bold shadow-xs flex items-center gap-1.5 min-h-[36px] sm:min-h-[38px] active:scale-95 transition-all cursor-pointer ${
-                isMyTurn === false
+                isTodayDiaryWritten
+                  ? 'bg-amber-100/70 hover:bg-amber-200/70 text-amber-950 border border-amber-300/80'
+                  : isMyTurn === false
                   ? 'bg-stone-200/90 hover:bg-stone-300/80 text-stone-600 border border-stone-300'
                   : 'bg-[#6B1724] hover:bg-[#831D2D] text-amber-50'
               }`}
             >
-              <PenLine className={`w-3.5 h-3.5 ${isMyTurn === false ? 'text-stone-500' : 'text-amber-200'}`} />
-              <span>{isMyTurn === false ? '답장 대기 중' : '일기 쓰기'}</span>
+              {isTodayDiaryWritten ? (
+                <>
+                  <Clock className="w-3.5 h-3.5 text-amber-800" />
+                  <span>04시 리셋</span>
+                </>
+              ) : (
+                <>
+                  <PenLine className={`w-3.5 h-3.5 ${isMyTurn === false ? 'text-stone-500' : 'text-amber-200'}`} />
+                  <span>{isMyTurn === false ? '답장 대기 중' : '일기 쓰기'}</span>
+                </>
+              )}
             </button>
 
             {/* 더보기 메뉴 버튼 */}

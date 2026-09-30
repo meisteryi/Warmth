@@ -1,16 +1,12 @@
 /**
  * D-Day and couple relationship anniversary calculations
+ * & Daily 04:00 AM Reset Timer calculations
  */
 
 export interface DaysTogetherInfo {
   days: number;
   formattedStartDate: string;
   startDateIso: string;
-  nextMilestone: {
-    label: string;
-    remainingDays: number;
-    targetDays: number;
-  } | null;
 }
 
 /**
@@ -37,33 +33,76 @@ export function calculateDaysTogether(startDateStr?: string | null): DaysTogethe
   const formattedStartDate = `${start.getFullYear()}년 ${start.getMonth() + 1}월 ${start.getDate()}일`;
   const startDateIso = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
 
-  // 다음 주요 기념일 계산 (100일, 200일, 300일, 1주년(365일), 500일, 2주년(730일), 1000일 등)
-  const milestones = [
-    { target: 100, label: '100일' },
-    { target: 200, label: '200일' },
-    { target: 300, label: '300일' },
-    { target: 365, label: '1주년' },
-    { target: 500, label: '500일' },
-    { target: 730, label: '2주년' },
-    { target: 1000, label: '1000일' },
-  ];
-
-  let nextMilestone: DaysTogetherInfo['nextMilestone'] = null;
-  for (const m of milestones) {
-    if (m.target >= days) {
-      nextMilestone = {
-        label: m.label,
-        remainingDays: m.target - days,
-        targetDays: m.target,
-      };
-      break;
-    }
-  }
-
   return {
     days,
     formattedStartDate,
     startDateIso,
-    nextMilestone,
+  };
+}
+
+/**
+ * 주어진 시각의 04:00 AM 기준 일기 주기 식별자 반환 (YYYY-MM-DD)
+ * 예: 10월 1일 03:30 -> 4시간을 빼면 9월 30일 23:30 -> "2026-09-30" 주기
+ * 예: 10월 1일 04:15 -> 4시간을 빼면 10월 1일 00:15 -> "2026-10-01" 주기
+ */
+export function getDiaryCycleKey(date: Date = new Date()): string {
+  const shifted = new Date(date.getTime() - 4 * 60 * 60 * 1000);
+  const y = shifted.getFullYear();
+  const m = String(shifted.getMonth() + 1).padStart(2, '0');
+  const d = String(shifted.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * 해당 일기가 현재 주기(새벽 4시 이후 작성된 일기)에 이미 작성되었는지 검사
+ */
+export function isDiaryWrittenInCurrentCycle(diaryCreatedAt?: string | null): boolean {
+  if (!diaryCreatedAt) return false;
+  const diaryDate = new Date(diaryCreatedAt);
+  if (isNaN(diaryDate.getTime())) return false;
+  return getDiaryCycleKey(diaryDate) === getDiaryCycleKey(new Date());
+}
+
+/**
+ * 다음 새벽 04:00까지 남은 시간 계산
+ */
+export interface ResetCountdownInfo {
+  totalSeconds: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+  formatted: string; // e.g. "03:14:22"
+  formattedKorean: string; // e.g. "3시간 14분"
+  nextResetTime: Date;
+}
+
+export function getTimeUntilNextReset(now: Date = new Date()): ResetCountdownInfo {
+  const nextReset = new Date(now);
+  // 만약 현재 시각이 04:00 이전이면 오늘 04:00이 리셋 시각
+  // 현재 시각이 04:00 이후이면 내일 04:00이 리셋 시각
+  if (now.getHours() < 4) {
+    nextReset.setHours(4, 0, 0, 0);
+  } else {
+    nextReset.setDate(nextReset.getDate() + 1);
+    nextReset.setHours(4, 0, 0, 0);
+  }
+
+  const diffMs = Math.max(0, nextReset.getTime() - now.getTime());
+  const totalSeconds = Math.floor(diffMs / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  const formatted = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  const formattedKorean = hours > 0 ? `${hours}시간 ${minutes}분` : `${minutes}분 ${seconds}초`;
+
+  return {
+    totalSeconds,
+    hours,
+    minutes,
+    seconds,
+    formatted,
+    formattedKorean,
+    nextResetTime: nextReset,
   };
 }

@@ -13,6 +13,7 @@ import KnockNotificationModal from '@/components/KnockNotificationModal';
 import ArchiveModal from '@/components/ArchiveModal';
 import HomeView from '@/components/HomeView';
 import { DiaryData, KnockData, UIState, WaxColor, RoomData } from '@/types/diary';
+import { isDiaryWrittenInCurrentCycle, getTimeUntilNextReset, ResetCountdownInfo } from '@/lib/dateUtils';
 import { soundEngine } from '@/lib/audio';
 import { LogOut } from 'lucide-react';
 import { 
@@ -171,6 +172,19 @@ export default function HomePage() {
   const [hasCopiedLeaveCode, setHasCopiedLeaveCode] = useState(false);
   const isLeavingRef = useRef(false);
 
+  // 매일 새벽 04:00 리셋 타이머 (1초 간격 갱신)
+  const [countdown, setCountdown] = useState<ResetCountdownInfo>(() => getTimeUntilNextReset());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown(getTimeUntilNextReset());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // 오늘 일기가 현재 04:00 주기 내에 이미 작성되었는지 판별 (하루 1통 제한)
+  const isTodayDiaryWritten = isDiaryWrittenInCurrentCycle(diary?.createdAt);
+
   // 턴 로테이션 판별:
   // 1) 아직 일기가 없는 초기 상태: "코드를 써서 로그인하면, 무조건 방장이 아닌 사람이 편지를 먼저 써야 해."
   // 2) 이미 일기가 있는 상태: 번갈아가며 로테이션 (마지막 일기를 쓴 사람이 아니면 내 턴)
@@ -182,6 +196,10 @@ export default function HomePage() {
   }, [diary, userRole, userName]);
 
   const handleOpenWriteModal = (initialTitle?: string) => {
+    if (isTodayDiaryWritten) {
+      showToast(`하루에 한 통씩만 작성할 수 있어요. 다음 편지는 새벽 04:00(남은 시간: ${countdown.formattedKorean})에 열립니다.`);
+      return;
+    }
     if (!isMyTurn) {
       if (!diary) {
         showToast(`초대받은 ${partnerName} 님이 첫 번째 편지를 먼저 작성할 차례입니다.`);
@@ -588,6 +606,8 @@ export default function HomePage() {
         userName={userName}
         partnerName={partnerName}
         isMyTurn={isMyTurn}
+        isTodayDiaryWritten={isTodayDiaryWritten}
+        countdownFormatted={countdown.formatted}
       />
 
       {/* 메인 뷰 컨테이너 (iOS 스크롤 및 키보드 오버플로우 방지) */}
