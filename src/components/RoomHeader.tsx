@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { getNotificationStatus, requestNotificationPermission } from '@/lib/notifications';
 
+import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
+
 interface RoomHeaderProps {
   currentState: UIState;
   onOpenWriteModal: () => void;
@@ -87,8 +89,8 @@ export default function RoomHeader({
       <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
         {/* 좌측: 로고 및 다정한 커플 상태 */}
         <div className="flex items-center gap-2.5 sm:gap-3">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center font-serif-warm font-bold text-base sm:text-lg shadow-sm border border-amber-200/20 shrink-0">
-            溫
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-sm border border-amber-200/20 shrink-0">
+            <WarmthHanjaIcon className="w-5 h-5 sm:w-5.5 sm:h-5.5 text-amber-100" />
           </div>
           <div>
             <div className="flex items-center gap-2">

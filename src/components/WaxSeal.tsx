@@ -6,6 +6,7 @@ import confetti from 'canvas-confetti';
 import { soundEngine } from '@/lib/audio';
 import { WaxColor } from '@/types/diary';
 import { Lock, Sparkles } from 'lucide-react';
+import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
 
 interface WaxSealProps {
   color?: WaxColor;
@@ -282,16 +283,16 @@ export default function WaxSeal({
                 className="flex flex-col items-center justify-center"
                 animate={isPressing ? { scale: 0.94 } : { scale: 1 }}
               >
-                {/* 만년필 음각 한자 따뜻할 온 溫 */}
-                <span 
-                  className="font-serif-warm text-2xl font-bold tracking-widest text-amber-100/95 select-none"
+                {/* 만년필 음각 한자 따뜻할 온 溫 벡터 아이콘 */}
+                <div
+                  className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-amber-100/95"
                   style={{
-                    textShadow: '0 1px 2px rgba(0,0,0,0.6), 0 -1px 1px rgba(255,255,255,0.3)',
+                    filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6)) drop-shadow(0 -1px 1px rgba(255,255,255,0.3))',
                   }}
                 >
-                  溫
-                </span>
-                <span className="text-[9px] tracking-widest text-amber-200/80 font-sans uppercase -mt-0.5 select-none">
+                  <WarmthHanjaIcon className="w-full h-full text-amber-100" />
+                </div>
+                <span className="text-[9px] tracking-widest text-amber-200/80 font-sans uppercase mt-0.5 select-none font-semibold">
                   WARMTH
                 </span>
               </motion.div>

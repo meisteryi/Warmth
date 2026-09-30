@@ -16,6 +16,7 @@ import {
   Clock,
   Loader2
 } from 'lucide-react';
+import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
 
 interface OnboardingViewProps {
   onMatched: (roomCode: string, myName: string, partnerName: string) => void;
@@ -180,8 +181,8 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
         animate={{ opacity: 1, y: 0 }}
         className="text-center mb-3 sm:mb-5"
       >
-        <div className="w-12 h-12 sm:w-14 sm:h-14 mx-auto rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center font-serif-warm text-xl sm:text-2xl font-bold shadow-md border-2 border-amber-200/40 mb-2">
-          溫
+        <div className="w-12 h-12 sm:w-14 sm:h-14 mx-auto rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-md border-2 border-amber-200/40 mb-2">
+          <WarmthHanjaIcon className="w-6 h-6 sm:w-7 sm:h-7 text-amber-100" />
         </div>
         <h1 className="font-serif-warm text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight leading-tight">
           온기

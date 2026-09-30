@@ -4,6 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { PenLine, Feather, Sparkles, Heart, BookOpen, Send } from 'lucide-react';
 import { soundEngine } from '@/lib/audio';
+import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
 
 interface EmptyDeskViewProps {
   partnerName: string;
@@ -65,8 +66,8 @@ export default function EmptyDeskView({
           {/* 깃펜 및 실링 아이콘 */}
           <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-amber-50 border-2 border-dashed border-amber-300 flex items-center justify-center mb-4 shadow-inner group">
             <Feather className="w-8 h-8 sm:w-10 sm:h-10 text-[#6B1724] transform -rotate-12 transition-transform group-hover:rotate-0" />
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center text-[10px] font-serif-warm font-bold shadow-sm">
-              溫
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-sm">
+              <WarmthHanjaIcon className="w-3.5 h-3.5 text-amber-100" />
             </div>
           </div>
 
