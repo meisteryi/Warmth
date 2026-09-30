@@ -61,13 +61,45 @@ export default function OpenedLetter({
             </h1>
           </div>
 
-          {/* AI 온기 온도계 & 감정 날씨 배지 (확실한 감정 온도가 있을 때만 표시, -20°C ~ 40°C) */}
+          {/* 사진 갤러리 (폴라로이드 스타일) */}
+          {diary.photos && diary.photos.length > 0 && (
+            <div className="my-6 flex flex-wrap gap-4 justify-center sm:justify-start">
+              {diary.photos.map((imgUrl, idx) => (
+                <motion.div
+                  key={idx}
+                  whileHover={{ scale: 1.03, rotate: 0 }}
+                  className={`polaroid-frame w-48 sm:w-56 transition-transform ${
+                    idx % 2 === 0 ? '-rotate-1' : 'rotate-2'
+                  }`}
+                >
+                  <div className="w-full aspect-[4/3] bg-stone-200 overflow-hidden rounded-xs relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={imgUrl}
+                      alt={`일기 사진 ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <p className="mt-2 text-center font-serif-warm text-[11px] text-stone-500">
+                    그날의 한 컷 #{idx + 1}
+                  </p>
+                </motion.div>
+              ))}
+            </div>
+          )}
+
+          {/* 일기 본문 텍스트 (줄노트 감성) */}
+          <div className="my-6 text-stone-800 font-serif-warm text-base sm:text-lg leading-relaxed whitespace-pre-line tracking-normal">
+            {diary.content}
+          </div>
+
+          {/* AI 온기 온도계 & 감정 날씨 배지 (편지 내용 밑으로 이동) */}
           {warmth && typeof warmth.temperature === 'number' && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className={`my-5 p-3.5 sm:p-4 rounded-xl border shadow-xs ${
+              className={`my-6 p-3.5 sm:p-4 rounded-xl border shadow-xs ${
                 warmth.temperature <= 0
                   ? 'bg-gradient-to-r from-[#F0F7FF] via-[#F8FBFF] to-[#FAF7F2] border-[#D0E2F5]'
                   : 'bg-gradient-to-r from-[#FFF7ED] via-[#FDF8F3] to-[#F7EDE2] border-[#ECDCCB]'
@@ -126,38 +158,6 @@ export default function OpenedLetter({
               )}
             </motion.div>
           )}
-
-          {/* 사진 갤러리 (폴라로이드 스타일) */}
-          {diary.photos && diary.photos.length > 0 && (
-            <div className="my-6 flex flex-wrap gap-4 justify-center sm:justify-start">
-              {diary.photos.map((imgUrl, idx) => (
-                <motion.div
-                  key={idx}
-                  whileHover={{ scale: 1.03, rotate: 0 }}
-                  className={`polaroid-frame w-48 sm:w-56 transition-transform ${
-                    idx % 2 === 0 ? '-rotate-1' : 'rotate-2'
-                  }`}
-                >
-                  <div className="w-full aspect-[4/3] bg-stone-200 overflow-hidden rounded-xs relative">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={imgUrl}
-                      alt={`일기 사진 ${idx + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <p className="mt-2 text-center font-serif-warm text-[11px] text-stone-500">
-                    그날의 한 컷 #{idx + 1}
-                  </p>
-                </motion.div>
-              ))}
-            </div>
-          )}
-
-          {/* 일기 본문 텍스트 (줄노트 감성) */}
-          <div className="my-6 text-stone-800 font-serif-warm text-base sm:text-lg leading-relaxed whitespace-pre-line tracking-normal">
-            {diary.content}
-          </div>
 
           {/* 서로 공유한 미션 & 답변 카드 */}
           {diary.mission && (

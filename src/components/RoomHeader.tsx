@@ -10,9 +10,13 @@ import {
   Bell, 
   Copy, 
   Check, 
-  Heart 
+  Heart,
+  Volume2,
+  Volume1,
+  VolumeX,
 } from 'lucide-react';
 import { getNotificationStatus, requestNotificationPermission } from '@/lib/notifications';
+import { soundEngine } from '@/lib/audio';
 
 import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
 
@@ -40,11 +44,13 @@ export default function RoomHeader({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
+  const [volume, setVolume] = useState<number>(0.8);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const status = getNotificationStatus();
     setNotifPermission(status.permission);
+    setVolume(soundEngine.getVolume());
   }, []);
 
   // 외부 클릭 시 메뉴 닫기
@@ -210,6 +216,46 @@ export default function RoomHeader({
               {notifPermission === 'granted' ? '켜짐' : '알림 켜기'}
             </span>
           </button>
+
+          {/* 3. 효과음 볼륨 조절 */}
+          <div className="px-3.5 py-2.5 border-t border-[#E8DFD3]/80">
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span className="flex items-center gap-2 font-medium text-stone-800">
+                {volume === 0 ? (
+                  <VolumeX className="w-3.5 h-3.5 text-stone-400" />
+                ) : volume < 0.5 ? (
+                  <Volume1 className="w-3.5 h-3.5 text-[#6B1724]" />
+                ) : (
+                  <Volume2 className="w-3.5 h-3.5 text-[#6B1724]" />
+                )}
+                <span>효과음 볼륨</span>
+              </span>
+              <span className="font-mono text-[11px] font-semibold text-stone-600">
+                {Math.round(volume * 100)}%
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={volume}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  setVolume(val);
+                  soundEngine.setVolume(val);
+                }}
+                onMouseUp={() => {
+                  soundEngine.playTileSlideSound();
+                }}
+                onTouchEnd={() => {
+                  soundEngine.playTileSlideSound();
+                }}
+                className="w-full h-1.5 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-[#6B1724]"
+              />
+            </div>
+          </div>
 
           {/* 3. 사파리 7일 보관 안내 */}
           <div className="px-3.5 py-2 text-[10.5px] text-stone-500 leading-snug border-t border-[#E8DFD3]/60 bg-amber-50/40">

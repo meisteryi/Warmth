@@ -2,20 +2,69 @@
 
 class SoundEngine {
   private ctx: AudioContext | null = null;
+  private masterGain: GainNode | null = null;
+  private volume: number = 0.8;
   private meltOsc: OscillatorNode | null = null;
   private meltGain: GainNode | null = null;
   private meltFilter: BiquadFilterNode | null = null;
+
+  constructor() {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('warmth_sound_volume');
+        if (saved !== null) {
+          const val = parseFloat(saved);
+          if (!isNaN(val) && val >= 0 && val <= 1) {
+            this.volume = val;
+          }
+        }
+      } catch {}
+    }
+  }
 
   private initCtx() {
     if (!this.ctx && typeof window !== 'undefined') {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (AudioCtx) {
         this.ctx = new AudioCtx();
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.setValueAtTime(this.volume, this.ctx.currentTime);
+        this.masterGain.connect(this.ctx.destination);
       }
     }
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume().catch(() => {});
     }
+    if (this.masterGain && this.ctx) {
+      try {
+        this.masterGain.gain.setValueAtTime(this.volume, this.ctx.currentTime);
+      } catch {}
+    }
+  }
+
+  private getDestination(): AudioNode {
+    this.initCtx();
+    if (this.masterGain) return this.masterGain;
+    if (this.ctx) return this.ctx.destination;
+    throw new Error('AudioContext not available');
+  }
+
+  public setVolume(val: number) {
+    this.volume = Math.max(0, Math.min(1, val));
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('warmth_sound_volume', String(this.volume));
+      } catch {}
+    }
+    if (this.ctx && this.masterGain) {
+      try {
+        this.masterGain.gain.setValueAtTime(this.volume, this.ctx.currentTime);
+      } catch {}
+    }
+  }
+
+  public getVolume(): number {
+    return this.volume;
   }
 
   // 1. 3초 롱프레스 시 왁스가 녹아내리는 저음 앰비언스 (Melt hum)
@@ -46,7 +95,7 @@ class SoundEngine {
 
       osc.connect(filter);
       filter.connect(gain);
-      gain.connect(this.ctx.destination);
+      gain.connect(this.getDestination());
 
       osc.start(now);
       this.meltOsc = osc;
@@ -136,7 +185,7 @@ class SoundEngine {
 
       noise.connect(noiseFilter);
       noiseFilter.connect(noiseGain);
-      noiseGain.connect(this.ctx.destination);
+      noiseGain.connect(this.getDestination());
       noise.start(now);
 
       // [B] 묵직한 딱! 스냅 톤 (Snapping Transient)
@@ -151,7 +200,7 @@ class SoundEngine {
       snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
 
       snapOsc.connect(snapGain);
-      snapGain.connect(this.ctx.destination);
+      snapGain.connect(this.getDestination());
 
       snapOsc.start(now);
       snapOsc.stop(now + 0.25);
@@ -191,7 +240,7 @@ class SoundEngine {
         gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.8);
 
         osc.connect(gain);
-        gain.connect(this.ctx.destination);
+        gain.connect(this.getDestination());
 
         osc.start(now + idx * 0.08);
         osc.stop(now + idx * 0.08 + 0.9);
@@ -228,7 +277,7 @@ class SoundEngine {
 
       noise.connect(filter);
       filter.connect(gain);
-      gain.connect(this.ctx.destination);
+      gain.connect(this.getDestination());
 
       noise.start(now);
     } catch {
@@ -253,7 +302,7 @@ class SoundEngine {
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
 
       osc.connect(gain);
-      gain.connect(this.ctx.destination);
+      gain.connect(this.getDestination());
       osc.start(now);
       osc.stop(now + 0.06);
     } catch {
@@ -279,7 +328,7 @@ class SoundEngine {
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
 
       osc.connect(gain);
-      gain.connect(this.ctx.destination);
+      gain.connect(this.getDestination());
       osc.start(now);
       osc.stop(now + 0.2);
 
@@ -324,7 +373,7 @@ class SoundEngine {
         gain.gain.exponentialRampToValueAtTime(0.0001, now + note.time + note.duration);
 
         osc.connect(gain);
-        gain.connect(this.ctx.destination);
+        gain.connect(this.getDestination());
 
         osc.start(now + note.time);
         osc.stop(now + note.time + note.duration);
