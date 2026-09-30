@@ -19,7 +19,7 @@ import {
 import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
 
 interface OnboardingViewProps {
-  onMatched: (roomCode: string, myName: string, partnerName: string) => void;
+  onMatched: (roomCode: string, myName: string, partnerName: string, role?: 'CREATOR' | 'PARTNER') => void;
 }
 
 export default function OnboardingView({ onMatched }: OnboardingViewProps) {
@@ -66,7 +66,7 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
             partner = room.memberInfo[otherKey].nickname;
           }
         }
-        triggerMatchCelebration(generatedCode, myName, partner);
+        triggerMatchCelebration(generatedCode, myName, partner, 'CREATOR');
       }
     });
 
@@ -148,7 +148,7 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
         }
       }
 
-      triggerMatchCelebration(inputCode.trim(), myName, partner);
+      triggerMatchCelebration(inputCode.trim(), myName, partner, 'PARTNER');
     } catch (err) {
       console.error(err);
       setJoinError('데이터베이스 연결 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
@@ -158,7 +158,12 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
   };
 
   // 매칭 완료 축하 연출
-  const triggerMatchCelebration = (code: string, me: string, partner: string) => {
+  const triggerMatchCelebration = (
+    code: string, 
+    me: string, 
+    partner: string, 
+    role?: 'CREATOR' | 'PARTNER'
+  ) => {
     soundEngine.playMissionPassChime();
 
     confetti({
@@ -169,7 +174,7 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
     });
 
     setTimeout(() => {
-      onMatched(code, me, partner);
+      onMatched(code, me, partner, role);
     }, 1200);
   };
 

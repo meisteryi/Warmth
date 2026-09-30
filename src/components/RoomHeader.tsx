@@ -24,6 +24,7 @@ interface RoomHeaderProps {
   roomCode: string;
   userName: string;
   partnerName: string;
+  isMyTurn?: boolean;
 }
 
 export default function RoomHeader({
@@ -34,6 +35,7 @@ export default function RoomHeader({
   roomCode,
   userName,
   partnerName,
+  isMyTurn,
 }: RoomHeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -141,14 +143,18 @@ export default function RoomHeader({
               <span className="hidden xs:inline">둘만의 서재</span>
             </button>
 
-            {/* 일기 쓰기 버튼 */}
+            {/* 일기 쓰기 버튼 (턴 상태 동적 반영) */}
             <button
               onClick={onOpenWriteModal}
-              title="새 일기 쓰기"
-              className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-xs font-serif-warm font-bold shadow-xs flex items-center gap-1.5 min-h-[36px] sm:min-h-[38px] active:scale-95 transition-all cursor-pointer"
+              title={isMyTurn === false ? `${partnerName} 님의 작성 차례입니다` : "새 일기 쓰기"}
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-serif-warm font-bold shadow-xs flex items-center gap-1.5 min-h-[36px] sm:min-h-[38px] active:scale-95 transition-all cursor-pointer ${
+                isMyTurn === false
+                  ? 'bg-stone-200/90 hover:bg-stone-300/80 text-stone-600 border border-stone-300'
+                  : 'bg-[#6B1724] hover:bg-[#831D2D] text-amber-50'
+              }`}
             >
-              <PenLine className="w-3.5 h-3.5 text-amber-200" />
-              <span>일기 쓰기</span>
+              <PenLine className={`w-3.5 h-3.5 ${isMyTurn === false ? 'text-stone-500' : 'text-amber-200'}`} />
+              <span>{isMyTurn === false ? '답장 대기 중' : '일기 쓰기'}</span>
             </button>
 
             {/* 더보기 메뉴 버튼 */}

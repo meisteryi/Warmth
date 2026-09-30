@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import RoomHeader from '@/components/RoomHeader';
 import OnboardingView from '@/components/OnboardingView';
 import Envelope from '@/components/Envelope';
@@ -71,6 +71,7 @@ const STORAGE_KEYS = {
   ROOM_CODE: 'warmth_active_room_code',
   USER_NAME: 'warmth_active_user_name',
   PARTNER_NAME: 'warmth_active_partner_name',
+  USER_ROLE: 'warmth_active_user_role',
 };
 
 export default function HomePage() {
@@ -95,6 +96,19 @@ export default function HomePage() {
     return '유라';
   });
 
+  // 방장(CREATOR) vs 초대받은 사람(PARTNER) 역할 상태
+  const [userRole, setUserRole] = useState<'CREATOR' | 'PARTNER'>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEYS.USER_ROLE) as 'CREATOR' | 'PARTNER';
+        if (saved === 'CREATOR' || saved === 'PARTNER') return saved;
+        const param = new URLSearchParams(window.location.search).get('user');
+        if (param === 'yura') return 'PARTNER';
+      } catch {}
+    }
+    return 'CREATOR';
+  });
+
   // 초기 상태: 작성된 편지가 없을 때는 null (맨 처음 편지 쓰기 플로우 우선)
   const [diary, setDiary] = useState<DiaryData | null>(null);
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false);
@@ -113,6 +127,28 @@ export default function HomePage() {
   const [isPartnerDisconnectedModalOpen, setIsPartnerDisconnectedModalOpen] = useState(false);
   const [partnerDisconnectedNickname, setPartnerDisconnectedNickname] = useState('');
   const handledDisconnectionTimeRef = useRef<string | null>(null);
+
+  // 턴 로테이션 판별:
+  // 1) 아직 일기가 없는 초기 상태: "코드를 써서 로그인하면, 무조건 방장이 아닌 사람이 편지를 먼저 써야 해."
+  // 2) 이미 일기가 있는 상태: 번갈아가며 로테이션 (마지막 일기를 쓴 사람이 아니면 내 턴)
+  const isMyTurn = useMemo(() => {
+    if (!diary) {
+      return userRole === 'PARTNER';
+    }
+    return diary.authorName !== userName;
+  }, [diary, userRole, userName]);
+
+  const handleOpenWriteModal = () => {
+    if (!isMyTurn) {
+      if (!diary) {
+        showToast(`초대받은 ${partnerName} 님이 첫 번째 편지를 먼저 작성할 차례입니다.`);
+      } else {
+        showToast(`지금은 ${partnerName} 님의 작성 차례입니다. 답장을 기다려주세요.`);
+      }
+      return;
+    }
+    setIsWriteModalOpen(true);
+  };
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -139,6 +175,17 @@ export default function HomePage() {
             const snap = await getDoc(roomRef);
             if (snap.exists()) {
               const roomData = snap.data();
+              if (roomData.memberInfo) {
+                const myUid = getOrCreateUserId();
+                const entry = Object.entries(roomData.memberInfo).find(([uid, info]: any) => {
+                  return uid === myUid || (info.nickname && info.nickname.trim().toLowerCase() === savedUser.trim().toLowerCase());
+                });
+                if (entry) {
+                  const role = (entry[1] as any).role as 'CREATOR' | 'PARTNER';
+                  setUserRole(role);
+                  localStorage.setItem(STORAGE_KEYS.USER_ROLE, role);
+                }
+              }
               if (roomData.latestDiaryId) {
                 const diaryRef = doc(db, 'rooms', savedRoom, 'diaries', roomData.latestDiaryId);
                 const diarySnap = await getDoc(diaryRef);
@@ -188,6 +235,21 @@ export default function HomePage() {
     const myUid = getOrCreateUserId();
 
     const unsubscribe = subscribeRoom(roomCode, async (room) => {
+      // 0. 방 멤버 정보로부터 내 역할(CREATOR vs PARTNER) 동기화
+      if (room.memberInfo) {
+        const myUid = getOrCreateUserId();
+        const entry = Object.entries(room.memberInfo).find(([uid, info]) => {
+          return uid === myUid || (info.nickname && info.nickname.trim().toLowerCase() === userName.trim().toLowerCase());
+        });
+        if (entry) {
+          const role = entry[1].role;
+          setUserRole(role);
+          try {
+            localStorage.setItem(STORAGE_KEYS.USER_ROLE, role);
+          } catch {}
+        }
+      }
+
       // 1. 방에 상대방이 보낸 새 노크가 있는지 실시간 감지 & E2EE 복호화
       if (room.latestKnock) {
         const rawKnock = room.latestKnock;
@@ -274,10 +336,13 @@ export default function HomePage() {
   }, [roomCode, uiState, userName]);
 
   // 0. 초대코드 매칭 완료 처리
-  const handleMatched = async (code: string, me: string, partner: string) => {
+  const handleMatched = async (code: string, me: string, partner: string, role?: 'CREATOR' | 'PARTNER') => {
     setRoomCode(code);
     setUserName(me);
     setPartnerName(partner);
+
+    const detectedRole = role || (userRole === 'PARTNER' ? 'PARTNER' : 'CREATOR');
+    setUserRole(detectedRole);
 
     // 세션 영구 보관 (PWA 재접속 시 자동 매칭 복구)
     if (typeof window !== 'undefined') {
@@ -285,6 +350,7 @@ export default function HomePage() {
         localStorage.setItem(STORAGE_KEYS.ROOM_CODE, code);
         localStorage.setItem(STORAGE_KEYS.USER_NAME, me);
         localStorage.setItem(STORAGE_KEYS.PARTNER_NAME, partner);
+        localStorage.setItem(STORAGE_KEYS.USER_ROLE, detectedRole);
       } catch (e) {
         console.warn('Failed to save session to localStorage:', e);
       }
@@ -318,11 +384,11 @@ export default function HomePage() {
       console.warn('Check room on match:', e);
     }
 
-    // 일기가 없는 맨 처음 초기 상태 -> 편지 쓰기가 제일 먼저 나와야 함!
+    // 일기가 없는 맨 처음 초기 상태 -> 방 화면(VIEW_EMPTY)을 보여줌
+    // 사용자 요구: "초기에는, 방 화면을 보여줘."
     setDiary(null);
     setUiState('VIEW_EMPTY');
-    setIsWriteModalOpen(true);
-    showToast(`🎉 ${partner} 님과 연결되었습니다! 첫 편지를 작성해보세요.`);
+    showToast(`🎉 ${partner} 님과 연결되었습니다! 둘만의 서재에 오신 것을 환영합니다.`);
   };
 
   // 방 나가기 (감성 인앱 확인 모달 표시)
@@ -348,6 +414,7 @@ export default function HomePage() {
         localStorage.removeItem(STORAGE_KEYS.ROOM_CODE);
         localStorage.removeItem(STORAGE_KEYS.USER_NAME);
         localStorage.removeItem(STORAGE_KEYS.PARTNER_NAME);
+        localStorage.removeItem(STORAGE_KEYS.USER_ROLE);
       } catch {}
     }
 
@@ -366,6 +433,7 @@ export default function HomePage() {
         localStorage.removeItem(STORAGE_KEYS.ROOM_CODE);
         localStorage.removeItem(STORAGE_KEYS.USER_NAME);
         localStorage.removeItem(STORAGE_KEYS.PARTNER_NAME);
+        localStorage.removeItem(STORAGE_KEYS.USER_ROLE);
       } catch {}
     }
 
@@ -468,12 +536,13 @@ export default function HomePage() {
       {/* 서재 상단 바 (정식 상용 헤더) */}
       <RoomHeader
         currentState={uiState}
-        onOpenWriteModal={() => setIsWriteModalOpen(true)}
+        onOpenWriteModal={handleOpenWriteModal}
         onOpenArchive={() => setIsArchiveOpen(true)}
         onLeaveRoom={handleLeaveRoom}
         roomCode={roomCode}
         userName={userName}
         partnerName={partnerName}
+        isMyTurn={isMyTurn}
       />
 
       {/* 메인 뷰 컨테이너 (iOS 스크롤 및 키보드 오버플로우 방지) */}
@@ -490,13 +559,16 @@ export default function HomePage() {
           <OnboardingView onMatched={handleMatched} />
         )}
 
-        {/* 1. VIEW_EMPTY: 초기 상태 - 아직 편지가 없을 때 편지 쓰기가 제일 먼저 나옴 */}
+        {/* 1. VIEW_EMPTY: 초기 상태 - 방 화면(책상) */}
         {uiState === 'VIEW_EMPTY' && (
           <EmptyDeskView
             partnerName={partnerName}
             userName={userName}
-            onOpenWriteModal={() => setIsWriteModalOpen(true)}
+            onOpenWriteModal={handleOpenWriteModal}
+            onSendKnock={() => handleSendKnock('첫 번째 교환일기장을 기다리고 있어요 ✉️')}
             roomCode={roomCode}
+            isMyTurn={isMyTurn}
+            userRole={userRole}
           />
         )}
 
@@ -521,8 +593,11 @@ export default function HomePage() {
             <EmptyDeskView
               partnerName={partnerName}
               userName={userName}
-              onOpenWriteModal={() => setIsWriteModalOpen(true)}
+              onOpenWriteModal={handleOpenWriteModal}
+              onSendKnock={() => handleSendKnock('첫 번째 교환일기장을 기다리고 있어요 ✉️')}
               roomCode={roomCode}
+              isMyTurn={isMyTurn}
+              userRole={userRole}
             />
           )
         )}
@@ -540,8 +615,11 @@ export default function HomePage() {
             <EmptyDeskView
               partnerName={partnerName}
               userName={userName}
-              onOpenWriteModal={() => setIsWriteModalOpen(true)}
+              onOpenWriteModal={handleOpenWriteModal}
+              onSendKnock={() => handleSendKnock('첫 번째 교환일기장을 기다리고 있어요 ✉️')}
               roomCode={roomCode}
+              isMyTurn={isMyTurn}
+              userRole={userRole}
             />
           )
         )}
@@ -551,14 +629,17 @@ export default function HomePage() {
           diary ? (
             <OpenedLetter
               diary={diary}
-              onWriteReply={() => setIsWriteModalOpen(true)}
+              onWriteReply={handleOpenWriteModal}
             />
           ) : (
             <EmptyDeskView
               partnerName={partnerName}
               userName={userName}
-              onOpenWriteModal={() => setIsWriteModalOpen(true)}
+              onOpenWriteModal={handleOpenWriteModal}
+              onSendKnock={() => handleSendKnock('첫 번째 교환일기장을 기다리고 있어요 ✉️')}
               roomCode={roomCode}
+              isMyTurn={isMyTurn}
+              userRole={userRole}
             />
           )
         )}

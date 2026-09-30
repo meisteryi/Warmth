@@ -156,7 +156,7 @@ export async function createRoomInFirestore(creatorNickname: string): Promise<st
     roomId: roomCode,
     roomCode: roomCode,
     status: 'WAITING_PARTNER',
-    currentTurn: myUid,
+    currentTurn: '', // 파트너 입장 시 파트너(방장이 아닌 사람)에게 첫 턴 부여
     members: [myUid],
     memberInfo: {
       [myUid]: {
@@ -278,6 +278,7 @@ export async function joinRoomInFirestore(
     status: 'MATCHED',
     members: updatedMembers,
     memberInfo: updatedMemberInfo,
+    currentTurn: myUid, // 코드로 입장한 방장이 아닌 사람이 첫 편지 작성 턴을 가짐
     lastDisconnection: null,
     updatedAt: serverTimestamp(),
   });
