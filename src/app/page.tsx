@@ -20,6 +20,7 @@ import {
   unsealDiaryInFirestore,
   sendKnockInFirestore,
   subscribeRoom,
+  leaveRoomInFirestore,
   getOrCreateUserId
 } from '@/lib/roomService';
 import { decryptDiaryData, decryptKnockData } from '@/lib/crypto';
@@ -107,6 +108,11 @@ export default function HomePage() {
   const [isKnockModalOpen, setIsKnockModalOpen] = useState(false);
   const handledKnockTimeRef = useRef<string | null>(null);
   const handledDiaryIdRef = useRef<string | null>(null);
+
+  // 상대방 연결 해제 수신 모달 상태
+  const [isPartnerDisconnectedModalOpen, setIsPartnerDisconnectedModalOpen] = useState(false);
+  const [partnerDisconnectedNickname, setPartnerDisconnectedNickname] = useState('');
+  const handledDisconnectionTimeRef = useRef<string | null>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -242,6 +248,26 @@ export default function HomePage() {
         setDiary(null);
         setUiState('VIEW_EMPTY');
       }
+
+      // 3. 상대방이 일기장 연결을 해제(방 나가기)했을 때 실시간 감지 및 알림
+      if (room.lastDisconnection) {
+        const disc = room.lastDisconnection;
+        const isFromPartner = disc.leaverUid !== myUid;
+        const isNewDisconnection = disc.disconnectedAt !== handledDisconnectionTimeRef.current;
+
+        if (isFromPartner && isNewDisconnection) {
+          handledDisconnectionTimeRef.current = disc.disconnectedAt;
+          soundEngine.playWindChimeKnock();
+          const leaver = disc.leaverNickname || partnerName || '상대방';
+          setPartnerDisconnectedNickname(leaver);
+          setIsPartnerDisconnectedModalOpen(true);
+          showToast(`💔 ${leaver} 님이 일기장 연결을 해제했습니다.`);
+          sendLocalNotification(
+            '💔 상대방이 일기장을 떠났습니다',
+            `${leaver} 님이 일기장 연결을 해제했습니다.`
+          );
+        }
+      }
     });
 
     return () => unsubscribe();
@@ -304,8 +330,18 @@ export default function HomePage() {
     setIsLeaveConfirmOpen(true);
   };
 
-  const confirmLeaveRoom = () => {
+  const confirmLeaveRoom = async () => {
     setIsLeaveConfirmOpen(false);
+
+    // Firestore에 나가기 상태 동기화 (상대방 기기에 실시간 알림 전송)
+    if (roomCode) {
+      try {
+        const myUid = getOrCreateUserId();
+        await leaveRoomInFirestore(roomCode, myUid, userName);
+      } catch (e) {
+        console.warn('Failed to leave room in firestore:', e);
+      }
+    }
 
     if (typeof window !== 'undefined') {
       try {
@@ -316,8 +352,26 @@ export default function HomePage() {
     }
 
     setDiary(null);
+    setRoomCode('');
     setUiState('VIEW_ONBOARDING');
     showToast('일기장 연결이 해제되었습니다.');
+  };
+
+  // 상대방의 연결 해제 확인 후 세션 정리 및 시작 화면 복귀
+  const handleAcknowledgePartnerDisconnect = () => {
+    setIsPartnerDisconnectedModalOpen(false);
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(STORAGE_KEYS.ROOM_CODE);
+        localStorage.removeItem(STORAGE_KEYS.USER_NAME);
+        localStorage.removeItem(STORAGE_KEYS.PARTNER_NAME);
+      } catch {}
+    }
+
+    setDiary(null);
+    setRoomCode('');
+    setUiState('VIEW_ONBOARDING');
   };
 
 
@@ -588,6 +642,41 @@ export default function HomePage() {
                 className="flex-1 py-2.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-xs font-bold font-sans-ui shadow-xs cursor-pointer active:scale-95 transition-all"
               >
                 연결 해제하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 상대방이 일기장 연결을 해제했을 때의 안내 모달 */}
+      {isPartnerDisconnectedModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-sm bg-[#FFFDF9] rounded-2xl p-5 sm:p-6 paper-texture border border-[#E8DFC8] shadow-2xl space-y-4">
+            <div className="w-12 h-12 rounded-full bg-stone-100 border border-stone-200 flex items-center justify-center text-xl mx-auto shadow-2xs">
+              🍂
+            </div>
+            <div className="text-center space-y-1.5">
+              <h3 className="font-serif-warm font-bold text-stone-900 text-lg">
+                상대방이 일기장을 떠났습니다
+              </h3>
+              <p className="text-xs text-stone-600 font-serif-warm leading-relaxed">
+                <span className="font-semibold text-stone-800">
+                  {partnerDisconnectedNickname || partnerName || '상대방'}
+                </span>
+                {' '}님이 일기장 연결을 해제했습니다.
+                <br />
+                함께 작성했던 소중한 시간들이 마무리되었습니다.
+                <br />
+                새로운 일기장을 시작하시려면 초기 화면으로 이동해주세요.
+              </p>
+            </div>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={handleAcknowledgePartnerDisconnect}
+                className="w-full py-2.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-xs font-bold font-sans-ui shadow-xs cursor-pointer active:scale-95 transition-all"
+              >
+                확인 (시작 화면으로 이동)
               </button>
             </div>
           </div>

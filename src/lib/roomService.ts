@@ -238,6 +238,8 @@ export async function joinRoomInFirestore(
       members: updatedMembers,
       memberInfo: updatedMemberInfo,
       currentTurn: updatedTurn,
+      status: 'MATCHED',
+      lastDisconnection: null,
       updatedAt: serverTimestamp(),
     });
 
@@ -276,6 +278,7 @@ export async function joinRoomInFirestore(
     status: 'MATCHED',
     members: updatedMembers,
     memberInfo: updatedMemberInfo,
+    lastDisconnection: null,
     updatedAt: serverTimestamp(),
   });
 
@@ -459,5 +462,34 @@ export async function getLatestReadDiaryForPartner(
   } catch (e) {
     console.warn('Failed to get latest read diary for partner:', e);
     return null;
+  }
+}
+
+// 10. 방 나가기 / 일기장 연결 해제 (Firestore 실시간 알림 전송 및 상태 전이)
+export async function leaveRoomInFirestore(
+  roomCode: string,
+  leaverUid: string,
+  leaverNickname: string
+): Promise<void> {
+  try {
+    const roomRef = doc(db, 'rooms', roomCode);
+    const snap = await getDoc(roomRef);
+    if (!snap.exists()) return;
+    const room = snap.data() as RoomData;
+
+    const updatedMembers = (room.members || []).filter((id) => id !== leaverUid);
+
+    await updateDoc(roomRef, {
+      status: 'WAITING_PARTNER',
+      members: updatedMembers,
+      lastDisconnection: {
+        leaverUid,
+        leaverNickname: leaverNickname || '상대방',
+        disconnectedAt: new Date().toISOString(),
+      },
+      updatedAt: serverTimestamp(),
+    });
+  } catch (e) {
+    console.warn('Failed to leave room in Firestore:', e);
   }
 }

@@ -84,10 +84,16 @@ export interface KnockData {
   knockedAt: string;
 }
 
+export interface DisconnectionData {
+  leaverUid: string;
+  leaverNickname: string;
+  disconnectedAt: string;
+}
+
 export interface RoomData {
   roomId: string;
   roomCode: string;
-  status: 'MATCHED' | 'WAITING_PARTNER';
+  status: 'MATCHED' | 'WAITING_PARTNER' | 'DISCONNECTED';
   currentTurn: string; // author UID
   members: string[];
   memberInfo: {
@@ -100,5 +106,6 @@ export interface RoomData {
   latestDiary?: DiaryData;
   latestDiaryId?: string;
   latestKnock?: KnockData | null;
+  lastDisconnection?: DisconnectionData | null;
 }
 
