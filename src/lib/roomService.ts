@@ -2,6 +2,7 @@ import {
   doc, 
   setDoc, 
   getDoc, 
+  getDocs,
   updateDoc, 
   collection, 
   onSnapshot, 
@@ -10,6 +11,11 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { DiaryData, RoomData } from '@/types/diary';
+import { 
+  encryptDiaryData, 
+  decryptDiaryData, 
+  encryptText 
+} from './crypto';
 
 // 사용자 고유 클라이언트 ID 생성/가져오기 (역할 및 URL 파라미터 기반 분리 지원)
 export function getOrCreateUserId(userRoleKey?: string): string {
@@ -32,16 +38,18 @@ export function getOrCreateUserId(userRoleKey?: string): string {
   return uid;
 }
 
-// 0. 특정 일기 실시간 구독 (onSnapshot)
+// 0. 특정 일기 실시간 구독 (onSnapshot + E2EE 복호화)
 export function subscribeDiary(
   roomCode: string,
   diaryId: string,
   onUpdate: (diary: DiaryData) => void
 ): Unsubscribe {
   const diaryRef = doc(db, 'rooms', roomCode, 'diaries', diaryId);
-  return onSnapshot(diaryRef, (snapshot) => {
+  return onSnapshot(diaryRef, async (snapshot) => {
     if (snapshot.exists()) {
-      onUpdate(snapshot.data() as DiaryData);
+      const raw = snapshot.data() as DiaryData;
+      const decrypted = await decryptDiaryData(roomCode, raw);
+      onUpdate(decrypted);
     }
   });
 }
@@ -150,14 +158,17 @@ export function subscribeRoom(
   });
 }
 
-// 4. 일기 저장 (rooms/{roomCode}/diaries/{diaryId})
+// 4. 일기 저장 (rooms/{roomCode}/diaries/{diaryId} - 종단간 암호화 적용)
 export async function saveDiaryToFirestore(
   roomCode: string,
   diary: DiaryData
 ): Promise<void> {
+  // DB 관리자도 내용을 절대 볼 수 없도록 클라이언트에서 AES-GCM 256 암호화
+  const encryptedDiary = await encryptDiaryData(roomCode, diary);
+
   const diaryRef = doc(db, 'rooms', roomCode, 'diaries', diary.diaryId);
   await setDoc(diaryRef, {
-    ...diary,
+    ...encryptedDiary,
     createdAt: new Date().toISOString(),
   });
 
@@ -176,17 +187,19 @@ export async function saveDiaryToFirestore(
   );
 }
 
-// 5. 미션 통과 업데이트
+// 5. 미션 통과 업데이트 (답변 텍스트 암호화)
 export async function updateMissionInFirestore(
   roomCode: string,
   diaryId: string,
   submissionText: string
 ): Promise<void> {
   const diaryRef = doc(db, 'rooms', roomCode, 'diaries', diaryId);
+  const encryptedSubmission = await encryptText(roomCode, submissionText);
+
   await updateDoc(diaryRef, {
     'mission.isPassed': true,
     'mission.submission': {
-      text: submissionText,
+      text: encryptedSubmission,
       submittedAt: new Date().toISOString(),
     },
   });
@@ -204,7 +217,7 @@ export async function unsealDiaryInFirestore(
   });
 }
 
-// 7. 상대방에게 은은한 노크 전송 (Firestore rooms/{roomCode}에 latestKnock 기록)
+// 7. 상대방에게 은은한 노크 전송 (메시지 암호화)
 export async function sendKnockInFirestore(
   roomCode: string,
   senderName: string,
@@ -212,14 +225,42 @@ export async function sendKnockInFirestore(
 ): Promise<void> {
   const myUid = getOrCreateUserId();
   const roomRef = doc(db, 'rooms', roomCode);
+  const rawMsg = message || '오늘의 교환일기를 기다리고 있어요 ✉️';
+  const encryptedMsg = await encryptText(roomCode, rawMsg);
+
   await updateDoc(roomRef, {
     latestKnock: {
       senderUid: myUid,
       senderName: senderName || '주형',
-      message: message || '오늘의 교환일기를 기다리고 있어요 ✉️',
+      message: encryptedMsg,
       knockedAt: new Date().toISOString(),
     },
     updatedAt: serverTimestamp(),
   });
+}
+
+// 8. 둘만의 서재(아카이브) 일기 목록 전체 가져오기 및 복호화
+export async function getRoomDiariesFromFirestore(
+  roomCode: string
+): Promise<DiaryData[]> {
+  try {
+    const colRef = collection(db, 'rooms', roomCode, 'diaries');
+    const snapshot = await getDocs(colRef);
+    const list: DiaryData[] = [];
+    
+    for (const docSnap of snapshot.docs) {
+      const raw = docSnap.data() as DiaryData;
+      const decrypted = await decryptDiaryData(roomCode, raw);
+      list.push(decrypted);
+    }
+
+    // 최신 날짜 순으로 정렬
+    return list.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  } catch (error) {
+    console.warn('Failed to fetch room diaries for archive:', error);
+    return [];
+  }
 }
 

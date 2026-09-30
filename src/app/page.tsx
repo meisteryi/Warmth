@@ -9,6 +9,7 @@ import OpenedLetter from '@/components/OpenedLetter';
 import WaitingLetter from '@/components/WaitingLetter';
 import WriteDiaryModal from '@/components/WriteDiaryModal';
 import KnockNotificationModal from '@/components/KnockNotificationModal';
+import ArchiveModal from '@/components/ArchiveModal';
 import { DiaryData, KnockData, UIState, WaxColor } from '@/types/diary';
 import { soundEngine } from '@/lib/audio';
 import { 
@@ -19,6 +20,7 @@ import {
   subscribeRoom,
   getOrCreateUserId
 } from '@/lib/roomService';
+import { decryptDiaryData, decryptKnockData } from '@/lib/crypto';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -85,6 +87,7 @@ export default function HomePage() {
   const [diary, setDiary] = useState<DiaryData>(INITIAL_DIARY);
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false);
   const [isWriteModalOpen, setIsWriteModalOpen] = useState(false);
+  const [isArchiveOpen, setIsArchiveOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // 실시간 노크 수신 상태
@@ -98,35 +101,38 @@ export default function HomePage() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // 실시간 Firestore 룸 및 일기 구독 (상대방의 노크 및 새 일기 실시간 감지)
+  // 실시간 Firestore 룸 및 일기 구독 (상대방의 노크 및 새 일기 실시간 감지 + E2EE 복호화)
   useEffect(() => {
     if (!roomCode || uiState === 'VIEW_ONBOARDING') return;
     const myUid = getOrCreateUserId();
 
     const unsubscribe = subscribeRoom(roomCode, async (room) => {
-      // 1. 방에 상대방이 보낸 새 노크가 있는지 실시간 감지
+      // 1. 방에 상대방이 보낸 새 노크가 있는지 실시간 감지 & E2EE 복호화
       if (room.latestKnock) {
-        const knock = room.latestKnock;
-        const isFromPartner = knock.senderUid !== myUid;
-        const isNewKnock = knock.knockedAt !== handledKnockTimeRef.current;
-        const isRecent = Date.now() - new Date(knock.knockedAt).getTime() < 10 * 60 * 1000;
+        const rawKnock = room.latestKnock;
+        const isFromPartner = rawKnock.senderUid !== myUid;
+        const isNewKnock = rawKnock.knockedAt !== handledKnockTimeRef.current;
+        const isRecent = Date.now() - new Date(rawKnock.knockedAt).getTime() < 10 * 60 * 1000;
 
         if (isFromPartner && isNewKnock && isRecent) {
-          handledKnockTimeRef.current = knock.knockedAt;
+          handledKnockTimeRef.current = rawKnock.knockedAt;
           soundEngine.playWindChimeKnock();
-          setReceivedKnock(knock);
+          const decryptedKnock = await decryptKnockData(roomCode, rawKnock);
+          setReceivedKnock(decryptedKnock);
           setIsKnockModalOpen(true);
         }
       }
 
-      // 2. 방에 최신 일기(latestDiaryId)가 업데이트되었을 때 실시간 동기화
+      // 2. 방에 최신 일기(latestDiaryId)가 업데이트되었을 때 실시간 동기화 & E2EE 복호화
       if (room.latestDiaryId && room.latestDiaryId !== handledDiaryIdRef.current) {
         handledDiaryIdRef.current = room.latestDiaryId;
         try {
           const diaryRef = doc(db, 'rooms', roomCode, 'diaries', room.latestDiaryId);
           const snap = await getDoc(diaryRef);
           if (snap.exists()) {
-            const latestDiary = snap.data() as DiaryData;
+            const rawDiary = snap.data() as DiaryData;
+            // 클라이언트에서 256-bit 복호화 수행 (서버는 암호문만 보관)
+            const latestDiary = await decryptDiaryData(roomCode, rawDiary);
             setDiary(latestDiary);
 
             // 작성자인지 수신자인지에 따른 UI 상태 결정
@@ -305,6 +311,7 @@ export default function HomePage() {
         currentState={uiState}
         onSelectState={handleSelectState}
         onOpenWriteModal={() => setIsWriteModalOpen(true)}
+        onOpenArchive={() => setIsArchiveOpen(true)}
         onResetDemo={handleResetDemo}
         onSwitchUser={handleSwitchUser}
         roomCode={roomCode}
@@ -389,6 +396,21 @@ export default function HomePage() {
         currentUserName={userName}
         partnerName={partnerName}
         roomCode={roomCode}
+      />
+
+      {/* 둘만의 서재(아카이브) 모달 (E2EE 암호화 해제 열람) */}
+      <ArchiveModal
+        isOpen={isArchiveOpen}
+        onClose={() => setIsArchiveOpen(false)}
+        roomCode={roomCode}
+        currentUserName={userName}
+        partnerName={partnerName}
+        onSelectDiary={(selectedDiary) => {
+          setDiary(selectedDiary);
+          setUiState('VIEW_OPENED_DIARY');
+          setIsArchiveOpen(false);
+          showToast(`📖 ${selectedDiary.authorName} 님의 '${selectedDiary.title}' 일기를 서재에서 펼쳤습니다.`);
+        }}
       />
 
       {/* 푸터 */}

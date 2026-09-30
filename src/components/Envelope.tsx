@@ -45,8 +45,8 @@ export default function Envelope({
         </h2>
         <p className="text-stone-600 text-[11px] sm:text-sm mt-0.5 sm:mt-1 font-serif-warm leading-tight">
           {isLocked
-            ? '오늘의 미션을 완수하면 실링 왁스의 봉인을 풀 수 있습니다.'
-            : '실링 왁스를 3초간 꾹 눌러 봉투를 열어보세요.'}
+            ? '오늘의 미션을 완료하면 왁스의 봉인을 풀 수 있습니다.'
+            : '실링 왁스를 꾹 눌러 봉투를 열어보세요.'}
         </p>
       </motion.div>
 
