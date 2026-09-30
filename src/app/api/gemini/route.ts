@@ -100,8 +100,8 @@ ${hasSpecificName ? `연인(${cleanPartner})에게 보낼 오늘의 교환일기
       const { title, content, authorName, partnerName } = payload;
       const fullText = `${title || ''} ${content || ''}`.trim();
 
-      // 내용이 너무 짧은 경우 온도를 측정하지 않음
-      if (fullText.length < 30) {
+      // 내용이 너무 없는 경우에만 온도를 측정하지 않음
+      if (fullText.length < 2) {
         return NextResponse.json({
           candidates: [
             {
@@ -128,8 +128,8 @@ ${hasSpecificName ? `연인(${cleanPartner})에게 보낼 오늘의 교환일기
 작성자(${cleanAuthor})가 연인(${cleanPartner})에게 쓴 편지를 읽고 '온기의 온도'를 측정해주세요.
 
 ★ 매우 중요한 규칙:
-1. 편지 내용이 너무 짧거나(단문), 단순 사실/일정 나열에 불과하여 감정이나 정서적 온도를 확실하게 파악할 수 없을 때는 절대로 억지로 온도를 부여하지 말고 {"hasDistinctEmotion": false, "temperature": null, "comment": null, "keywords": []} 로 응답하세요.
-2. 작성자의 감정(애정, 위로, 감사, 설렘, 그리움 또는 지침, 외로움, 서운함 등)이 확실하고 뚜렷하게 드러날 때만 온도를 측정하세요.
+1. 어떠한 감정도 담겨 있지 않은 무미건조한 사실/일정 나열(예: '오늘 2시에 회의함', '점심에 김밥 먹음')일 때만 온도를 측정하지 말고 {"hasDistinctEmotion": false, "temperature": null, "comment": null, "keywords": []} 로 응답하세요.
+2. 비록 짧은 한두 문장이나 단문이라도 '사랑해', '고마워', '보고싶어', '힘들었어' 등 감정이나 애정이 담겨 있다면 반드시 정서적 온도를 정성껏 측정해야 합니다.
 3. 온도 범위: 한국 날씨 기온 범위인 -20°C ~ 영상 40°C (정수 또는 소수점 1자리):
    - 혹한기 (-20°C ~ -1°C): 몹시 지치고 외롭거나, 마음이 시리고 아프며 서운하고 쓸쓸한 감정
    - 쌀쌀/차분 (0°C ~ 14°C): 담담하고 잔잔한 일상, 소소한 생각
@@ -139,7 +139,7 @@ ${hasSpecificName ? `연인(${cleanPartner})에게 보낼 오늘의 교환일기
 5. keywords: 감정 및 핵심 단어 해시태그 1~3개
 6. 반드시 순수 JSON 형태로만 응답하세요:
    {"hasDistinctEmotion": true, "temperature": 32.5, "comment": "...", "keywords": ["#키워드1", "#키워드2"]}
-   또는 감정이 확실하지 않을 때:
+   또는 감정이 전혀 없는 사실 나열일 때:
    {"hasDistinctEmotion": false, "temperature": null, "comment": null, "keywords": []}`;
 
       contents = [{ role: 'user', parts: [{ text: `${tempPrompt}\n\n[편지 내용]:\n${title}\n${content}` }] }];

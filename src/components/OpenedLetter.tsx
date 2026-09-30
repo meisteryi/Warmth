@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { DiaryData } from '@/types/diary';
+import { generateFallbackWarmth } from '@/lib/gemini';
 import { Feather, Calendar, Heart, MessageSquareQuote, PenLine, ThermometerSun, ThermometerSnowflake } from 'lucide-react';
 
 interface OpenedLetterProps {
@@ -15,6 +16,9 @@ export default function OpenedLetter({
   diary,
   onWriteReply,
 }: OpenedLetterProps) {
+  const warmth = (diary.warmthScore && typeof diary.warmthScore.temperature === 'number')
+    ? diary.warmthScore
+    : generateFallbackWarmth(diary.title, diary.content);
   return (
     <motion.div
       initial={{ opacity: 0, y: 30, scale: 0.96 }}
@@ -58,13 +62,13 @@ export default function OpenedLetter({
           </div>
 
           {/* AI 온기 온도계 & 감정 날씨 배지 (확실한 감정 온도가 있을 때만 표시, -20°C ~ 40°C) */}
-          {diary.warmthScore && typeof diary.warmthScore.temperature === 'number' && (
+          {warmth && typeof warmth.temperature === 'number' && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
               className={`my-5 p-3.5 sm:p-4 rounded-xl border shadow-xs ${
-                diary.warmthScore.temperature <= 0
+                warmth.temperature <= 0
                   ? 'bg-gradient-to-r from-[#F0F7FF] via-[#F8FBFF] to-[#FAF7F2] border-[#D0E2F5]'
                   : 'bg-gradient-to-r from-[#FFF7ED] via-[#FDF8F3] to-[#F7EDE2] border-[#ECDCCB]'
               }`}
@@ -73,12 +77,12 @@ export default function OpenedLetter({
                 <div className="flex items-center gap-2.5">
                   <div
                     className={`w-8 h-8 rounded-full border flex items-center justify-center shadow-2xs shrink-0 ${
-                      diary.warmthScore.temperature <= 0
+                      warmth.temperature <= 0
                         ? 'bg-sky-100/90 border-sky-200/80 text-sky-800'
                         : 'bg-rose-100/90 border-rose-200/80 text-rose-800'
                     }`}
                   >
-                    {diary.warmthScore.temperature <= 0 ? (
+                    {warmth.temperature <= 0 ? (
                       <ThermometerSnowflake className="w-4 h-4" />
                     ) : (
                       <ThermometerSun className="w-4 h-4" />
@@ -91,26 +95,26 @@ export default function OpenedLetter({
                       </span>
                       <span
                         className={`text-xs font-serif-warm font-bold px-2.5 py-0.5 rounded-full border shadow-2xs ${
-                          diary.warmthScore.temperature <= 0
+                          warmth.temperature <= 0
                             ? 'text-sky-900 bg-sky-50 border-sky-200'
                             : 'text-rose-900 bg-rose-50 border-rose-200'
                         }`}
                       >
-                        {diary.warmthScore.temperature > 0 ? `+${diary.warmthScore.temperature}` : diary.warmthScore.temperature}°C
+                        {warmth.temperature > 0 ? `+${warmth.temperature}` : warmth.temperature}°C
                       </span>
                     </div>
-                    {diary.warmthScore.comment && (
+                    {warmth.comment && (
                       <p className="text-xs sm:text-sm font-serif-warm text-stone-700 mt-0.5 font-medium">
-                        &ldquo;{diary.warmthScore.comment}&rdquo;
+                        &ldquo;{warmth.comment}&rdquo;
                       </p>
                     )}
                   </div>
                 </div>
               </div>
-              {diary.warmthScore.keywords && diary.warmthScore.keywords.length > 0 && (
+              {warmth.keywords && warmth.keywords.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
                   <span className="text-[10px] font-sans-ui text-stone-400">마음 키워드:</span>
-                  {diary.warmthScore.keywords.map((kw, idx) => (
+                  {warmth.keywords.map((kw, idx) => (
                     <span
                       key={idx}
                       className="px-2 py-0.5 rounded-md bg-white/90 border border-[#DFCEBA] text-[11px] font-serif-warm text-stone-600 shadow-2xs"

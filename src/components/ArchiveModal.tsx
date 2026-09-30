@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { DiaryData } from '@/types/diary';
 import { getRoomDiariesFromFirestore } from '@/lib/roomService';
+import { generateFallbackWarmth } from '@/lib/gemini';
 import { BookOpen, Calendar, Heart, Sparkles, X, RefreshCw, ChevronRight } from 'lucide-react';
 import { soundEngine } from '@/lib/audio';
 
@@ -121,6 +122,9 @@ export default function ArchiveModal({
             diaries.map((item) => {
               const isMine = item.authorName === currentUserName;
               const formattedDate = formatDate(item.createdAt);
+              const itemWarmth = (item.warmthScore && typeof item.warmthScore.temperature === 'number')
+                ? item.warmthScore
+                : generateFallbackWarmth(item.title, item.content);
 
               return (
                 <div
@@ -146,14 +150,14 @@ export default function ArchiveModal({
                       >
                         {item.authorName}의 기록
                       </span>
-                      {item.warmthScore && typeof item.warmthScore.temperature === 'number' && (
+                      {itemWarmth && typeof itemWarmth.temperature === 'number' && (
                         <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-bold inline-flex items-center gap-1 ${
-                          item.warmthScore.temperature <= 0
+                          itemWarmth.temperature <= 0
                             ? 'bg-sky-50 text-sky-900 border border-sky-200'
                             : 'bg-amber-50 text-amber-900 border border-amber-200/60'
                         }`}>
-                          <Sparkles className={`w-3 h-3 ${item.warmthScore.temperature <= 0 ? 'text-sky-600' : 'text-amber-600'}`} />
-                          {item.warmthScore.temperature > 0 ? `+${item.warmthScore.temperature.toFixed(1)}` : item.warmthScore.temperature.toFixed(1)}°C
+                          <Sparkles className={`w-3 h-3 ${itemWarmth.temperature <= 0 ? 'text-sky-600' : 'text-amber-600'}`} />
+                          {itemWarmth.temperature > 0 ? `+${itemWarmth.temperature.toFixed(1)}` : itemWarmth.temperature.toFixed(1)}°C
                         </span>
                       )}
                     </div>
@@ -172,9 +176,9 @@ export default function ArchiveModal({
                     {item.content}
                   </p>
 
-                  {item.warmthScore?.keywords && item.warmthScore.keywords.length > 0 && (
+                  {itemWarmth?.keywords && itemWarmth.keywords.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 pt-1">
-                      {item.warmthScore.keywords.map((kw, i) => (
+                      {itemWarmth.keywords.map((kw, i) => (
                         <span
                           key={i}
                           className="text-[10px] px-1.5 py-0.5 rounded bg-stone-100 text-stone-600 font-serif-warm"

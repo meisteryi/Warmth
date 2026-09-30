@@ -6,6 +6,7 @@ import { WaxColor, WAX_COLORS, MissionData, DiaryData, WarmthScore } from '@/typ
 import { soundEngine } from '@/lib/audio';
 import { compressImage, uploadPhotoIfPossible, CompressedImageResult } from '@/lib/imageUtils';
 import { fetchAiQuiz, fetchWarmthScore, fetchDailyPrompt } from '@/lib/aiClient';
+import { generateFallbackWarmth } from '@/lib/gemini';
 import { getLatestReadDiaryForPartner } from '@/lib/roomService';
 import { 
   X, 
@@ -242,15 +243,20 @@ export default function WriteDiaryModal({
         };
       }
 
-      // AI 온기 온도 및 감성 분석 (단문이거나 감정이 불명확하면 null 유지, fake 온도 부여 금지)
+      // AI 온기 온도 및 감성 분석
       let warmthScore: WarmthScore | null = null;
       try {
         warmthScore = await Promise.race([
           fetchWarmthScore(title, content, currentUserName, partnerName),
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500)),
         ]);
       } catch {
         warmthScore = null;
+      }
+
+      // AI 호출 지연/실패/단문 판정 시에도 '사랑해' 등 감정 키워드가 있다면 즉시 감성 휴리스틱으로 복원
+      if (!warmthScore) {
+        warmthScore = generateFallbackWarmth(title, content);
       }
 
       onSaveDiary({
