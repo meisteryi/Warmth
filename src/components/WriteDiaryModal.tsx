@@ -349,8 +349,9 @@ export default function WriteDiaryModal({
                 <input
                   type="text"
                   required
+                  maxLength={60}
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(e) => setTitle(e.target.value.slice(0, 60))}
                   placeholder="오늘의 제목을 적어주세요"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-base sm:text-sm text-stone-900"
                 />
@@ -358,16 +359,25 @@ export default function WriteDiaryModal({
 
               {/* 본문 입력 */}
               <div>
-                <label className="block text-xs font-sans-ui text-stone-600 mb-1">
-                  일기 내용
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-sans-ui text-stone-600">
+                    일기 내용
+                  </label>
+                  <span className="text-[11px] font-sans-ui text-stone-400">
+                    <span className={content.length >= 1000 ? 'text-rose-600 font-bold' : 'text-stone-600'}>
+                      {content.length}
+                    </span>
+                    /1000자
+                  </span>
+                </div>
                 <textarea
                   required
-                  rows={5}
+                  rows={6}
+                  maxLength={1000}
                   value={content}
-                  onChange={(e) => setContent(e.target.value)}
+                  onChange={(e) => setContent(e.target.value.slice(0, 1000))}
                   placeholder="오늘 하루 나누고 싶었던 둘만의 소소하고 따뜻한 이야기를 적어보세요..."
-                  className="w-full p-3.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-base sm:text-sm leading-relaxed text-stone-900 placeholder:text-stone-400"
+                  className="w-full p-3.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-base sm:text-sm leading-relaxed text-stone-900 placeholder:text-stone-400 resize-none"
                 />
               </div>
 
