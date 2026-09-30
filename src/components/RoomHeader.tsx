@@ -2,13 +2,14 @@
 
 import React from 'react';
 import { UIState } from '@/types/diary';
-import { Heart, PenLine, RotateCcw, Scroll, Users, ArrowLeftRight, BookOpen } from 'lucide-react';
+import { Heart, PenLine, RotateCcw, Scroll, Users, ArrowLeftRight, BookOpen, LogOut } from 'lucide-react';
 
 interface RoomHeaderProps {
   currentState: UIState;
   onSelectState: (state: UIState) => void;
   onOpenWriteModal: () => void;
   onOpenArchive?: () => void;
+  onLeaveRoom?: () => void;
   onResetDemo: () => void;
   onSwitchUser?: () => void;
   roomCode: string;
@@ -21,6 +22,7 @@ export default function RoomHeader({
   onSelectState,
   onOpenWriteModal,
   onOpenArchive,
+  onLeaveRoom,
   onResetDemo,
   onSwitchUser,
   roomCode,
@@ -89,6 +91,15 @@ export default function RoomHeader({
                 <BookOpen className="w-4 h-4 text-[#6B1724]" />
               </button>
             )}
+            {isMatched && onLeaveRoom && (
+              <button
+                onClick={onLeaveRoom}
+                title="일기장 연결 해제 (방 나가기)"
+                className="p-2 rounded-xl border border-stone-300 text-stone-600 hover:text-rose-700 hover:bg-rose-50 text-sm min-h-[38px] min-w-[38px] flex items-center justify-center active:scale-95 cursor-pointer shadow-2xs transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            )}
             <button
               onClick={onResetDemo}
               title="초기 상태로 되돌리기"
@@ -137,6 +148,16 @@ export default function RoomHeader({
             >
               <BookOpen className="w-4 h-4 text-[#6B1724]" />
               <span>둘만의 서재</span>
+            </button>
+          )}
+
+          {isMatched && onLeaveRoom && (
+            <button
+              onClick={onLeaveRoom}
+              title="일기장 연결 해제 (방 나가기)"
+              className="hidden sm:flex p-2 rounded-xl border border-stone-300 text-stone-600 hover:text-rose-700 hover:bg-rose-50 text-sm shrink-0 cursor-pointer shadow-2xs transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
             </button>
           )}
 

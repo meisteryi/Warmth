@@ -64,6 +64,12 @@ const INITIAL_DIARY: DiaryData = {
   },
 };
 
+const STORAGE_KEYS = {
+  ROOM_CODE: 'warmth_active_room_code',
+  USER_NAME: 'warmth_active_user_name',
+  PARTNER_NAME: 'warmth_active_partner_name',
+};
+
 export default function HomePage() {
   const [uiState, setUiState] = useState<UIState>('VIEW_ONBOARDING');
   const [roomCode, setRoomCode] = useState('829104');
@@ -103,6 +109,68 @@ export default function HomePage() {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
+
+  // 1. 앱 마운트 시 저장된 세션(방 코드 및 닉네임) 자동 복구 & 재접속
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const savedRoom = localStorage.getItem(STORAGE_KEYS.ROOM_CODE);
+      const savedUser = localStorage.getItem(STORAGE_KEYS.USER_NAME);
+      const savedPartner = localStorage.getItem(STORAGE_KEYS.PARTNER_NAME);
+
+      if (savedRoom && savedUser && savedPartner) {
+        setRoomCode(savedRoom);
+        setUserName(savedUser);
+        setPartnerName(savedPartner);
+
+        (async () => {
+          try {
+            const roomRef = doc(db, 'rooms', savedRoom);
+            const snap = await getDoc(roomRef);
+            if (snap.exists()) {
+              const roomData = snap.data();
+              if (roomData.latestDiaryId) {
+                const diaryRef = doc(db, 'rooms', savedRoom, 'diaries', roomData.latestDiaryId);
+                const diarySnap = await getDoc(diaryRef);
+                if (diarySnap.exists()) {
+                  const rawDiary = diarySnap.data() as DiaryData;
+                  const decrypted = await decryptDiaryData(savedRoom, rawDiary, roomData.roomSalt);
+                  setDiary(decrypted);
+                  if (decrypted.authorName === savedUser) {
+                    setUiState(decrypted.isWaxBroken ? 'VIEW_OPENED_DIARY' : 'VIEW_WAITING');
+                  } else {
+                    setUiState(
+                      decrypted.isWaxBroken
+                        ? 'VIEW_OPENED_DIARY'
+                        : decrypted.mission?.isPassed
+                        ? 'VIEW_WAX_READY'
+                        : 'VIEW_SEALED_LETTER'
+                    );
+                  }
+                  showToast(`📖 ${savedPartner} 님과의 일기장으로 복귀했습니다.`);
+                  return;
+                }
+              }
+              // 일기가 아직 없는 방
+              setDiary(null);
+              setUiState('VIEW_EMPTY');
+              showToast(`📖 ${savedPartner} 님과의 일기장으로 복귀했습니다.`);
+            } else {
+              // 방이 삭제되었거나 존재하지 않는 경우 초기화
+              localStorage.removeItem(STORAGE_KEYS.ROOM_CODE);
+              localStorage.removeItem(STORAGE_KEYS.USER_NAME);
+              localStorage.removeItem(STORAGE_KEYS.PARTNER_NAME);
+              setUiState('VIEW_ONBOARDING');
+            }
+          } catch (err) {
+            console.warn('Auto-reconnect failed:', err);
+          }
+        })();
+      }
+    } catch (e) {
+      console.warn('Failed to load session:', e);
+    }
+  }, []);
 
   // 실시간 Firestore 룸 및 일기 구독 (상대방의 노크 및 새 일기 실시간 감지 + E2EE 복호화)
   useEffect(() => {
@@ -173,6 +241,17 @@ export default function HomePage() {
     setUserName(me);
     setPartnerName(partner);
 
+    // 세션 영구 보관 (PWA 재접속 시 자동 매칭 복구)
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_KEYS.ROOM_CODE, code);
+        localStorage.setItem(STORAGE_KEYS.USER_NAME, me);
+        localStorage.setItem(STORAGE_KEYS.PARTNER_NAME, partner);
+      } catch (e) {
+        console.warn('Failed to save session to localStorage:', e);
+      }
+    }
+
     // 방에 기존 일기가 있는지 Firestore에서 즉시 확인
     try {
       const roomRef = doc(db, 'rooms', code);
@@ -208,6 +287,26 @@ export default function HomePage() {
     showToast(`🎉 ${partner} 님과 연결되었습니다! 첫 편지를 작성해보세요.`);
   };
 
+  // 방 나가기 (일기장 연결 해제)
+  const handleLeaveRoom = () => {
+    const confirmed = window.confirm(
+      '현재 일기장과의 연결을 해제하고 방을 나가시겠습니까?\n(초대코드로 언제든 다시 연결할 수 있습니다)'
+    );
+    if (!confirmed) return;
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(STORAGE_KEYS.ROOM_CODE);
+        localStorage.removeItem(STORAGE_KEYS.USER_NAME);
+        localStorage.removeItem(STORAGE_KEYS.PARTNER_NAME);
+      } catch {}
+    }
+
+    setDiary(null);
+    setUiState('VIEW_ONBOARDING');
+    showToast('일기장 연결이 해제되었습니다.');
+  };
+
   // 시점 전환 (주형 ⇄ 유라 2인 시뮬레이션 지원)
   const handleSwitchUser = () => {
     soundEngine.playTileSlideSound();
@@ -216,6 +315,13 @@ export default function HomePage() {
 
     setUserName(nextUser);
     setPartnerName(nextPartner);
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_KEYS.USER_NAME, nextUser);
+        localStorage.setItem(STORAGE_KEYS.PARTNER_NAME, nextPartner);
+      } catch {}
+    }
 
     // 새 사용자의 시점에 맞추어 UI 상태 자동 갱신
     if (uiState !== 'VIEW_ONBOARDING') {
@@ -384,6 +490,7 @@ export default function HomePage() {
         onSelectState={handleSelectState}
         onOpenWriteModal={() => setIsWriteModalOpen(true)}
         onOpenArchive={() => setIsArchiveOpen(true)}
+        onLeaveRoom={handleLeaveRoom}
         onResetDemo={handleResetDemo}
         onSwitchUser={handleSwitchUser}
         roomCode={roomCode}
