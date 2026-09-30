@@ -221,9 +221,10 @@ export default function HomePage() {
                   return;
                 }
               }
-              // 일기가 아직 없는 방
+              // 일기가 아직 없는 방 -> 방 화면(책상)
               setDiary(null);
               setUiState('VIEW_EMPTY');
+              setIsWriteModalOpen(false);
               showToast(`📖 ${savedPartner} 님과의 일기장으로 복귀했습니다.`);
             } else {
               // 방이 삭제되었거나 존재하지 않는 경우 초기화
@@ -328,9 +329,10 @@ export default function HomePage() {
           console.warn('Failed to fetch latest diary:', err);
         }
       } else if (!room.latestDiaryId) {
-        // 일기가 아직 없는 맨 처음 초기 상태 -> 편지 쓰기가 제일 먼저 나옴
+        // 일기가 아직 없는 맨 처음 초기 상태 -> 방 화면(책상) 표시
         setDiary(null);
         setUiState('VIEW_EMPTY');
+        setIsWriteModalOpen(false);
       }
 
       // 3. 상대방이 일기장 연결을 해제(방 나가기)했을 때 실시간 감지 및 알림
@@ -410,6 +412,7 @@ export default function HomePage() {
     // 사용자 요구: "초기에는, 방 화면을 보여줘."
     setDiary(null);
     setUiState('VIEW_EMPTY');
+    setIsWriteModalOpen(false);
     showToast(`🎉 ${partner} 님과 연결되었습니다! 둘만의 서재에 오신 것을 환영합니다.`);
   };
 
