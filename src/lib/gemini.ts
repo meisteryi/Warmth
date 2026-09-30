@@ -2,6 +2,27 @@ import { WarmthScore } from '@/types/diary';
 import { getSecureGeminiKey } from './secureKeys';
 
 /**
+ * 🛡️ 서버 프록시(/api/gemini)를 우선 시도합니다.
+ * Vercel 등 백엔드 지원 환경에서는 API 키가 클라이언트에 전혀 노출되지 않습니다.
+ * 정적 호스팅(GitHub Pages 등) 환경에서는 클라이언트 폴백으로 원활히 작동합니다.
+ */
+async function callGeminiProxy(action: string, payload: any): Promise<any | null> {
+  try {
+    const res = await fetch('/api/gemini/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, payload }),
+    });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // 서버리스 미지원 환경 (GitHub Pages 정적 사이트 등)
+  }
+  return null;
+}
+
+/**
  * 1. ✉️ 상대방이 이미 읽은 편지 기반 '맞춤형 관문 복습 퀴즈' 생성
  */
 export async function generateCustomQuiz(
@@ -10,6 +31,31 @@ export async function generateCustomQuiz(
   partnerName: string = '유라',
   previousAuthorName?: string
 ): Promise<{ prompt: string; answer: string; hint: string }> {
+  // 1) 서버 프록시 우선 시도 (보안 100% 모드)
+  const proxyData = await callGeminiProxy('customQuiz', {
+    previousContent,
+    isFirstLetter: !(previousContent && previousContent.trim().length > 5),
+  });
+  if (proxyData?.candidates?.[0]?.content?.parts?.[0]?.text) {
+    try {
+      const cleanedJson = proxyData.candidates[0].content.parts[0].text
+        .replace(/```json/gi, '')
+        .replace(/```/g, '')
+        .trim();
+      const parsed = JSON.parse(cleanedJson);
+      if (parsed.prompt && parsed.answer) {
+        return {
+          prompt: parsed.prompt,
+          answer: String(parsed.answer).trim(),
+          hint: parsed.hint || '지난 편지를 꼼꼼히 떠올려보면 알 수 있어!',
+        };
+      }
+    } catch (e) {
+      console.warn('Proxy quiz parse fallback:', e);
+    }
+  }
+
+  // 2) 클라이언트 직접 호출 (정적 배포 환경용)
   const apiKey = getSecureGeminiKey();
   if (apiKey) {
     try {
@@ -127,6 +173,31 @@ export async function analyzeWarmthTemperature(
 ): Promise<WarmthScore> {
   const fullText = `${title}\n${content}`;
 
+  // 1) 서버 프록시 우선 시도 (보안 100%)
+  const proxyData = await callGeminiProxy('temperature', {
+    title,
+    content,
+    authorName,
+    partnerName,
+  });
+  if (proxyData?.candidates?.[0]?.content?.parts?.[0]?.text) {
+    try {
+      const text = proxyData.candidates[0].content.parts[0].text;
+      const cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(cleaned);
+      if (typeof parsed.temperature === 'number') {
+        return {
+          temperature: Math.max(0, Math.min(100, Math.round(parsed.temperature))),
+          comment: parsed.comment || '따스한 마음이 고스란히 담긴 편지',
+          keywords: Array.isArray(parsed.keywords) ? parsed.keywords.slice(0, 3) : ['#온기', '#마음', '#기록'],
+        };
+      }
+    } catch (e) {
+      console.warn('Proxy temperature parse error:', e);
+    }
+  }
+
+  // 2) 클라이언트 직접 호출
   const apiKey = getSecureGeminiKey();
   if (apiKey && fullText.trim().length > 5) {
     try {
@@ -261,6 +332,16 @@ export const DAILY_PROMPTS_POOL = [
 export async function getRandomPrompt(
   partnerName: string = '유라'
 ): Promise<string> {
+  // 1) 서버 프록시 우선 시도 (보안 100%)
+  const proxyData = await callGeminiProxy('randomPrompt', { partnerName });
+  if (proxyData?.candidates?.[0]?.content?.parts?.[0]?.text) {
+    const text = proxyData.candidates[0].content.parts[0].text.trim().replace(/^["'“”]/, '').replace(/["'“”]$/, '');
+    if (text.length >= 6 && text.length <= 60) {
+      return text;
+    }
+  }
+
+  // 2) 클라이언트 직접 호출
   const randomTheme = PROMPT_THEMES[Math.floor(Math.random() * PROMPT_THEMES.length)];
 
   const apiKey = getSecureGeminiKey();
@@ -518,7 +599,29 @@ export async function evaluateQuizAnswerFlexibly(
     return { isCorrect: true, reason: '조사/어미 일치 정답' };
   }
 
-  // 2) Gemini AI 유연 채점
+  // 2) 서버 프록시 우선 시도 (보안 100%)
+  const proxyData = await callGeminiProxy('evaluateAnswer', {
+    prompt: question,
+    expectedAnswer,
+    userAnswer,
+  });
+  if (proxyData?.candidates?.[0]?.content?.parts?.[0]?.text) {
+    try {
+      const text = proxyData.candidates[0].content.parts[0].text;
+      const cleanedJson = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(cleanedJson);
+      if (typeof parsed.isCorrect === 'boolean') {
+        return {
+          isCorrect: parsed.isCorrect,
+          reason: parsed.reason || (parsed.isCorrect ? '유사 정답 인정' : '오답'),
+        };
+      }
+    } catch (e) {
+      console.warn('Proxy eval parse error:', e);
+    }
+  }
+
+  // 3) Gemini AI 클라이언트 직접 채점
   const apiKey = getSecureGeminiKey();
   if (apiKey) {
     try {
