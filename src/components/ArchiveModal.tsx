@@ -146,10 +146,14 @@ export default function ArchiveModal({
                       >
                         {item.authorName}의 기록
                       </span>
-                      {item.warmthScore && (
-                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-900 font-mono font-bold border border-amber-200/60 inline-flex items-center gap-1">
-                          <Sparkles className="w-3 h-3 text-amber-600" />
-                          {item.warmthScore.temperature.toFixed(1)}°C
+                      {item.warmthScore && typeof item.warmthScore.temperature === 'number' && (
+                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-bold inline-flex items-center gap-1 ${
+                          item.warmthScore.temperature <= 0
+                            ? 'bg-sky-50 text-sky-900 border border-sky-200'
+                            : 'bg-amber-50 text-amber-900 border border-amber-200/60'
+                        }`}>
+                          <Sparkles className={`w-3 h-3 ${item.warmthScore.temperature <= 0 ? 'text-sky-600' : 'text-amber-600'}`} />
+                          {item.warmthScore.temperature > 0 ? `+${item.warmthScore.temperature.toFixed(1)}` : item.warmthScore.temperature.toFixed(1)}°C
                         </span>
                       )}
                     </div>

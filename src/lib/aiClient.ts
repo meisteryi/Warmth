@@ -36,16 +36,12 @@ export async function fetchWarmthScore(
   content: string,
   authorName: string = '주형',
   partnerName: string = '유라'
-): Promise<WarmthScore> {
+): Promise<WarmthScore | null> {
   try {
     return await analyzeWarmthTemperature(title, content, authorName, partnerName);
   } catch (e) {
     console.warn('fetchWarmthScore error:', e);
-    return {
-      temperature: 37.8,
-      comment: '하루를 포근하게 감싸주는 다정하고 따뜻한 온기',
-      keywords: ['#둘만의온기', '#소소한하루', '#고마움'],
-    };
+    return null;
   }
 }
 

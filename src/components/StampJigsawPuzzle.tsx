@@ -817,13 +817,6 @@ export default function StampJigsawPuzzle({
     }, 1800);
   };
 
-  // 우표 바로 완성 (치트/테스트용)
-  const handleAutoSolve = () => {
-    setRotations([0, 0, 0, 0]);
-    setSnapped([true, true, true, true]);
-    triggerSuccess();
-  };
-
   if (!tornData) return null;
 
   // 4개 조각이 작업대(하단 2x2)에서 겹치지 않고 정돈되는 시작 위치
@@ -1077,15 +1070,6 @@ export default function StampJigsawPuzzle({
         <span className="text-[11px] text-stone-500 font-mono">
           완성 {snapped.filter((s) => s).length}/4
         </span>
-
-        <button
-          type="button"
-          onClick={handleAutoSolve}
-          className="px-2.5 py-1.5 rounded-lg bg-amber-100/70 hover:bg-amber-100 border border-amber-300 text-amber-900 text-[11px] font-medium flex items-center gap-1 active:scale-95"
-        >
-          <Sparkles className="w-3 h-3 text-amber-700" />
-          <span>우표 바로 완성</span>
-        </button>
       </div>
     </div>
   );

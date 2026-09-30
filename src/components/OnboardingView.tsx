@@ -14,7 +14,6 @@ import {
   BookHeart,
   HeartHandshake,
   Clock,
-  UserCheck,
   Loader2
 } from 'lucide-react';
 
@@ -111,20 +110,6 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
     navigator.clipboard.writeText(shareText).catch(() => { });
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  // 상대방 입장 시뮬레이션
-  const handleSimulatePartnerJoin = async () => {
-    if (!generatedCode) return;
-    setIsLoading(true);
-    try {
-      await joinRoomInFirestore(generatedCode, '유라');
-      triggerMatchCelebration(generatedCode, myName, '유라');
-    } catch {
-      triggerMatchCelebration(generatedCode, myName, '유라');
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   // 코드 입력하여 Firestore에서 방 조회 및 매칭
@@ -338,19 +323,6 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
                     </div>
                   </div>
                 )}
-
-                {/* 개발/테스트용 즉시 매칭 시뮬레이션 버튼 */}
-                <div className="pt-2 border-t border-stone-200">
-                  <button
-                    type="button"
-                    disabled={isLoading}
-                    onClick={handleSimulatePartnerJoin}
-                    className="w-full py-2.5 sm:py-3 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-98 text-xs sm:text-sm font-sans-ui text-stone-700 flex items-center justify-center gap-1.5 transition-all disabled:opacity-50 cursor-pointer font-medium"
-                  >
-                    <UserCheck className="w-4 h-4 text-emerald-700" />
-                    <span>(테스트) 상대방 즉시 입장시키기</span>
-                  </button>
-                </div>
               </motion.div>
             )}
           </div>

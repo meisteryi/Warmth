@@ -232,19 +232,15 @@ export default function WriteDiaryModal({
         };
       }
 
-      // AI 온기 온도 및 감성 분석 (최대 1.2초 타임아웃으로 UI 지연 절대 방지)
+      // AI 온기 온도 및 감성 분석 (단문이거나 감정이 불명확하면 null 유지, fake 온도 부여 금지)
       let warmthScore: WarmthScore | null = null;
       try {
         warmthScore = await Promise.race([
           fetchWarmthScore(title, content, currentUserName, partnerName),
-          new Promise<WarmthScore>((_, reject) => setTimeout(() => reject('timeout'), 1200)),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
         ]);
       } catch {
-        warmthScore = {
-          temperature: 37.8,
-          comment: '하루를 포근하게 감싸주는 다정하고 따뜻한 온기',
-          keywords: ['#둘만의온기', '#소소한하루', '#고마움'],
-        };
+        warmthScore = null;
       }
 
       onSaveDiary({

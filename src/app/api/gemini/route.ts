@@ -91,16 +91,50 @@ export async function POST(req: Request) {
       generationConfig = { temperature: 0.9 };
     } else if (action === 'temperature') {
       const { title, content, authorName, partnerName } = payload;
-      const tempPrompt = `당신은 아날로그 교환일기 '온기(Warmth)'의 감성 분석가입니다.
+      const fullText = `${title || ''} ${content || ''}`.trim();
+
+      // 내용이 너무 짧은 경우 온도를 측정하지 않음
+      if (fullText.length < 30) {
+        return NextResponse.json({
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    text: JSON.stringify({
+                      hasDistinctEmotion: false,
+                      temperature: null,
+                      comment: null,
+                      keywords: [],
+                    }),
+                  },
+                ],
+              },
+            },
+          ],
+        });
+      }
+
+      const tempPrompt = `당신은 아날로그 교환일기 '온기(Warmth)'의 감성 온도 분석가입니다.
 작성자(${authorName})가 연인(${partnerName})에게 쓴 편지를 읽고 '온기의 온도'를 측정해주세요.
-규칙:
-1. temperature: 다정함/애정/위로/고마움 등 편지에 포함되어 있는 감정의 깊이에 따라 0 ~ 100 사이의 정수로 산출하세요.
-2. comment: 편지의 정서를 감성적이고 시적으로 묘사한 25자 이내의 한 줄 코멘트
-3. keywords: 이 편지의 핵심 단어/감정 해시태그 3개
-4. 반드시 순수 JSON 형태로만 응답하세요: {"temperature": 88, "comment": "...", "keywords": ["...", "...", "..."]}`;
+
+★ 매우 중요한 규칙:
+1. 편지 내용이 너무 짧거나(단문), 단순 사실/일정 나열에 불과하여 감정이나 정서적 온도를 확실하게 파악할 수 없을 때는 절대로 억지로 온도를 부여하지 말고 {"hasDistinctEmotion": false, "temperature": null, "comment": null, "keywords": []} 로 응답하세요.
+2. 작성자의 감정(애정, 위로, 감사, 설렘, 그리움 또는 지침, 외로움, 서운함 등)이 확실하고 뚜렷하게 드러날 때만 온도를 측정하세요.
+3. 온도 범위: 한국 날씨 기온 범위인 -20°C ~ 영상 40°C (정수 또는 소수점 1자리):
+   - 혹한기 (-20°C ~ -1°C): 몹시 지치고 외롭거나, 마음이 시리고 아프며 서운하고 쓸쓸한 감정
+   - 쌀쌀/차분 (0°C ~ 14°C): 담담하고 잔잔한 일상, 소소한 생각
+   - 따스함 (15°C ~ 29°C): 다정하고 포근한 위로, 감사, 잔잔한 미소
+   - 뜨거운 사랑 (30°C ~ 40°C): 깊은 애정, 심장이 뛰는 설렘, 벅차오르는 행복
+4. comment: 편지의 정서를 시적으로 표현한 25자 이내의 한 줄 코멘트 (감정이 확실할 때만 작성)
+5. keywords: 감정 및 핵심 단어 해시태그 1~3개
+6. 반드시 순수 JSON 형태로만 응답하세요:
+   {"hasDistinctEmotion": true, "temperature": 32.5, "comment": "...", "keywords": ["#키워드1", "#키워드2"]}
+   또는 감정이 확실하지 않을 때:
+   {"hasDistinctEmotion": false, "temperature": null, "comment": null, "keywords": []}`;
 
       contents = [{ role: 'user', parts: [{ text: `${tempPrompt}\n\n[편지 내용]:\n${title}\n${content}` }] }];
-      generationConfig = { responseMimeType: 'application/json', temperature: 0.6 };
+      generationConfig = { responseMimeType: 'application/json', temperature: 0.5 };
     } else {
       return NextResponse.json({ error: '알 수 없는 action입니다.' }, { status: 400 });
     }
