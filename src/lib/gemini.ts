@@ -57,7 +57,8 @@ export async function generateCustomQuiz(
         const data = await res.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (text) {
-          const parsed = JSON.parse(text);
+          const cleanedJson = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+          const parsed = JSON.parse(cleanedJson);
           if (parsed.prompt && parsed.answer) {
             return {
               prompt: parsed.prompt,
@@ -127,7 +128,8 @@ export async function analyzeWarmthTemperature(
         const data = await res.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (text) {
-          const parsed = JSON.parse(text);
+          const cleanedJson = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+          const parsed = JSON.parse(cleanedJson);
           if (typeof parsed.temperature === 'number') {
             return {
               temperature: Math.min(100, Math.max(0, Math.round(Number(parsed.temperature)))),
