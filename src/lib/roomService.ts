@@ -14,8 +14,36 @@ import { DiaryData, RoomData } from '@/types/diary';
 import { 
   encryptDiaryData, 
   decryptDiaryData, 
-  encryptText 
+  encryptText,
+  generateRoomSalt 
 } from './crypto';
+
+// 방 고유 솔트 메모리 캐시 (불필요한 Firestore 반복 조회 방지)
+const roomSaltCache = new Map<string, string>();
+
+export function setCachedRoomSalt(roomCode: string, salt: string) {
+  if (salt) roomSaltCache.set(roomCode, salt);
+}
+
+export async function getOrFetchRoomSalt(roomCode: string): Promise<string | undefined> {
+  if (roomSaltCache.has(roomCode)) {
+    return roomSaltCache.get(roomCode);
+  }
+  try {
+    const roomRef = doc(db, 'rooms', roomCode);
+    const snap = await getDoc(roomRef);
+    if (snap.exists()) {
+      const data = snap.data() as RoomData;
+      if (data.roomSalt) {
+        roomSaltCache.set(roomCode, data.roomSalt);
+        return data.roomSalt;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to fetch roomSalt:', e);
+  }
+  return undefined;
+}
 
 // 사용자 고유 클라이언트 ID 생성/가져오기 (역할 및 URL 파라미터 기반 분리 지원)
 export function getOrCreateUserId(userRoleKey?: string): string {
@@ -48,13 +76,14 @@ export function subscribeDiary(
   return onSnapshot(diaryRef, async (snapshot) => {
     if (snapshot.exists()) {
       const raw = snapshot.data() as DiaryData;
-      const decrypted = await decryptDiaryData(roomCode, raw);
+      const roomSalt = await getOrFetchRoomSalt(roomCode);
+      const decrypted = await decryptDiaryData(roomCode, raw, roomSalt);
       onUpdate(decrypted);
     }
   });
 }
 
-// 1. 방 생성 (6자리 난수 코드 발급 및 Firestore 저장)
+// 1. 방 생성 (6자리 난수 코드 발급, 128비트 암호학적 솔트 발급 및 Firestore 저장)
 export async function createRoomInFirestore(creatorNickname: string): Promise<string> {
   const myUid = getOrCreateUserId();
   
@@ -68,6 +97,10 @@ export async function createRoomInFirestore(creatorNickname: string): Promise<st
     roomCode = Math.floor(100000 + Math.random() * 900000).toString();
   }
 
+  // 방 고유 128-bit E2EE 솔트 생성 (레인보우 테이블 무력화)
+  const roomSalt = generateRoomSalt();
+  setCachedRoomSalt(roomCode, roomSalt);
+
   const newRoomData: RoomData = {
     roomId: roomCode,
     roomCode: roomCode,
@@ -80,6 +113,7 @@ export async function createRoomInFirestore(creatorNickname: string): Promise<st
         role: 'CREATOR',
       },
     },
+    roomSalt,
   };
 
   // Firestore rooms/{roomCode} 위치에 저장
@@ -92,7 +126,7 @@ export async function createRoomInFirestore(creatorNickname: string): Promise<st
   return roomCode;
 }
 
-// 2. 방 참여 (6자리 초대코드 입력하여 1:1 매칭)
+// 2. 방 참여 (6자리 초대코드 입력하여 1:1 매칭 & iOS PWA 세션 복구)
 export async function joinRoomInFirestore(
   roomCode: string, 
   partnerNickname: string
@@ -106,43 +140,85 @@ export async function joinRoomInFirestore(
   }
 
   const room = snap.data() as RoomData;
-
-  // 이미 2명이 찬 경우
-  if (room.members.length >= 2 && !room.members.includes(myUid)) {
-    return { success: false, message: '이미 2명의 매칭이 완료된 일기장입니다.' };
+  if (room.roomSalt) {
+    setCachedRoomSalt(roomCode, room.roomSalt);
   }
 
-  // 아직 매칭 전인 경우 파트너로 등록
-  if (!room.members.includes(myUid)) {
-    const updatedMembers = [...room.members, myUid];
-    const updatedMemberInfo = {
-      ...room.memberInfo,
-      [myUid]: {
-        nickname: partnerNickname || '유라',
-        role: 'PARTNER' as const,
-      },
-    };
+  // 1) 이미 현재 UID가 members에 속해 있는 경우 즉시 재입장
+  if (room.members.includes(myUid)) {
+    return { success: true, message: '기존 방에 재입장했습니다.', room };
+  }
+
+  const normalizedNick = (partnerNickname || '').trim().toLowerCase();
+
+  // 2) iOS Safari ↔ PWA(홈 화면 추가) 세션 분리(LocalStorage 파티셔닝) 대응:
+  // 입력한 닉네임이 기존 방 참여자 중 일치하는 슬롯이 있으면, 해당 슬롯의 UID를 현재 myUid로 자동 갱신 및 복구
+  const matchedOldUid = Object.keys(room.memberInfo || {}).find(
+    (uid) => (room.memberInfo[uid]?.nickname || '').trim().toLowerCase() === normalizedNick
+  );
+
+  if (matchedOldUid) {
+    const oldMemberData = room.memberInfo[matchedOldUid];
+    const updatedMembers = room.members.map((id) => (id === matchedOldUid ? myUid : id));
+    const updatedMemberInfo = { ...room.memberInfo };
+    delete updatedMemberInfo[matchedOldUid];
+    updatedMemberInfo[myUid] = oldMemberData;
+
+    const updatedTurn = room.currentTurn === matchedOldUid ? myUid : room.currentTurn;
 
     await updateDoc(roomRef, {
-      status: 'MATCHED',
       members: updatedMembers,
       memberInfo: updatedMemberInfo,
+      currentTurn: updatedTurn,
       updatedAt: serverTimestamp(),
     });
 
+    const recoveredRoom: RoomData = {
+      ...room,
+      members: updatedMembers,
+      memberInfo: updatedMemberInfo,
+      currentTurn: updatedTurn,
+    };
+
     return {
       success: true,
-      message: '매칭이 완료되었습니다!',
-      room: {
-        ...room,
-        status: 'MATCHED',
-        members: updatedMembers,
-        memberInfo: updatedMemberInfo,
-      },
+      message: `${oldMemberData.nickname} 님의 일기장 세션이 성공적으로 복구되었습니다!`,
+      room: recoveredRoom,
     };
   }
 
-  return { success: true, message: '기존 방에 재입장했습니다.', room };
+  // 3) 닉네임 불일치 및 이미 2명 매칭이 완료된 경우 무단 입장 차단
+  if (room.members.length >= 2) {
+    return { success: false, message: '이미 2명의 매칭이 완료된 일기장입니다.' };
+  }
+
+  // 4) 아직 매칭 대기 중인 경우 파트너로 신규 등록
+  const updatedMembers = [...room.members, myUid];
+  const updatedMemberInfo = {
+    ...room.memberInfo,
+    [myUid]: {
+      nickname: partnerNickname || '유라',
+      role: 'PARTNER' as const,
+    },
+  };
+
+  await updateDoc(roomRef, {
+    status: 'MATCHED',
+    members: updatedMembers,
+    memberInfo: updatedMemberInfo,
+    updatedAt: serverTimestamp(),
+  });
+
+  return {
+    success: true,
+    message: '매칭이 완료되었습니다!',
+    room: {
+      ...room,
+      status: 'MATCHED',
+      members: updatedMembers,
+      memberInfo: updatedMemberInfo,
+    },
+  };
 }
 
 // 3. 방 실시간 구독 (onSnapshot)
@@ -153,7 +229,11 @@ export function subscribeRoom(
   const roomRef = doc(db, 'rooms', roomCode);
   return onSnapshot(roomRef, (snapshot) => {
     if (snapshot.exists()) {
-      onUpdate(snapshot.data() as RoomData);
+      const room = snapshot.data() as RoomData;
+      if (room.roomSalt) {
+        setCachedRoomSalt(roomCode, room.roomSalt);
+      }
+      onUpdate(room);
     }
   });
 }
@@ -163,8 +243,9 @@ export async function saveDiaryToFirestore(
   roomCode: string,
   diary: DiaryData
 ): Promise<void> {
-  // DB 관리자도 내용을 절대 볼 수 없도록 클라이언트에서 AES-GCM 256 암호화
-  const encryptedDiary = await encryptDiaryData(roomCode, diary);
+  // 방 고유 솔트를 가져와 E2EE 암호화 (사진, 본문, 미션, 감성평 전체)
+  const roomSalt = await getOrFetchRoomSalt(roomCode);
+  const encryptedDiary = await encryptDiaryData(roomCode, diary, roomSalt);
 
   const diaryRef = doc(db, 'rooms', roomCode, 'diaries', diary.diaryId);
   await setDoc(diaryRef, {
@@ -172,7 +253,7 @@ export async function saveDiaryToFirestore(
     createdAt: new Date().toISOString(),
   });
 
-  // 방 최신 일기 ID 업데이트 및 턴 넘기기 (방 문서가 없어도 안전하게 merge 생성)
+  // 방 최신 일기 ID 업데이트 및 턴 넘기기
   const roomRef = doc(db, 'rooms', roomCode);
   await setDoc(
     roomRef,
@@ -194,7 +275,8 @@ export async function updateMissionInFirestore(
   submissionText: string
 ): Promise<void> {
   const diaryRef = doc(db, 'rooms', roomCode, 'diaries', diaryId);
-  const encryptedSubmission = await encryptText(roomCode, submissionText);
+  const roomSalt = await getOrFetchRoomSalt(roomCode);
+  const encryptedSubmission = await encryptText(roomCode, submissionText, roomSalt);
 
   await updateDoc(diaryRef, {
     'mission.isPassed': true,
@@ -226,7 +308,8 @@ export async function sendKnockInFirestore(
   const myUid = getOrCreateUserId();
   const roomRef = doc(db, 'rooms', roomCode);
   const rawMsg = message || '오늘의 교환일기를 기다리고 있어요 ✉️';
-  const encryptedMsg = await encryptText(roomCode, rawMsg);
+  const roomSalt = await getOrFetchRoomSalt(roomCode);
+  const encryptedMsg = await encryptText(roomCode, rawMsg, roomSalt);
 
   await updateDoc(roomRef, {
     latestKnock: {
@@ -246,11 +329,12 @@ export async function getRoomDiariesFromFirestore(
   try {
     const colRef = collection(db, 'rooms', roomCode, 'diaries');
     const snapshot = await getDocs(colRef);
+    const roomSalt = await getOrFetchRoomSalt(roomCode);
     const list: DiaryData[] = [];
     
     for (const docSnap of snapshot.docs) {
       const raw = docSnap.data() as DiaryData;
-      const decrypted = await decryptDiaryData(roomCode, raw);
+      const decrypted = await decryptDiaryData(roomCode, raw, roomSalt);
       list.push(decrypted);
     }
 
@@ -263,4 +347,3 @@ export async function getRoomDiariesFromFirestore(
     return [];
   }
 }
-

@@ -95,6 +95,7 @@ export interface RoomData {
       role: 'CREATOR' | 'PARTNER';
     };
   };
+  roomSalt?: string;
   latestDiary?: DiaryData;
   latestDiaryId?: string;
   latestKnock?: KnockData | null;

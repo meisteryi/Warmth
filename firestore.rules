@@ -1,9 +1,124 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 개발 및 초기 테스트 단계: 모든 읽기/쓰기 허용 (향후 PRD 규칙으로 전환)
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: rooms
+    // Document ID: 6-digit numeric string (e.g., '123456')
+    // Fields:
+    //   - roomId: string (required, immutable, 6 digits matching ID)
+    //   - roomCode: string (required, immutable, 6 digits matching ID)
+    //   - status: string (required, 'WAITING_PARTNER' | 'MATCHED')
+    //   - currentTurn: string (required, size <= 100)
+    //   - members: list of strings (required, size 1..2)
+    //   - memberInfo: map (required, up to 2 member entries)
+    //   - roomSalt: string (required, immutable, 128-bit cryptographic salt)
+    //   - latestDiaryId: string (optional, size <= 100)
+    //   - latestKnock: map (optional, senderUid, senderName, message, knockedAt)
+    //   - createdAt: string (required, ISO 8601 date string)
+    //   - updatedAt: timestamp or string (optional)
+    //
+    // Subcollection: rooms/{roomCode}/diaries
+    // Document ID: string (e.g., 'diary_1234567890')
+    // Fields:
+    //   - diaryId: string (required, immutable, matching doc ID)
+    //   - authorId: string (required, immutable)
+    //   - authorName: string (required, size <= 50)
+    //   - recipientId: string (required, size <= 100)
+    //   - recipientName: string (required, size <= 50)
+    //   - title: string (required, encrypted string <= 2000)
+    //   - content: string (required, encrypted string <= 50000)
+    //   - photos: list (optional, encrypted image chunks, size <= 10)
+    //   - waxColor: string (required, hex color)
+    //   - createdAt: string (required, immutable)
+    //   - mission: map (required, type, prompt, quizAnswer, submission, isPassed)
+    //   - isWaxBroken: bool (required)
+    //   - openedAt: string (optional)
+    //   - warmthScore: map (optional)
+    //
+    // ===============================================================
+
+    // Helper functions
+    function isValidRoomCode(code) {
+      return code is string && code.matches('^[0-9]{6}$');
+    }
+
+    function isValidRoomCreate(roomCode, data) {
+      return data.roomId == roomCode &&
+             data.roomCode == roomCode &&
+             data.status == 'WAITING_PARTNER' &&
+             data.members is list &&
+             data.members.size() == 1 &&
+             data.memberInfo is map &&
+             data.memberInfo.size() <= 2 &&
+             data.roomSalt is string &&
+             data.roomSalt.size() >= 10 &&
+             data.roomSalt.size() <= 100;
+    }
+
+    function isValidRoomUpdate(roomCode, data, current) {
+      return data.roomId == current.roomId &&
+             data.roomCode == current.roomCode &&
+             data.roomSalt == current.roomSalt &&
+             data.members is list &&
+             data.members.size() >= 1 &&
+             data.members.size() <= 2 &&
+             data.memberInfo is map &&
+             data.memberInfo.size() <= 2 &&
+             data.status in ['WAITING_PARTNER', 'MATCHED'];
+    }
+
+    function isValidDiaryCreate(diaryId, data) {
+      return data.diaryId == diaryId &&
+             data.authorId is string &&
+             data.title is string && data.title.size() <= 2000 &&
+             data.content is string && data.content.size() <= 50000 &&
+             (!('photos' in data) || (data.photos is list && data.photos.size() <= 10)) &&
+             data.isWaxBroken is bool;
+    }
+
+    function isValidDiaryUpdate(diaryId, data, current) {
+      return data.diaryId == current.diaryId &&
+             data.authorId == current.authorId &&
+             data.createdAt == current.createdAt;
+    }
+
+    // 1. 방 (rooms) 컬렉션 규칙
+    match /rooms/{roomCode} {
+      // 6자리 코드로 방 조회 허용 (초대코드 입력 및 상태 동기화)
+      allow read: if isValidRoomCode(roomCode);
+
+      // 방 생성: 6자리 숫자 코드 + 1인 초기 멤버 + WAITING_PARTNER 상태 + 유효 솔트
+      allow create: if isValidRoomCode(roomCode) && isValidRoomCreate(roomCode, request.resource.data);
+
+      // 방 수정: 최대 2명 정원 제한 엄수, roomId/roomSalt 불변 보장
+      allow update: if isValidRoomCode(roomCode) && isValidRoomUpdate(roomCode, request.resource.data, resource.data);
+
+      // 방 삭제: 소중한 추억 보호를 위해 임의 삭제 전면 차단
+      allow delete: if false;
+
+      // 2. 일기 (diaries) 서브컬렉션 규칙
+      match /diaries/{diaryId} {
+        // 일기 열람 (클라이언트 AES-GCM 256 종단간 암호화 적용으로 원문 보호)
+        allow read: if isValidRoomCode(roomCode);
+
+        // 일기 생성: 방 유효성 및 필드 제약 검증
+        allow create: if isValidRoomCode(roomCode) && isValidDiaryCreate(diaryId, request.resource.data);
+
+        // 일기 수정: 작성자/생성시간 불변 유지 (미션 통과, 왁스 개봉만 허용)
+        allow update: if isValidRoomCode(roomCode) && isValidDiaryUpdate(diaryId, request.resource.data, resource.data);
+
+        // 일기 삭제: 교환일기 보존을 위해 삭제 전면 차단
+        allow delete: if false;
+      }
+    }
+
+    // 기본 거부 원칙 (Default Deny)
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

@@ -117,7 +117,7 @@ export default function HomePage() {
         if (isFromPartner && isNewKnock && isRecent) {
           handledKnockTimeRef.current = rawKnock.knockedAt;
           soundEngine.playWindChimeKnock();
-          const decryptedKnock = await decryptKnockData(roomCode, rawKnock);
+          const decryptedKnock = await decryptKnockData(roomCode, rawKnock, room.roomSalt);
           setReceivedKnock(decryptedKnock);
           setIsKnockModalOpen(true);
         }
@@ -132,7 +132,7 @@ export default function HomePage() {
           if (snap.exists()) {
             const rawDiary = snap.data() as DiaryData;
             // 클라이언트에서 256-bit 복호화 수행 (서버는 암호문만 보관)
-            const latestDiary = await decryptDiaryData(roomCode, rawDiary);
+            const latestDiary = await decryptDiaryData(roomCode, rawDiary, room.roomSalt);
             setDiary(latestDiary);
 
             // 작성자인지 수신자인지에 따른 UI 상태 결정
