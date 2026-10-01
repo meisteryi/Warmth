@@ -13,4 +13,6 @@ export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 
+export { doc, setDoc, updateDoc, collection, getDoc, getDocs } from 'firebase/firestore';
+
 export default app;
