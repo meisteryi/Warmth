@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
 
+const PENDING_ROOM_KEY = 'warmth_pending_created_room';
+
 interface OnboardingViewProps {
   onMatched: (roomCode: string, myName: string, partnerName: string, role?: 'CREATOR' | 'PARTNER') => void;
 }
@@ -51,6 +53,27 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
   const [joinError, setJoinError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // [2번 요구사항] 앱 재실행 시 초대코드 발급 후 대기 중이던 방 상태 자동 복원
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = localStorage.getItem(PENDING_ROOM_KEY);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      if (data?.code && data?.creatorName) {
+        // 24시간 이내에 생성된 유효한 대기 방만 복구
+        if (Date.now() - (data.createdAt || 0) < 24 * 60 * 60 * 1000) {
+          setGeneratedCode(data.code);
+          setMyName(data.creatorName);
+          setIsWaitingPartner(true);
+          setActiveTab('CREATE');
+        } else {
+          localStorage.removeItem(PENDING_ROOM_KEY);
+        }
+      }
+    } catch { }
+  }, []);
+
   // Firestore 실시간 구독: 상대방이 방에 입장하면 자동으로 매칭 축하 및 입장 처리
   useEffect(() => {
     if (!generatedCode || !isWaitingPartner) return;
@@ -73,7 +96,16 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
     return () => unsubscribe();
   }, [generatedCode, isWaitingPartner, myName]);
 
-  // 1. 6자리 난수 코드 발급 및 실제 Firestore에 방 저장
+  // 대기 취소 및 새로운 코드 발급으로 전환
+  const handleCancelWaiting = () => {
+    try {
+      localStorage.removeItem(PENDING_ROOM_KEY);
+    } catch { }
+    setGeneratedCode(null);
+    setIsWaitingPartner(false);
+  };
+
+  // 1. 6자리 난수 코드 발급 및 실제 Firestore에 방 저장 (대기 상태 임시 저장)
   const handleGenerateCode = async () => {
     if (!myName.trim()) {
       alert('일기장에 사용할 나의 이름이나 별명을 먼저 입력해주세요.');
@@ -84,6 +116,16 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
       const code = await createRoomInFirestore(myName.trim());
       setGeneratedCode(code);
       setIsWaitingPartner(true);
+      try {
+        localStorage.setItem(
+          PENDING_ROOM_KEY,
+          JSON.stringify({
+            code,
+            creatorName: myName.trim(),
+            createdAt: Date.now(),
+          })
+        );
+      } catch { }
       soundEngine.playPaperRustle();
     } catch (e) {
       console.error('Failed to create room in Firestore', e);
@@ -91,6 +133,16 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
       const fallbackCode = Math.floor(100000 + Math.random() * 900000).toString();
       setGeneratedCode(fallbackCode);
       setIsWaitingPartner(true);
+      try {
+        localStorage.setItem(
+          PENDING_ROOM_KEY,
+          JSON.stringify({
+            code: fallbackCode,
+            creatorName: myName.trim(),
+            createdAt: Date.now(),
+          })
+        );
+      } catch { }
     } finally {
       setIsLoading(false);
     }
@@ -164,6 +216,10 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
     partner: string, 
     role?: 'CREATOR' | 'PARTNER'
   ) => {
+    try {
+      localStorage.removeItem(PENDING_ROOM_KEY);
+    } catch { }
+
     soundEngine.playMissionPassChime();
 
     confetti({
@@ -244,8 +300,9 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
             type="text"
             value={myName}
             onChange={(e) => setMyName(e.target.value)}
+            disabled={isWaitingPartner}
             placeholder="예: 민우, 서연 또는 나만의 애칭"
-            className="w-full px-3.5 py-3 rounded-xl border border-stone-300 bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-base text-stone-900 font-medium placeholder:text-stone-400"
+            className="w-full px-3.5 py-3 rounded-xl border border-stone-300 bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-base text-stone-900 font-medium placeholder:text-stone-400 disabled:bg-stone-100 disabled:text-stone-500"
           />
         </div>
 
@@ -322,10 +379,21 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
 
                 {/* 상대방 대기 상태 안내 */}
                 {isWaitingPartner && (
-                  <div className="p-3.5 sm:p-4 rounded-xl bg-[#FFFDF9] border border-amber-200/80 flex items-center gap-3">
-                    <Clock className="w-4 h-4 text-amber-700 animate-spin shrink-0" />
-                    <div className="text-xs sm:text-sm text-stone-700 font-serif-warm flex-1 font-medium">
-                      상대방이 입장하기를 기다리는 중...
+                  <div className="space-y-2">
+                    <div className="p-3.5 sm:p-4 rounded-xl bg-[#FFFDF9] border border-amber-200/80 flex items-center gap-3">
+                      <Clock className="w-4 h-4 text-amber-700 animate-spin shrink-0" />
+                      <div className="text-xs sm:text-sm text-stone-700 font-serif-warm flex-1 font-medium">
+                        상대방이 입장하기를 기다리는 중...
+                      </div>
+                    </div>
+                    <div className="text-center pt-1">
+                      <button
+                        type="button"
+                        onClick={handleCancelWaiting}
+                        className="text-xs text-stone-500 hover:text-stone-800 underline font-sans-ui cursor-pointer transition-colors py-1"
+                      >
+                        대기 취소하고 새 코드 발급하기
+                      </button>
                     </div>
                   </div>
                 )}
