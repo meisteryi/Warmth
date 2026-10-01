@@ -25,26 +25,8 @@ interface OnboardingViewProps {
 }
 
 export default function OnboardingView({ onMatched }: OnboardingViewProps) {
-  const [activeTab, setActiveTab] = useState<'CREATE' | 'JOIN'>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const param = new URLSearchParams(window.location.search).get('user');
-        if (param === 'yura') return 'JOIN';
-      } catch { }
-    }
-    return 'CREATE';
-  });
-
-  const [myName, setMyName] = useState(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const param = new URLSearchParams(window.location.search).get('user');
-        if (param === 'yura') return '유라';
-        if (param === 'joohyoung') return '주형';
-      } catch { }
-    }
-    return '';
-  });
+  const [activeTab, setActiveTab] = useState<'CREATE' | 'JOIN'>('CREATE');
+  const [myName, setMyName] = useState('');
 
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);

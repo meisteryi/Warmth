@@ -304,40 +304,17 @@ export const PROMPT_THEMES = [
 ];
 
 /**
- * 글감 텍스트에서 사용자가 지정한 실제 이름 외에,
- * 모델이나 템플릿의 실수로 들어간 '유라' 또는 '주형'을 자연스러운 2인칭('너', '네가' 등)으로 정제합니다.
- * (단, 실제 사용자의 상대방 닉네임이 '유라' 또는 '주형'일 때는 온전히 유지됩니다.)
+ * 글감 텍스트에서 {partner} 토큰을 실제 상대방 이름으로 치환하고,
+ * 지정되지 않은 경우 자연스러운 2인칭('너')으로 정제합니다.
  */
 export function sanitizePromptText(text: string, partnerName?: string): string {
   if (!text) return '';
   const cleanName = (partnerName || '').trim();
   let sanitized = text.trim();
 
-  // 1. {partner} 템플릿 토큰 치환
+  // {partner} 템플릿 토큰 치환
   const actualTarget = cleanName && cleanName !== '상대방' && cleanName !== '파트너' ? cleanName : '너';
   sanitized = sanitized.replace(/\{partner\}/g, actualTarget);
-
-  // 2. 사용자의 실제 파트너 이름이 '주형'이 아닌데 실수로 '주형'이 들어간 경우 치환
-  if (cleanName !== '주형') {
-    sanitized = sanitized
-      .replace(/주형이가|주형이는/g, (m) => (m === '주형이가' ? '네가' : '너는'))
-      .replace(/주형이에게|주형에게/g, '너에게')
-      .replace(/주형이와|주형과/g, '너와')
-      .replace(/주형이를|주형을/g, '너를')
-      .replace(/주형이의|주형의/g, '너의')
-      .replace(/주형아|주형이|주형/g, '너');
-  }
-
-  // 3. 사용자의 실제 파트너 이름이 '유라'가 아닌데 실수로 '유라'가 들어간 경우 치환
-  if (cleanName !== '유라') {
-    sanitized = sanitized
-      .replace(/유라가|유라는/g, (m) => (m === '유라가' ? '네가' : '너는'))
-      .replace(/유라에게/g, '너에게')
-      .replace(/유라와/g, '너와')
-      .replace(/유라를/g, '너를')
-      .replace(/유라의/g, '너의')
-      .replace(/유라야|유라/g, '너');
-  }
 
   return sanitized;
 }

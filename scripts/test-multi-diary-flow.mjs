@@ -20,11 +20,11 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function main() {
   console.log('🚀 Step 1: Creating room in Firestore...');
-  const roomCode = await createRoomInFirestore('주형');
+  const roomCode = await createRoomInFirestore('민우');
   console.log(`✅ Room created with code: #${roomCode}`);
 
-  console.log('🚀 Step 2: Joining room as 유라...');
-  const joinRes = await joinRoomInFirestore(roomCode, '유라');
+  console.log('🚀 Step 2: Joining room as 서연...');
+  const joinRes = await joinRoomInFirestore(roomCode, '서연');
   console.log(`✅ Joined room:`, joinRes.success);
 
   const roomSalt = await getOrFetchRoomSalt(roomCode);
@@ -34,10 +34,10 @@ async function main() {
   const sampleDiaries = [
     {
       diaryId: `diary_${roomCode}_01`,
-      authorId: 'uid_joohyoung',
-      authorName: '주형',
-      recipientId: 'uid_yura',
-      recipientName: '유라',
+      authorId: 'uid_user_a',
+      authorName: '민우',
+      recipientId: 'uid_user_b',
+      recipientName: '서연',
       title: '서재 책상 위에 놓인 다이어리를 보며',
       content: '처음 이 교환일기를 시작했을 때 우리가 나눴던 다정한 눈빛이 아직도 생생해. 오늘 퇴근길에 네 생각이 문득 나서 작은 꽃 한 송이를 샀어. 내일 만나면 건네줄게. 오늘도 고생 많았어 사랑해.',
       photos: [
@@ -62,10 +62,10 @@ async function main() {
     },
     {
       diaryId: `diary_${roomCode}_02`,
-      authorId: 'uid_yura',
-      authorName: '유라',
-      recipientId: 'uid_joohyoung',
-      recipientName: '주형',
+      authorId: 'uid_user_b',
+      authorName: '서연',
+      recipientId: 'uid_user_a',
+      recipientName: '민우',
       title: '가을비 내리던 날의 돌담길 산책',
       content: '비가 보슬보슬 내리는 서촌 돌담길을 우산 하나 쓰고 나란히 걸었던 날. 네 어깨가 젖지 않게 우산을 기울여주던 네 다정함에 가슴이 뭉클했어. 따뜻한 차 한 잔 마시며 나눈 이야기들이 마음에 오래 남을 것 같아. 고마워 항상.',
       photos: [
@@ -90,10 +90,10 @@ async function main() {
     },
     {
       diaryId: `diary_${roomCode}_03`,
-      authorId: 'uid_joohyoung',
-      authorName: '주형',
-      recipientId: 'uid_yura',
-      recipientName: '유라',
+      authorId: 'uid_user_a',
+      authorName: '민우',
+      recipientId: 'uid_user_b',
+      recipientName: '서연',
       title: '밤하늘 별을 보며 나눈 약속',
       content: '야근을 마치고 지친 몸으로 집에 돌아왔는데, 네가 남겨준 편지 한 줄에 모든 피로가 사르르 녹아내렸어. 언제나 내 편이 되어주고 곁에서 웃어줘서 든든해. 우리 다음 주말에는 교외로 별 보러 드라이브 가자. 편안한 밤 보내.',
       photos: [],
@@ -116,10 +116,10 @@ async function main() {
     },
     {
       diaryId: `diary_${roomCode}_04`,
-      authorId: 'uid_yura',
-      authorName: '유라',
-      recipientId: 'uid_joohyoung',
-      recipientName: '주형',
+      authorId: 'uid_user_b',
+      authorName: '서연',
+      recipientId: 'uid_user_a',
+      recipientName: '민우',
       title: '햇살 눈부셨던 주말 한강 피크닉',
       content: '도시락 맛있게 먹어줘서 정말 뿌듯했어! 잔디밭에 돗자리 펴고 누워서 너랑 하늘 바라보던 시간이 이번 주 최고의 행복이었어. 바람도 시원하고 네 웃음소리도 예뻤던 날. 오래오래 기억하고 싶어.',
       photos: [
@@ -144,10 +144,10 @@ async function main() {
     },
     {
       diaryId: `diary_${roomCode}_05`,
-      authorId: 'uid_joohyoung',
-      authorName: '주형',
-      recipientId: 'uid_yura',
-      recipientName: '유라',
+      authorId: 'uid_user_a',
+      authorName: '민우',
+      recipientId: 'uid_user_b',
+      recipientName: '서연',
       title: '서로에게 건네는 따뜻한 온기',
       content: '벌써 다섯 번째 편지네. 매일 밤 너한테 편지를 쓸 생각을 하면 하루가 더 소중하고 애틋하게 느껴져. 환절기 감기 조심하고, 오늘 밤도 이불 포근하게 덮고 좋은 꿈꿔. 사랑해 많이.',
       photos: [],
@@ -200,16 +200,16 @@ async function main() {
   const page = await browser.newPage();
   await page.setViewport({ width: 450, height: 900 });
 
-  // 주형의 방으로 localStorage 설정
+  // 민우의 방으로 localStorage 설정
   await page.goto('http://localhost:3000', { waitUntil: 'networkidle2' });
   await page.evaluate((code) => {
     localStorage.setItem('warmth_active_room_code', code);
-    localStorage.setItem('warmth_active_user_name', '주형');
-    localStorage.setItem('warmth_active_partner_name', '유라');
+    localStorage.setItem('warmth_active_user_name', '민우');
+    localStorage.setItem('warmth_active_partner_name', '서연');
     localStorage.setItem('warmth_active_user_role', 'CREATOR');
     sessionStorage.setItem('warmth_active_room_code', code);
-    sessionStorage.setItem('warmth_active_user_name', '주형');
-    sessionStorage.setItem('warmth_active_partner_name', '유라');
+    sessionStorage.setItem('warmth_active_user_name', '민우');
+    sessionStorage.setItem('warmth_active_partner_name', '서연');
     sessionStorage.setItem('warmth_active_user_role', 'CREATOR');
   }, roomCode);
 

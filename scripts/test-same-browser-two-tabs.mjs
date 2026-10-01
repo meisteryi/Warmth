@@ -1,7 +1,7 @@
 import puppeteer from 'puppeteer-core';
 import path from 'path';
 
-const SCREENSHOTS_DIR = '/Users/yijoohyoung/.gemini/antigravity-ide/brain/a5db37b1-28ff-4ea3-a82f-5b3c26a9bea6/screenshots';
+const SCREENSHOTS_DIR = path.resolve('recordings');
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function main() {
@@ -22,11 +22,11 @@ async function main() {
 
     const nameInputSelector = 'input[placeholder*="민우, 서연"]';
 
-    // Step 1: Page 1 (주형) creates room
-    console.log('\n--- Step 1: Page 1 (주형) creates room ---');
+    // Step 1: Page 1 (방장) creates room
+    console.log('\n--- Step 1: Page 1 (방장) creates room ---');
     await page1.goto('http://localhost:3000', { waitUntil: 'networkidle2' });
     await page1.click(nameInputSelector, { clickCount: 3 });
-    await page1.type(nameInputSelector, '주형');
+    await page1.type(nameInputSelector, '민우');
 
     const generateBtn = await page1.waitForSelector('xpath///button[contains(., "초대코드 발급받기")]');
     await generateBtn.click();
@@ -36,8 +36,8 @@ async function main() {
     const roomCode = (await page1.evaluate(el => el.innerText, codeEl)).trim();
     console.log(`✅ Page 1 created room! Code: #${roomCode}`);
 
-    // Step 2: Page 2 (유라) joins room in SAME browser context
-    console.log('\n--- Step 2: Page 2 (유라) joins room in SAME browser context ---');
+    // Step 2: Page 2 (참여자) joins room in SAME browser context
+    console.log('\n--- Step 2: Page 2 (참여자) joins room in SAME browser context ---');
     await page2.goto('http://localhost:3000', { waitUntil: 'networkidle2' });
 
     const joinTab = await page2.waitForSelector('xpath///button[contains(., "초대코드 입력하기")]');
@@ -46,7 +46,7 @@ async function main() {
 
     const partnerNameInput = await page2.waitForSelector(nameInputSelector);
     await partnerNameInput.click({ clickCount: 3 });
-    await partnerNameInput.type('유라');
+    await partnerNameInput.type('서연');
 
     const codeInput = await page2.waitForSelector('input[maxLength="6"]');
     await codeInput.type(roomCode);
@@ -72,7 +72,7 @@ async function main() {
     console.log(`🔍 [Page 2 - 참여자] 첫 편지 작성자 권한 정상 부여: ${page2IsFirstWriter ? '✅ 성공!' : '❌ 실패'}`);
 
     // Step 5: Refresh Page 1 (방장) and verify it does NOT become Page 2!
-    console.log('\n--- Step 5: Refresh Page 1 and verify it retains 방장 (주형) state ---');
+    console.log('\n--- Step 5: Refresh Page 1 and verify it retains 방장 state ---');
     await page1.reload({ waitUntil: 'networkidle2' });
     await sleep(2000);
 

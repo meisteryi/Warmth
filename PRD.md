@@ -115,7 +115,7 @@
 ```json
 {
   "uid": "USER_AUTH_UID",
-  "nickname": "이주형",
+  "nickname": "사용자A",
   "roomId": "ROOM_DOC_ID",
   "fcmToken": "FCM_DEVICE_TOKEN_STRING",
   "createdAt": "2026-09-27T17:30:00Z"
@@ -129,8 +129,8 @@
   "status": "MATCHED",
   "members": ["UID_A", "UID_B"],
   "memberInfo": {
-    "UID_A": { "nickname": "주형", "role": "CREATOR" },
-    "UID_B": { "nickname": "유라", "role": "PARTNER" }
+    "UID_A": { "nickname": "사용자A", "role": "CREATOR" },
+    "UID_B": { "nickname": "사용자B", "role": "PARTNER" }
   },
   "currentTurn": "UID_A",
   "latestDiaryId": "DIARY_DOC_ID",
@@ -157,7 +157,7 @@
     "quizAnswer": null,
     "isCustom": false,
     "submission": {
-      "text": "오늘 하루도 정말 고생 많았어 주형아, 푹 자고 내일 보자!",
+      "text": "오늘 하루도 정말 고생 많았어, 푹 자고 내일 보자!",
       "mediaUrl": null,
       "submittedAt": "2026-09-27T22:15:00Z"
     },

@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 
 const CHROME_PATH = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const SCREENSHOTS_DIR = '/Users/yijoohyoung/.gemini/antigravity-ide/brain/a5db37b1-28ff-4ea3-a82f-5b3c26a9bea6/screenshots';
+const SCREENSHOTS_DIR = path.resolve('recordings');
 
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -29,14 +29,14 @@ async function main() {
     await page1.setViewport({ width: 450, height: 850 });
     await page2.setViewport({ width: 450, height: 850 });
 
-    console.log('\n--- Step 1: Creator (주형) creates a new room ---');
-    await page1.goto('http://localhost:3000/?user=joohyoung', { waitUntil: 'networkidle0' });
+    console.log('\n--- Step 1: Creator (방장) creates a new room ---');
+    await page1.goto('http://localhost:3000', { waitUntil: 'networkidle0' });
 
     // Type creator name
     const nameInputSelector = 'input[placeholder*="민우, 서연"]';
     await page1.waitForSelector(nameInputSelector);
     await page1.click(nameInputSelector, { clickCount: 3 });
-    await page1.type(nameInputSelector, '주형');
+    await page1.type(nameInputSelector, '민우');
 
     // Click "초대코드 발급받기"
     const generateBtn = await page1.waitForSelector('xpath///button[contains(., "초대코드 발급받기")]');
@@ -50,8 +50,8 @@ async function main() {
 
     await page1.screenshot({ path: path.join(SCREENSHOTS_DIR, '01_creator_waiting.png') });
 
-    console.log('\n--- Step 2: Partner (유라) enters invitation code and joins ---');
-    await page2.goto('http://localhost:3000/?user=yura', { waitUntil: 'networkidle0' });
+    console.log('\n--- Step 2: Partner enters invitation code and joins ---');
+    await page2.goto('http://localhost:3000', { waitUntil: 'networkidle0' });
 
     // Click "초대코드 입력하기" tab
     const joinTab = await page2.waitForSelector('xpath///button[contains(., "초대코드 입력하기")]');
@@ -61,7 +61,7 @@ async function main() {
     // Type partner name
     const partnerNameInput = await page2.waitForSelector(nameInputSelector);
     await partnerNameInput.click({ clickCount: 3 });
-    await partnerNameInput.type('유라');
+    await partnerNameInput.type('서연');
 
     // Type 6-digit room code
     const codeInput = await page2.waitForSelector('input[maxLength="6"]');
@@ -75,20 +75,20 @@ async function main() {
     await sleep(2000);
 
     console.log('\n--- Step 3: Verify initial desk view and modal suppression ---');
-    // Check if WriteDiaryModal is open in Page 2 (유라)
+    // Check if WriteDiaryModal is open in Page 2
     const writeModalOpenInPage2 = await page2.evaluate(() => {
       return Boolean(document.querySelector('textarea[placeholder*="오늘 어떤 일이 있었나요"]'));
     });
     console.log(`🔍 [Page 2 - 입장자] 일기 작성 모달 자동 오픈 여부: ${writeModalOpenInPage2 ? '❌ 자동 오픈됨 (버그)' : '✅ 자동 오픈 안 됨 (정상!)'}`);
 
-    // Check what desk shows in Page 2 (유라 - 파트너)
+    // Check what desk shows in Page 2 (파트너)
     const page2DeskTitle = await page2.evaluate(() => {
       const h2 = document.querySelector('h2');
       return h2 ? h2.textContent : '';
     });
     console.log(`🔍 [Page 2 - 입장자] 책상 타이틀: "${page2DeskTitle}"`);
 
-    // Check what desk shows in Page 1 (주형 - 방장)
+    // Check what desk shows in Page 1 (방장)
     const page1DeskTitle = await page1.evaluate(() => {
       const h2 = document.querySelector('h2');
       return h2 ? h2.textContent : '';
@@ -98,7 +98,7 @@ async function main() {
     await page1.screenshot({ path: path.join(SCREENSHOTS_DIR, '02_page1_creator_desk.png') });
     await page2.screenshot({ path: path.join(SCREENSHOTS_DIR, '02_page2_partner_desk.png') });
 
-    console.log('\n--- Step 4: Partner (유라) writes and sends the first diary ---');
+    console.log('\n--- Step 4: Partner writes and sends the first diary ---');
     // Page 2 clicks "첫 편지 쓰기"
     const startWriteBtn = await page2.waitForSelector('xpath///button[contains(., "첫 편지 쓰기")]');
     await startWriteBtn.click();
@@ -111,10 +111,10 @@ async function main() {
     // Enter title & content
     const titleInput = await page2.$('input[placeholder*="제목"]');
     if (titleInput) {
-      await titleInput.type('유라의 첫 교환일기');
+      await titleInput.type('첫 교환일기');
     }
     const contentTextarea = await page2.$('textarea');
-    await contentTextarea.type('주형아 안녕! 우리가 드디어 첫 교환일기를 시작했네. 오늘 하루도 고생 많았고 따뜻한 밤 보내자.');
+    await contentTextarea.type('안녕! 우리가 드디어 첫 교환일기를 시작했네. 오늘 하루도 고생 많았고 따뜻한 밤 보내자.');
 
     // Select "우표 맞추기" mission so that photo is not mandatory
     const stampMissionBtn = await page2.$('xpath///button[contains(., "우표 맞추기")]');
@@ -132,15 +132,15 @@ async function main() {
 
     await page2.screenshot({ path: path.join(SCREENSHOTS_DIR, '03_page2_waiting_reply.png') });
 
-    console.log('\n--- Step 5: Verify Creator (주형) receives the letter in real-time ---');
+    console.log('\n--- Step 5: Verify Creator receives the letter in real-time ---');
     await sleep(2000);
     const page1StateText = await page1.evaluate(() => document.body.innerText);
-    const hasReceivedLetter = page1StateText.includes('유라') && (page1StateText.includes('봉인') || page1StateText.includes('미션') || page1StateText.includes('편지'));
+    const hasReceivedLetter = page1StateText.includes('서연') && (page1StateText.includes('봉인') || page1StateText.includes('미션') || page1StateText.includes('편지'));
     console.log(`🔍 [Page 1 - 방장] 상대방 편지 도착 여부: ${hasReceivedLetter ? '✅ 편지 수신 확인!' : '❌ 수신 대기 중'}`);
 
     await page1.screenshot({ path: path.join(SCREENSHOTS_DIR, '04_page1_received_letter.png') });
 
-    console.log('\n--- Step 6: Creator (주형) disconnects from room ---');
+    console.log('\n--- Step 6: Creator disconnects from room ---');
     // Open menu
     const moreMenuBtn = await page1.waitForSelector('button[title="더보기 설정"]');
     await moreMenuBtn.click();
@@ -154,13 +154,13 @@ async function main() {
     await confirmLeaveBtn.click();
     await sleep(1500);
 
-    console.log('✅ Creator (주형) left the room.');
+    console.log('✅ Creator left the room.');
 
-    console.log('\n--- Step 7: Verify Partner (유라) receives disconnect alert & last leaver modal ---');
+    console.log('\n--- Step 7: Verify Partner receives disconnect alert & last leaver modal ---');
     await sleep(1500);
     const page2BodyText = await page2.evaluate(() => document.body.innerText);
     const receivedDisconnectNotice = page2BodyText.includes('떠났습니다') || page2BodyText.includes('해제했습니다');
-    console.log(`🔍 [Page 2 - 혼자 남은 유라] 퇴장 알림 모달 수신 여부: ${receivedDisconnectNotice ? '✅ 알림 모달 정상 표시!' : '❌ 알림 미표시'}`);
+    console.log(`🔍 [Page 2 - 혼자 남은 참여자] 퇴장 알림 모달 수신 여부: ${receivedDisconnectNotice ? '✅ 알림 모달 정상 표시!' : '❌ 알림 미표시'}`);
 
     await page2.screenshot({ path: path.join(SCREENSHOTS_DIR, '05_page2_partner_left_alert.png') });
 

@@ -112,9 +112,6 @@ export default function HomePage() {
       try {
         const saved = sessionStore.get(STORAGE_KEYS.USER_NAME);
         if (saved) return saved;
-        const param = new URLSearchParams(window.location.search).get('user');
-        if (param === 'yura') return '유라';
-        if (param === 'joohyoung') return '주형';
       } catch {}
     }
     return '나';
@@ -124,9 +121,6 @@ export default function HomePage() {
       try {
         const saved = sessionStore.get(STORAGE_KEYS.PARTNER_NAME);
         if (saved) return saved;
-        const param = new URLSearchParams(window.location.search).get('user');
-        if (param === 'yura') return '주형';
-        if (param === 'joohyoung') return '유라';
       } catch {}
     }
     return '상대방';
@@ -138,8 +132,6 @@ export default function HomePage() {
       try {
         const saved = sessionStore.get(STORAGE_KEYS.USER_ROLE) as 'CREATOR' | 'PARTNER';
         if (saved === 'CREATOR' || saved === 'PARTNER') return saved;
-        const param = new URLSearchParams(window.location.search).get('user');
-        if (param === 'yura') return 'PARTNER';
       } catch {}
     }
     return 'CREATOR';
