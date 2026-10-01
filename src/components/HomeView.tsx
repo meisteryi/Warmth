@@ -14,7 +14,6 @@ import {
   Check,
   RefreshCw,
   Feather,
-  Flame,
   Edit3,
   X,
   Mail,
@@ -27,14 +26,12 @@ import { DiaryData, RoomData } from '@/types/diary';
 import { 
   calculateDaysTogether, 
   DaysTogetherInfo, 
-  isDiaryWrittenInCurrentCycle, 
   getTimeUntilNextReset, 
   ResetCountdownInfo 
 } from '@/lib/dateUtils';
 import { updateAnniversaryDateInFirestore } from '@/lib/roomService';
 import { fetchDailyPrompt } from '@/lib/aiClient';
 import { soundEngine } from '@/lib/audio';
-import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
 
 interface HomeViewProps {
   partnerName: string;
@@ -87,9 +84,6 @@ export default function HomeView({
   // 이어진 날짜 계산 (기념일 설정값 -> 매칭일 -> 방 생성일 -> 오늘 순 우선순위)
   const effectiveStartDate = roomData?.anniversaryDate || roomData?.matchedAt || roomData?.createdAt || null;
   const daysInfo: DaysTogetherInfo = calculateDaysTogether(effectiveStartDate);
-
-  // 오늘 일기가 현재 주기(새벽 4시 이후)에 이미 작성되었는지 판별 (하루 1통 규칙)
-  const isTodayDiaryWritten = isDiaryWrittenInCurrentCycle(diary?.createdAt);
 
   // 추천 글감 로드
   useEffect(() => {

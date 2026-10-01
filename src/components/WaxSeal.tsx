@@ -63,6 +63,8 @@ export default function WaxSeal({
     }, 700);
   }, [color, onBroken]);
 
+  const handleTickRef = useRef<() => void>(() => {});
+
   // 프레스 진행 루프
   const handleTick = useCallback(() => {
     if (!pressStartTime.current) return;
@@ -78,9 +80,13 @@ export default function WaxSeal({
       if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
       triggerWaxCrack();
     } else {
-      animationFrameId.current = requestAnimationFrame(handleTick);
+      animationFrameId.current = requestAnimationFrame(() => handleTickRef.current());
     }
   }, [triggerWaxCrack]);
+
+  useEffect(() => {
+    handleTickRef.current = handleTick;
+  }, [handleTick]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if (disabled || isCracking) return;

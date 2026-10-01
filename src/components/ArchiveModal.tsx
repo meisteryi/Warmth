@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { DiaryData } from '@/types/diary';
 import { getRoomDiariesFromFirestore } from '@/lib/roomService';
 import { generateFallbackWarmth } from '@/lib/gemini';
-import { BookOpen, Calendar, Heart, Sparkles, X, RefreshCw, ChevronRight } from 'lucide-react';
+import { BookOpen, Calendar, Sparkles, X, RefreshCw, ChevronRight } from 'lucide-react';
 import { soundEngine } from '@/lib/audio';
 
 interface ArchiveModalProps {

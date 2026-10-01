@@ -17,7 +17,6 @@ import {
   HelpCircle, 
   Upload, 
   Camera, 
-  Check, 
   Loader2, 
   Trash2,
   Dices,

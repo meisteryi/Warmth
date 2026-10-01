@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { soundEngine } from '@/lib/audio';
 import confetti from 'canvas-confetti';
-import { Sparkles, RotateCcw, Stamp, Hand, Palette } from 'lucide-react';
+import { RotateCcw, Stamp, Hand, Palette } from 'lucide-react';
 
 interface StampJigsawPuzzleProps {
   onSolve: () => void;
