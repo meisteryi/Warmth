@@ -61,6 +61,23 @@ export interface WarmthScore {
   keywords: string[]; // e.g. ["#퇴근길", "#붕어빵", "#다정한위로"]
 }
 
+export interface WeatherStamp {
+  id: string;
+  name: string;
+  symbol: string;
+  color: string;
+}
+
+export const WEATHER_STAMPS: WeatherStamp[] = [
+  { id: 'sunny', name: '맑고 화창한 날', symbol: '☀️', color: '#A83232' },
+  { id: 'flutter', name: '두근두근 설렘', symbol: '🌸', color: '#B53350' },
+  { id: 'starry', name: '고요한 밤하늘', symbol: '🌙', color: '#2B3B60' },
+  { id: 'rainy', name: '촉촉한 빗소리', symbol: '🌧️', color: '#265476' },
+  { id: 'snowy', name: '포근한 하얀 눈', symbol: '❄️', color: '#3E6677' },
+  { id: 'cloudy', name: '나른한 뭉게구름', symbol: '⛅', color: '#5B626C' },
+  { id: 'tired', name: '수고한 지친 하루', symbol: '☕', color: '#684530' },
+];
+
 export interface DiaryData {
   diaryId: string;
   authorId: string;
@@ -76,6 +93,7 @@ export interface DiaryData {
   isWaxBroken: boolean;
   openedAt?: string | null;
   warmthScore?: WarmthScore | null;
+  stamp?: WeatherStamp | null;
 }
 
 export interface KnockData {

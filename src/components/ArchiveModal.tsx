@@ -1,11 +1,34 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { DiaryData } from '@/types/diary';
 import { getRoomDiariesFromFirestore } from '@/lib/roomService';
 import { generateFallbackWarmth } from '@/lib/gemini';
-import { BookOpen, Calendar, Sparkles, X, RefreshCw, ChevronRight } from 'lucide-react';
+import { 
+  BookOpen, 
+  Calendar, 
+  Sparkles, 
+  X, 
+  RefreshCw, 
+  ChevronRight, 
+  BarChart3, 
+  Printer, 
+  Flame, 
+  Heart, 
+  Feather,
+  Download
+} from 'lucide-react';
 import { soundEngine } from '@/lib/audio';
+import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
+
+interface WarmthStats {
+  totalDiaries: number;
+  avgTemp: number;
+  hottestDiary: DiaryData | null;
+  maxTemp: number;
+  topKeywords: [string, number][];
+  monthlyCounts: [string, number][];
+}
 
 interface ArchiveModalProps {
   isOpen: boolean;
@@ -26,6 +49,7 @@ export default function ArchiveModal({
 }: ArchiveModalProps) {
   const [diaries, setDiaries] = useState<DiaryData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'LIST' | 'REPORT' | 'BOOKLET'>('LIST');
 
   const fetchDiaries = async () => {
     if (!roomCode) return;
@@ -47,6 +71,67 @@ export default function ArchiveModal({
     }
   }, [isOpen, roomCode]);
 
+  // [5번 요구사항] 월간 및 누적 온기 통계 & 키워드 분석
+  const stats = useMemo<WarmthStats | null>(() => {
+    if (diaries.length === 0) return null;
+
+    let totalTemp = 0;
+    let validTempCount = 0;
+    let maxTemp = -999;
+    let hottestDiary: DiaryData | null = null;
+    const keywordCounts: { [kw: string]: number } = {};
+    const monthlyCounts: { [month: string]: number } = {};
+
+    diaries.forEach((d) => {
+      const warmth = (d.warmthScore && typeof d.warmthScore.temperature === 'number')
+        ? d.warmthScore
+        : generateFallbackWarmth(d.title, d.content);
+
+      if (warmth && typeof warmth.temperature === 'number') {
+        totalTemp += warmth.temperature;
+        validTempCount++;
+        if (warmth.temperature > maxTemp) {
+          maxTemp = warmth.temperature;
+          hottestDiary = d;
+        }
+        if (warmth.keywords) {
+          warmth.keywords.forEach((kw) => {
+            const clean = kw.trim();
+            if (clean) keywordCounts[clean] = (keywordCounts[clean] || 0) + 1;
+          });
+        }
+      }
+
+      if (d.createdAt) {
+        try {
+          const date = new Date(d.createdAt);
+          const mKey = `${date.getFullYear()}년 ${date.getMonth() + 1}월`;
+          monthlyCounts[mKey] = (monthlyCounts[mKey] || 0) + 1;
+        } catch { }
+      }
+    });
+
+    const avgTemp = validTempCount > 0 ? Number((totalTemp / validTempCount).toFixed(1)) : 36.5;
+    const topKeywords = Object.entries(keywordCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 12);
+
+    return {
+      totalDiaries: diaries.length,
+      avgTemp,
+      hottestDiary,
+      maxTemp: maxTemp > -999 ? maxTemp : avgTemp,
+      topKeywords,
+      monthlyCounts: Object.entries(monthlyCounts),
+    };
+  }, [diaries]);
+
+  // [2번 요구사항] 소책자 인쇄 / PDF 저장
+  const handlePrintBooklet = () => {
+    soundEngine.playMissionPassChime();
+    window.print();
+  };
+
   if (!isOpen) return null;
 
   const formatDate = (isoString?: string) => {
@@ -62,14 +147,14 @@ export default function ArchiveModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] bg-stone-900/60 backdrop-blur-sm animate-fade-in">
       <div 
-        className="w-full max-w-2xl max-h-[90dvh] flex flex-col bg-[#FAF7F2] rounded-3xl shadow-2xl border border-[#E8DFD3] overflow-hidden"
+        className="w-full max-w-2xl max-h-[92dvh] flex flex-col bg-[#FAF7F2] rounded-3xl shadow-2xl border border-[#E8DFD3] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 모달 상단 헤더 */}
-        <div className="px-5 sm:px-6 py-4 border-b border-[#E8DFD3] bg-[#F4EFEA] flex items-center justify-between shrink-0">
+        <div className="px-5 sm:px-6 py-4 border-b border-[#E8DFD3] bg-[#F4EFEA] flex items-center justify-between shrink-0 no-print">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-sm">
-              <BookOpen className="w-5 h-5" />
+              <WarmthHanjaIcon className="w-5 h-5 text-amber-100" />
             </div>
             <div>
               <h2 className="text-lg sm:text-xl font-serif-warm font-bold text-stone-900">
@@ -99,103 +184,400 @@ export default function ArchiveModal({
           </div>
         </div>
 
-        {/* 일기 목록 영역 */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3">
-          {isLoading ? (
-            <div className="py-16 text-center text-stone-500 font-serif-warm">
-              <RefreshCw className="w-6 h-6 animate-spin mx-auto text-[#6B1724] mb-2" />
-              <p className="text-sm">보관된 일기를 불러오는 중입니다...</p>
-            </div>
-          ) : diaries.length === 0 ? (
-            <div className="py-16 px-4 text-center">
-              <div className="w-16 h-16 rounded-full bg-amber-100/70 text-[#6B1724] flex items-center justify-center mx-auto mb-3 shadow-inner">
-                <BookOpen className="w-8 h-8 opacity-80" />
+        {/* 상단 탭 전환 네비게이션 */}
+        <div className="flex border-b border-[#E8DFD3] bg-[#FAF6EE] px-4 sm:px-6 gap-2 text-xs font-sans-ui no-print">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('LIST');
+              soundEngine.playTileSlideSound();
+            }}
+            className={`py-3 px-3 border-b-2 font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'LIST'
+                ? 'border-[#6B1724] text-[#6B1724]'
+                : 'border-transparent text-stone-500 hover:text-stone-800'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>일기 보관함 ({diaries.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('REPORT');
+              soundEngine.playTileSlideSound();
+            }}
+            className={`py-3 px-3 border-b-2 font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'REPORT'
+                ? 'border-[#6B1724] text-[#6B1724]'
+                : 'border-transparent text-stone-500 hover:text-stone-800'
+            }`}
+          >
+            <BarChart3 className="w-3.5 h-3.5 text-amber-800" />
+            <span>월간 온기 리포트</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('BOOKLET');
+              soundEngine.playTileSlideSound();
+            }}
+            className={`py-3 px-3 border-b-2 font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'BOOKLET'
+                ? 'border-[#6B1724] text-[#6B1724]'
+                : 'border-transparent text-stone-500 hover:text-stone-800'
+            }`}
+          >
+            <Printer className="w-3.5 h-3.5 text-stone-700" />
+            <span>소책자 PDF / 인쇄</span>
+          </button>
+        </div>
+
+        {/* 탭 1: 일기 목록 영역 */}
+        {activeTab === 'LIST' && (
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3">
+            {isLoading ? (
+              <div className="py-16 text-center text-stone-500 font-serif-warm">
+                <RefreshCw className="w-6 h-6 animate-spin mx-auto text-[#6B1724] mb-2" />
+                <p className="text-sm">보관된 일기를 불러오는 중입니다...</p>
               </div>
-              <h3 className="font-serif-warm font-bold text-stone-800 text-base mb-1">
-                아직 보관된 일기가 없습니다
-              </h3>
-              <p className="text-xs text-stone-500 max-w-sm mx-auto leading-relaxed">
-                서로 주고받은 일기가 이곳에 보관됩니다.
-              </p>
-            </div>
-          ) : (
-            diaries.map((item) => {
-              const isMine = item.authorName === currentUserName;
-              const formattedDate = formatDate(item.createdAt);
-              const itemWarmth = (item.warmthScore && typeof item.warmthScore.temperature === 'number')
-                ? item.warmthScore
-                : generateFallbackWarmth(item.title, item.content);
+            ) : diaries.length === 0 ? (
+              <div className="py-16 px-4 text-center">
+                <div className="w-16 h-16 rounded-full bg-amber-100/70 text-[#6B1724] flex items-center justify-center mx-auto mb-3 shadow-inner">
+                  <BookOpen className="w-8 h-8 opacity-80" />
+                </div>
+                <h3 className="font-serif-warm font-bold text-stone-800 text-base mb-1">
+                  아직 보관된 일기가 없습니다
+                </h3>
+                <p className="text-xs text-stone-500 max-w-sm mx-auto leading-relaxed">
+                  서로 주고받은 일기가 이곳에 소중히 보관됩니다.
+                </p>
+              </div>
+            ) : (
+              diaries.map((item) => {
+                const isMine = item.authorName === currentUserName;
+                const formattedDate = formatDate(item.createdAt);
+                const itemWarmth = (item.warmthScore && typeof item.warmthScore.temperature === 'number')
+                  ? item.warmthScore
+                  : generateFallbackWarmth(item.title, item.content);
 
-              return (
-                <div
-                  key={item.diaryId}
-                  onClick={() => {
-                    soundEngine.playPaperRustle();
-                    onSelectDiary(item);
-                  }}
-                  className="group relative p-4 rounded-2xl bg-white border border-[#E8DFD3] hover:border-[#6B1724]/40 hover:shadow-md transition-all cursor-pointer flex flex-col gap-2"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-stone-500 font-mono flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5 text-stone-400" />
-                        {formattedDate}
-                      </span>
-                      <span
-                        className={`text-[11px] px-2 py-0.5 rounded-full font-serif-warm font-bold border ${
-                          isMine
-                            ? 'bg-amber-100/80 text-amber-900 border-amber-200'
-                            : 'bg-rose-50 text-rose-900 border-rose-200'
-                        }`}
-                      >
-                        {item.authorName}의 기록
-                      </span>
-                      {itemWarmth && typeof itemWarmth.temperature === 'number' && (
-                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-bold inline-flex items-center gap-1 ${
-                          itemWarmth.temperature <= 0
-                            ? 'bg-sky-50 text-sky-900 border border-sky-200'
-                            : 'bg-amber-50 text-amber-900 border border-amber-200/60'
-                        }`}>
-                          <Sparkles className={`w-3 h-3 ${itemWarmth.temperature <= 0 ? 'text-sky-600' : 'text-amber-600'}`} />
-                          {itemWarmth.temperature > 0 ? `+${itemWarmth.temperature.toFixed(1)}` : itemWarmth.temperature.toFixed(1)}°C
+                return (
+                  <div
+                    key={item.diaryId}
+                    onClick={() => {
+                      soundEngine.playPaperRustle();
+                      onSelectDiary(item);
+                    }}
+                    className="group relative p-4 rounded-2xl bg-white border border-[#E8DFD3] hover:border-[#6B1724]/40 hover:shadow-md transition-all cursor-pointer flex flex-col gap-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs text-stone-500 font-mono flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5 text-stone-400" />
+                          {formattedDate}
                         </span>
-                      )}
+                        <span
+                          className={`text-[11px] px-2 py-0.5 rounded-full font-serif-warm font-bold border ${
+                            isMine
+                              ? 'bg-amber-100/80 text-amber-900 border-amber-200'
+                              : 'bg-rose-50 text-rose-900 border-rose-200'
+                          }`}
+                        >
+                          {item.authorName}의 기록
+                        </span>
+
+                        {/* [3번 요구사항] 저장된 날씨·기분 잉크 도장 표시 */}
+                        {item.stamp && (
+                          <span 
+                            className="text-[10px] px-2 py-0.5 rounded-full border border-dashed font-serif-warm inline-flex items-center gap-1"
+                            style={{
+                              borderColor: item.stamp.color || '#A83232',
+                              color: item.stamp.color || '#A83232',
+                              backgroundColor: `${item.stamp.color || '#A83232'}0D`,
+                            }}
+                          >
+                            <span>{item.stamp.symbol}</span>
+                            <span>{item.stamp.name}</span>
+                          </span>
+                        )}
+
+                        {itemWarmth && typeof itemWarmth.temperature === 'number' && (
+                          <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-bold inline-flex items-center gap-1 ${
+                            itemWarmth.temperature <= 0
+                              ? 'bg-sky-50 text-sky-900 border border-sky-200'
+                              : 'bg-amber-50 text-amber-900 border border-amber-200/60'
+                          }`}>
+                            <Sparkles className={`w-3 h-3 ${itemWarmth.temperature <= 0 ? 'text-sky-600' : 'text-amber-600'}`} />
+                            {itemWarmth.temperature > 0 ? `+${itemWarmth.temperature.toFixed(1)}` : itemWarmth.temperature.toFixed(1)}°C
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1 text-xs font-serif-warm text-[#6B1724] group-hover:translate-x-0.5 transition-transform shrink-0">
+                        <span>열람하기</span>
+                        <ChevronRight className="w-4 h-4" />
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-1 text-xs font-serif-warm text-[#6B1724] group-hover:translate-x-0.5 transition-transform">
-                      <span>열람하기</span>
-                      <ChevronRight className="w-4 h-4" />
+                    <h3 className="font-serif-warm font-bold text-stone-900 text-base leading-snug group-hover:text-[#6B1724] transition-colors">
+                      {item.title || '(제목 없음)'}
+                    </h3>
+
+                    <p className="text-xs text-stone-600 line-clamp-2 leading-relaxed font-serif-warm">
+                      {item.content}
+                    </p>
+
+                    {itemWarmth?.keywords && itemWarmth.keywords.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {itemWarmth.keywords.map((kw, i) => (
+                          <span
+                            key={i}
+                            className="text-[10px] px-1.5 py-0.5 rounded bg-stone-100 text-stone-600 font-serif-warm"
+                          >
+                            {kw}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {/* 탭 2: [5번 요구사항] 월간 온기 리포트 & 키워드 분석 영역 */}
+        {activeTab === 'REPORT' && (
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+            {!stats || stats.totalDiaries === 0 ? (
+              <div className="py-16 text-center text-stone-500 font-serif-warm">
+                <BarChart3 className="w-8 h-8 mx-auto text-stone-400 mb-2" />
+                <p className="text-sm font-semibold">아직 분석할 편지 데이터가 없습니다</p>
+                <p className="text-xs text-stone-400 mt-1">편지를 주고받으면 둘만의 감성 온도와 키워드가 분석됩니다.</p>
+              </div>
+            ) : (
+              <>
+                {/* 평균 온기 온도 대형 카드 */}
+                <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-[#FFFBF4] to-[#F5ECE0] border border-[#E8DFC8] shadow-sm relative overflow-hidden">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-sans-ui font-bold text-amber-900 tracking-wider">
+                      둘만의 평균 온기 지수
+                    </span>
+                    <span className="text-xs font-serif-warm text-stone-500">
+                      총 {stats.totalDiaries}편의 편지 분석
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-2 my-2">
+                    <span className="font-mono text-4xl sm:text-5xl font-bold text-[#6B1724]">
+                      +{stats.avgTemp.toFixed(1)}°C
+                    </span>
+                    <span className="text-xs sm:text-sm font-serif-warm text-stone-600">
+                      {stats.avgTemp >= 30
+                        ? '깊은 애정과 설렘이 가득한 뜨거운 온기'
+                        : stats.avgTemp >= 15
+                        ? '하루의 피로를 녹여주는 다정하고 포근한 온기'
+                        : '잔잔하고 담담하게 서로를 지켜주는 온기'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 가장 뜨거웠던 편지 하이라이트 */}
+                {stats.hottestDiary && (
+                  <div className="p-4 rounded-2xl bg-white border border-[#E8DFD3] shadow-xs">
+                    <div className="flex items-center gap-1.5 text-xs font-sans-ui font-bold text-[#6B1724] mb-1.5">
+                      <Flame className="w-4 h-4 text-[#6B1724]" />
+                      <span>우리 둘의 가장 뜨거웠던 순간</span>
                     </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <h4 className="font-serif-warm font-bold text-stone-900 text-sm sm:text-base">
+                        「{stats.hottestDiary.title}」
+                      </h4>
+                      <span className="font-mono font-bold text-sm text-[#6B1724] shrink-0">
+                        +{stats.maxTemp.toFixed(1)}°C
+                      </span>
+                    </div>
+                    <p className="text-xs text-stone-500 font-serif-warm mt-1">
+                      {formatDate(stats.hottestDiary.createdAt)} · 작성자 {stats.hottestDiary.authorName}
+                    </p>
+                  </div>
+                )}
+
+                {/* 다정한 키워드 구름 Top 12 */}
+                <div className="p-4 sm:p-5 rounded-2xl bg-white border border-[#E8DFD3] shadow-xs">
+                  <div className="flex items-center gap-1.5 text-xs font-sans-ui font-bold text-stone-800 mb-3">
+                    <Heart className="w-4 h-4 text-rose-600" />
+                    <span>우리가 편지에서 가장 많이 나눈 다정한 단어들</span>
                   </div>
 
-                  <h3 className="font-serif-warm font-bold text-stone-900 text-base leading-snug group-hover:text-[#6B1724] transition-colors">
-                    {item.title || '(제목 없음)'}
-                  </h3>
-
-                  <p className="text-xs text-stone-600 line-clamp-2 leading-relaxed font-serif-warm">
-                    {item.content}
-                  </p>
-
-                  {itemWarmth?.keywords && itemWarmth.keywords.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {itemWarmth.keywords.map((kw, i) => (
-                        <span
-                          key={i}
-                          className="text-[10px] px-1.5 py-0.5 rounded bg-stone-100 text-stone-600 font-serif-warm"
-                        >
-                          {kw}
-                        </span>
-                      ))}
+                  {stats.topKeywords.length === 0 ? (
+                    <p className="text-xs text-stone-400 font-serif-warm py-4 text-center">
+                      아직 추출된 감성 해시태그가 없습니다.
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2 items-center justify-center py-2">
+                      {stats.topKeywords.map(([kw, count], idx) => {
+                        const isTop = idx < 3;
+                        return (
+                          <span
+                            key={kw}
+                            className={`px-3 py-1.5 rounded-xl font-serif-warm transition-all ${
+                              isTop
+                                ? 'bg-[#6B1724] text-amber-50 font-bold text-sm shadow-xs'
+                                : 'bg-[#FAF4ED] text-stone-800 border border-[#E8DFD3] text-xs font-medium'
+                            }`}
+                          >
+                            {kw}
+                            <span className={`text-[10px] ml-1.5 ${isTop ? 'text-amber-200' : 'text-stone-400'}`}>
+                              {count}회
+                            </span>
+                          </span>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
-              );
-            })
-          )}
-        </div>
+
+                {/* 월별 작성 편수 요약 */}
+                {stats.monthlyCounts.length > 0 && (
+                  <div className="p-4 rounded-2xl bg-white border border-[#E8DFD3] shadow-xs">
+                    <div className="text-xs font-sans-ui font-bold text-stone-800 mb-2">
+                      월별 작성 기록
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {stats.monthlyCounts.map(([month, count]) => (
+                        <div key={month} className="p-2.5 rounded-xl bg-stone-50 border border-stone-200/70 text-center">
+                          <div className="text-xs text-stone-600 font-serif-warm">{month}</div>
+                          <div className="text-sm font-bold text-[#6B1724] font-mono mt-0.5">{count}편</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* 탭 3: [2번 요구사항] 소책자 PDF / 인쇄 미리보기 영역 */}
+        {activeTab === 'BOOKLET' && (
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+            <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-300 text-stone-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs no-print">
+              <div>
+                <h4 className="font-serif-warm font-bold text-sm sm:text-base text-stone-900 flex items-center gap-1.5">
+                  <Printer className="w-4 h-4 text-[#6B1724]" />
+                  <span>아날로그 교환일기 소책자 인쇄 / PDF 저장</span>
+                </h4>
+                <p className="text-xs text-stone-600 font-sans-ui mt-0.5">
+                  아래 &lsquo;PDF 다운로드 / 인쇄하기&rsquo;를 누르신 후 [PDF로 저장]을 선택하시면 영구 소장 책으로 저장됩니다.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handlePrintBooklet}
+                className="px-4 py-2.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] active:scale-95 text-amber-50 font-serif-warm font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+              >
+                <Download className="w-4 h-4" />
+                <span>PDF 다운로드 / 인쇄하기</span>
+              </button>
+            </div>
+
+            {/* 실제 인쇄 및 미리보기 소책자 컨테이너 */}
+            <div className="warmth-booklet-printable bg-white p-6 sm:p-10 rounded-2xl border border-[#E8DFC8] shadow-sm font-serif-warm text-stone-900 space-y-8">
+              {/* 1. 소책자 표지 */}
+              <div className="text-center py-12 border-b-2 border-[#6B1724] print-page-break">
+                <div className="w-16 h-16 mx-auto rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-md mb-4 border-2 border-amber-200">
+                  <WarmthHanjaIcon className="w-8 h-8 text-amber-100" />
+                </div>
+                <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-stone-900 mb-2">
+                  온기 (Warmth)
+                </h1>
+                <p className="text-sm text-stone-600 mb-6 font-medium">
+                  둘만의 비밀 교환일기
+                </p>
+                <div className="inline-block px-5 py-2 rounded-full border border-stone-300 text-xs text-stone-700 font-sans-ui">
+                  {currentUserName} & {partnerName} · 비밀 서재 #{roomCode}
+                </div>
+                <p className="text-[11px] text-stone-400 font-mono mt-4">
+                  총 {diaries.length}편의 이야기 수록 · 인쇄일자: {new Date().toLocaleDateString('ko-KR')}
+                </p>
+              </div>
+
+              {/* 2. 목차 */}
+              <div className="py-4 border-b border-stone-200 print-page-break">
+                <h2 className="text-lg font-bold text-stone-900 mb-4 pb-1 border-b border-stone-300">
+                  목차 (Contents)
+                </h2>
+                <div className="space-y-2 text-xs">
+                  {diaries.map((d, idx) => (
+                    <div key={d.diaryId} className="flex justify-between items-baseline gap-2 border-b border-dashed border-stone-200 pb-1">
+                      <span className="truncate">
+                        #{idx + 1}. {d.title || '(제목 없음)'} ({d.authorName})
+                      </span>
+                      <span className="font-mono text-stone-400 shrink-0">
+                        {formatDate(d.createdAt)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 3. 각 일기 본문 페이지들 (시간 순 정렬) */}
+              {diaries.map((diary, idx) => {
+                const diaryWarmth = (diary.warmthScore && typeof diary.warmthScore.temperature === 'number')
+                  ? diary.warmthScore
+                  : generateFallbackWarmth(diary.title, diary.content);
+
+                return (
+                  <div key={diary.diaryId} className="pt-4 pb-8 border-b border-stone-300 print-page-break space-y-4">
+                    <div className="flex items-center justify-between text-xs text-stone-500 pb-2 border-b border-stone-200">
+                      <span>#{idx + 1}편 · {formatDate(diary.createdAt)}</span>
+                      <div className="flex items-center gap-2">
+                        {diary.stamp && (
+                          <span className="px-2 py-0.5 rounded-full border border-stone-300 text-[10px]">
+                            {diary.stamp.symbol} {diary.stamp.name}
+                          </span>
+                        )}
+                        <span className="font-semibold text-stone-800">작성자: {diary.authorName}</span>
+                      </div>
+                    </div>
+
+                    <h3 className="text-xl font-bold text-stone-900">
+                      {diary.title || '(제목 없음)'}
+                    </h3>
+
+                    {diary.photos && diary.photos.length > 0 && (
+                      <div className="my-4 flex flex-wrap gap-3">
+                        {diary.photos.map((p, pIdx) => (
+                          <div key={pIdx} className="w-48 aspect-[4/3] bg-stone-100 border border-stone-300 rounded overflow-hidden">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={p} alt="일기 사진" className="w-full h-full object-cover" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="text-sm leading-relaxed text-stone-800 whitespace-pre-line my-4 font-serif-warm">
+                      {diary.content}
+                    </div>
+
+                    {diaryWarmth && (
+                      <div className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs text-stone-600 flex items-center justify-between">
+                        <span>온기의 온도: +{diaryWarmth.temperature.toFixed(1)}°C</span>
+                        <span className="italic">&ldquo;{diaryWarmth.comment}&rdquo;</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* 하단 닫기 바 (iOS 홈 제스처 바 여백 확보) */}
-        <div className="px-5 py-3 pb-[max(env(safe-area-inset-bottom,0px),0.75rem)] border-t border-[#E8DFD3] bg-[#FAF7F2] flex justify-end shrink-0">
+        <div className="px-5 py-3 pb-[max(env(safe-area-inset-bottom,0px),0.75rem)] border-t border-[#E8DFD3] bg-[#FAF7F2] flex justify-end shrink-0 no-print">
           <button
             onClick={onClose}
             className="px-5 py-2 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-serif-warm font-bold transition-all cursor-pointer"

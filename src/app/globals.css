@@ -158,3 +158,32 @@ body::-webkit-scrollbar {
     font-size: 16px !important;
   }
 }
+
+/* 📖 소책자 인쇄 및 PDF 저장 전용 스타일 */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .warmth-booklet-printable,
+  .warmth-booklet-printable * {
+    visibility: visible !important;
+  }
+  .warmth-booklet-printable {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    background: #FFF !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  .print-page-break {
+    page-break-after: always;
+    break-after: page;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

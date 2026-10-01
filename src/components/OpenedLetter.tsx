@@ -49,9 +49,25 @@ export default function OpenedLetter({
                 weekday: 'long',
               })}</span>
             </div>
-            <div className="flex items-center gap-1.5 text-stone-500 font-sans-ui text-xs">
-              <Feather className="w-3.5 h-3.5 text-stone-600" />
-              <span>작성자 <strong>{diary.authorName}</strong></span>
+            <div className="flex items-center gap-3">
+              {diary.stamp && (
+                <div 
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-dashed text-xs font-serif-warm select-none rotate-[-2deg] shadow-2xs"
+                  style={{
+                    borderColor: diary.stamp.color || '#A83232',
+                    color: diary.stamp.color || '#A83232',
+                    backgroundColor: `${diary.stamp.color || '#A83232'}10`,
+                  }}
+                  title={`오늘의 날씨·기분 도장: ${diary.stamp.name}`}
+                >
+                  <span className="text-xs">{diary.stamp.symbol}</span>
+                  <span className="font-semibold text-[10px] tracking-wide">{diary.stamp.name}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-1.5 text-stone-500 font-sans-ui text-xs">
+                <Feather className="w-3.5 h-3.5 text-stone-600" />
+                <span>작성자 <strong>{diary.authorName}</strong></span>
+              </div>
             </div>
           </div>
 

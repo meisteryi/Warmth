@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { WaxColor, WAX_COLORS, MissionData, DiaryData, WarmthScore } from '@/types/diary';
+import { WaxColor, WAX_COLORS, MissionData, DiaryData, WarmthScore, WEATHER_STAMPS, WeatherStamp } from '@/types/diary';
 import { soundEngine } from '@/lib/audio';
 import { compressImage, uploadPhotoIfPossible, CompressedImageResult } from '@/lib/imageUtils';
 import { fetchAiQuiz, fetchWarmthScore, fetchDailyPrompt } from '@/lib/aiClient';
@@ -20,7 +20,9 @@ import {
   Loader2, 
   Trash2,
   Dices,
-  BookOpen
+  BookOpen,
+  Save,
+  RotateCcw
 } from 'lucide-react';
 
 interface WriteDiaryModalProps {
@@ -60,6 +62,10 @@ export default function WriteDiaryModal({
   const [isCompressing, setIsCompressing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [photoError, setPhotoError] = useState('');
+  const [selectedStamp, setSelectedStamp] = useState<WeatherStamp>(WEATHER_STAMPS[0]);
+  const [hasDraftNotice, setHasDraftNotice] = useState(false);
+  const [lastSavedDraftTime, setLastSavedDraftTime] = useState<string | null>(null);
+  const draftKey = `warmth_diary_draft_${roomCode}`;
   const [dailyPrompt, setDailyPrompt] = useState<string>(() => {
     const clean = partnerName && partnerName.trim() && partnerName !== '상대방' && partnerName !== '파트너'
       ? `${partnerName.trim()}에게`
@@ -86,6 +92,85 @@ export default function WriteDiaryModal({
       });
     }
   }, [isOpen, partnerName, initialTitle]);
+
+  // [1번 요구사항] 모달이 열릴 때 작성 중이던 임시 저장본 확인
+  useEffect(() => {
+    if (isOpen) {
+      try {
+        const raw = localStorage.getItem(draftKey);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && (parsed.title || parsed.content)) {
+            setHasDraftNotice(true);
+            setLastSavedDraftTime(parsed.savedAt || null);
+          }
+        }
+      } catch {}
+    } else {
+      setHasDraftNotice(false);
+    }
+  }, [isOpen, draftKey]);
+
+  // [1번 요구사항] 편지 작성 중 실시간 자동 임시 저장 (디바운스 600ms)
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!title.trim() && !content.trim()) return;
+
+    const timer = setTimeout(() => {
+      try {
+        const draftData = {
+          title,
+          content,
+          selectedColor,
+          customColor,
+          selectedPhoto,
+          missionType,
+          customPrompt,
+          customQuizAnswer,
+          customQuizHint,
+          selectedStampId: selectedStamp.id,
+          savedAt: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+        };
+        localStorage.setItem(draftKey, JSON.stringify(draftData));
+        setLastSavedDraftTime(draftData.savedAt);
+      } catch {}
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [isOpen, title, content, selectedColor, customColor, selectedPhoto, missionType, customPrompt, customQuizAnswer, customQuizHint, selectedStamp, draftKey]);
+
+  // 임시 저장본 불러와 이어쓰기
+  const handleRestoreDraft = () => {
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed.title) setTitle(parsed.title);
+      if (parsed.content) setContent(parsed.content);
+      if (parsed.selectedColor) setSelectedColor(parsed.selectedColor);
+      if (parsed.customColor) setCustomColor(parsed.customColor);
+      if (parsed.selectedPhoto) setSelectedPhoto(parsed.selectedPhoto);
+      if (parsed.missionType) setMissionType(parsed.missionType);
+      if (parsed.customPrompt) setCustomPrompt(parsed.customPrompt);
+      if (parsed.customQuizAnswer) setCustomQuizAnswer(parsed.customQuizAnswer);
+      if (parsed.customQuizHint) setCustomQuizHint(parsed.customQuizHint);
+      if (parsed.selectedStampId) {
+        const found = WEATHER_STAMPS.find((s) => s.id === parsed.selectedStampId);
+        if (found) setSelectedStamp(found);
+      }
+      setHasDraftNotice(false);
+      soundEngine.playPaperRustle();
+    } catch {}
+  };
+
+  // 임시 저장본 폐기하고 새로 작성
+  const handleDiscardDraft = () => {
+    try {
+      localStorage.removeItem(draftKey);
+    } catch {}
+    setHasDraftNotice(false);
+    soundEngine.playTileSlideSound();
+  };
 
   // 다른 글감 뽑기 (Gemini AI 실시간 생성)
   const handleRefreshPrompt = async () => {
@@ -274,7 +359,13 @@ export default function WriteDiaryModal({
         createdAt: new Date().toISOString(),
         isWaxBroken: false,
         warmthScore,
+        stamp: selectedStamp,
       });
+
+      // 임시 저장본 삭제
+      try {
+        localStorage.removeItem(draftKey);
+      } catch {}
 
       // 입력 폼 초기화
       setTitle('');
@@ -356,7 +447,76 @@ export default function WriteDiaryModal({
               </p>
             </div>
 
+            {/* [1번 요구사항] 임시 저장본 복원 배너 */}
+            {hasDraftNotice && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-3 rounded-2xl bg-amber-50/95 border border-amber-300 text-stone-800 flex flex-wrap items-center justify-between gap-2 shadow-xs"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-base select-none">✍️</span>
+                  <div className="text-xs font-sans-ui">
+                    <strong className="text-[#6B1724]">작성 중이던 임시 저장 편지</strong>가 있습니다.
+                    {lastSavedDraftTime && <span className="text-stone-500 ml-1.5 font-normal">({lastSavedDraftTime})</span>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleRestoreDraft}
+                    className="px-2.5 py-1 rounded-lg bg-[#6B1724] text-amber-50 text-xs font-serif-warm font-bold hover:bg-[#831D2D] active:scale-95 transition-all shadow-2xs cursor-pointer flex items-center gap-1"
+                  >
+                    <span>이어서 쓰기</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDiscardDraft}
+                    className="px-2 py-1 rounded-lg text-stone-500 hover:text-stone-800 text-xs font-sans-ui hover:bg-stone-200/50 transition-all cursor-pointer"
+                  >
+                    새로 쓰기
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+              {/* [3번 요구사항] 오늘의 날씨 & 기분 빈티지 잉크 스탬프 선택 */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-stone-700 font-sans-ui flex items-center gap-1.5">
+                    <span>🏷️</span>
+                    <span>오늘의 날씨·기분 잉크 도장</span>
+                  </label>
+                  <span className="text-[11px] font-serif-warm text-stone-500">
+                    편지 귀퉁이에 빈티지 인장으로 찍힙니다
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-none">
+                  {WEATHER_STAMPS.map((st) => {
+                    const isSelected = selectedStamp.id === st.id;
+                    return (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedStamp(st);
+                          soundEngine.playPaperRustle();
+                        }}
+                        className={`shrink-0 px-2.5 py-1.5 rounded-xl border text-xs font-serif-warm flex items-center gap-1.5 transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#FAF4ED] border-[#6B1724] text-[#6B1724] font-bold shadow-xs scale-102 ring-1 ring-[#6B1724]/30'
+                            : 'bg-white border-stone-200 text-stone-600 hover:border-stone-400 hover:bg-stone-50'
+                        }`}
+                      >
+                        <span className="text-sm">{st.symbol}</span>
+                        <span>{st.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* 제목 입력 */}
               <div>
                 <label className="block text-xs font-sans-ui text-stone-600 mb-1">
@@ -675,12 +835,12 @@ export default function WriteDiaryModal({
                 )}
               </div>
 
-              {/* 발송 버튼 */}
-              <div className="pt-3">
+              {/* 발송 버튼 & 자동 임시 저장 상태 */}
+              <div className="pt-3 space-y-2">
                 <button
                   type="submit"
                   disabled={isSubmitting || isCompressing}
-                  className="w-full py-3.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] active:scale-[0.99] disabled:opacity-50 text-amber-50 font-serif-warm font-semibold text-sm shadow-lg transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] active:scale-[0.99] disabled:opacity-50 text-amber-50 font-serif-warm font-semibold text-sm shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {isSubmitting ? (
                     <>
@@ -694,6 +854,12 @@ export default function WriteDiaryModal({
                     </>
                   )}
                 </button>
+                {lastSavedDraftTime && (
+                  <div className="text-center text-[11px] text-stone-400 font-sans-ui flex items-center justify-center gap-1">
+                    <Save className="w-3 h-3 text-stone-400" />
+                    <span>작성 중인 내용이 {lastSavedDraftTime}에 안전하게 임시 저장되었습니다</span>
+                  </div>
+                )}
               </div>
             </form>
           </motion.div>
