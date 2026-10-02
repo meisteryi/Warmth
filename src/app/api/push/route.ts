@@ -14,8 +14,6 @@ const VAPID_SUBJECT =
 
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
-export const dynamic = 'force-dynamic';
-
 export async function POST(req: Request) {
   try {
     const { subscription, title, body, icon, url, tag } = await req.json();
