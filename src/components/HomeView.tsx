@@ -13,7 +13,6 @@ import {
   Copy,
   Check,
   RefreshCw,
-  Feather,
   Edit3,
   X,
   Mail,

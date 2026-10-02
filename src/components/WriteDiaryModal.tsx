@@ -22,7 +22,6 @@ import {
   Dices,
   BookOpen,
   Save,
-  RotateCcw
 } from 'lucide-react';
 
 interface WriteDiaryModalProps {

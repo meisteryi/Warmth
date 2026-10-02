@@ -15,7 +15,6 @@ import {
   Printer, 
   Flame, 
   Heart, 
-  Feather,
   Download
 } from 'lucide-react';
 import { soundEngine } from '@/lib/audio';
