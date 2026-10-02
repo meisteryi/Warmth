@@ -94,23 +94,39 @@ export default function WriteDiaryModal({
     }
   }, [isOpen, partnerName, initialTitle]);
 
-  // [1번 요구사항] 모달이 열릴 때 작성 중이던 임시 저장본 확인
+  // 모달이 열릴 때 작성 중이던 임시 저장본 및 비상 아웃박스 잔여 데이터 확인
   useEffect(() => {
     if (isOpen) {
       try {
-        const raw = localStorage.getItem(draftKey);
+        let raw = localStorage.getItem(draftKey);
+        if (!raw && roomCode) {
+          raw = localStorage.getItem(`warmth_last_outbox_${roomCode}`);
+        }
+        if (!raw) {
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i) || '';
+            if (k.startsWith('warmth_') && (k.includes('draft') || k.includes('outbox'))) {
+              const candidate = localStorage.getItem(k);
+              if (candidate && (candidate.includes('content') || candidate.includes('title'))) {
+                raw = candidate;
+                break;
+              }
+            }
+          }
+        }
+
         if (raw) {
           const parsed = JSON.parse(raw);
           if (parsed && (parsed.title || parsed.content)) {
             setHasDraftNotice(true);
-            setLastSavedDraftTime(parsed.savedAt || null);
+            setLastSavedDraftTime(parsed.savedAt || '이전 저장본');
           }
         }
       } catch {}
     } else {
       setHasDraftNotice(false);
     }
-  }, [isOpen, draftKey]);
+  }, [isOpen, draftKey, roomCode]);
 
   // [1번 요구사항] 편지 작성 중 실시간 자동 임시 저장 (디바운스 600ms)
   useEffect(() => {
@@ -141,10 +157,26 @@ export default function WriteDiaryModal({
     return () => clearTimeout(timer);
   }, [isOpen, title, content, selectedColor, customColor, selectedPhoto, missionType, customPrompt, customQuizAnswer, customQuizHint, selectedStamp, stampStyle, draftKey]);
 
-  // 임시 저장본 불러와 이어쓰기
+  // 임시 저장본 불러와 이어쓰기 (초안 및 아웃박스 복원)
   const handleRestoreDraft = () => {
     try {
-      const raw = localStorage.getItem(draftKey);
+      let raw = localStorage.getItem(draftKey);
+      if (!raw && roomCode) {
+        raw = localStorage.getItem(`warmth_last_outbox_${roomCode}`);
+      }
+      if (!raw) {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i) || '';
+          if (k.startsWith('warmth_') && (k.includes('draft') || k.includes('outbox'))) {
+            const candidate = localStorage.getItem(k);
+            if (candidate && (candidate.includes('content') || candidate.includes('title'))) {
+              raw = candidate;
+              break;
+            }
+          }
+        }
+      }
+
       if (!raw) return;
       const parsed = JSON.parse(raw);
       if (parsed.title) setTitle(parsed.title);
