@@ -17,6 +17,7 @@ import { isDiaryWrittenInCurrentCycle, getTimeUntilNextReset, ResetCountdownInfo
 import { soundEngine } from '@/lib/audio';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LogOut, BookOpen, Sparkles } from 'lucide-react';
+import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
 import { 
   saveDiaryToFirestore, 
   updateMissionInFirestore, 
@@ -175,6 +176,7 @@ export default function HomePage() {
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
   const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
 
   // 껐다 켤 때 방 재입장 안내 반투명 팝업 상태
   const [isReentryModalOpen, setIsReentryModalOpen] = useState(false);
@@ -302,6 +304,7 @@ export default function HomePage() {
 
   // 1. 앱 마운트 시 저장된 세션(방 코드 및 닉네임) 자동 복구 & 재접속 및 서비스 워커 등록
   useEffect(() => {
+    setIsMounted(true);
     if (typeof window === 'undefined') return;
     registerServiceWorker();
     try {
@@ -313,6 +316,7 @@ export default function HomePage() {
         setRoomCode(savedRoom);
         setUserName(savedUser);
         setPartnerName(savedPartner);
+        setUiState('VIEW_HOME'); // ★ 지연 없이 즉시 둘만의 서재 홈으로 세팅 (온보딩 깜빡임 원천 차단)
         syncPushSubscription(savedRoom);
 
         (async () => {
@@ -344,17 +348,6 @@ export default function HomePage() {
                 );
                 setIsLastPersonRemaining(partnerLeft);
               }
-              // 방 재입장 반투명 팝업창 띄우기
-              setReentryInfo({
-                roomCode: savedRoom,
-                userName: savedUser,
-                partnerName: savedPartner,
-              });
-              setIsReentryModalOpen(true);
-              soundEngine.playPaperRustle();
-              setTimeout(() => {
-                setIsReentryModalOpen(false);
-              }, 3200);
 
               if (loadedRoomData.latestDiaryId) {
                 const diaryRef = doc(db, 'rooms', savedRoom, 'diaries', loadedRoomData.latestDiaryId);
@@ -387,7 +380,7 @@ export default function HomePage() {
     } catch (e) {
       console.warn('Failed to load session:', e);
     }
-  }, []);
+  }, [syncPushSubscription]);
 
   // 실시간 Firestore 룸 및 일기 구독 (상대방의 노크 및 새 일기 실시간 감지 + E2EE 복호화 + 웹 푸시 알림)
   useEffect(() => {
@@ -842,6 +835,19 @@ export default function HomePage() {
       showToast(`🔔 ${partnerName} 님에게 은은한 노크를 전했습니다.`);
     }
   };
+
+  if (!isMounted) {
+    return (
+      <div className="min-h-screen min-h-dvh flex flex-col items-center justify-center bg-[#FDFBF7] text-[#2C2A29]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-sm">
+            <WarmthHanjaIcon className="w-5 h-5 text-amber-100" />
+          </div>
+          <span className="font-serif-warm text-stone-500 text-xs tracking-widest">온기 · Warmth</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen min-h-dvh flex flex-col bg-[#FDFBF7] text-[#2C2A29] selection:bg-[#6B1724]/20 selection:text-[#6B1724]">
