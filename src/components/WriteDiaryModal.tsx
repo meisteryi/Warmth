@@ -439,7 +439,7 @@ export default function WriteDiaryModal({
                     className="p-1.5 px-2 rounded-lg bg-white/90 hover:bg-white text-stone-600 hover:text-stone-900 border border-stone-200 transition-all active:scale-95 shadow-2xs cursor-pointer disabled:opacity-50 flex items-center gap-1 text-[11px] font-sans-ui"
                   >
                     <Dices className={`w-3.5 h-3.5 ${isRefreshingPrompt ? 'animate-spin text-[#6B1724]' : ''}`} />
-                    <span className="hidden xs:inline">다른 글감</span>
+                    <span className="hidden sm:inline">다른 글감</span>
                   </button>
                   <button
                     type="button"

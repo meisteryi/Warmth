@@ -1,10 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&family=Maru+Buri:wght@300;400;600;700&family=Noto+Serif+KR:wght@300;400;600;700&display=swap');
 @import "tailwindcss";
 
-@theme {
-  --breakpoint-xs: 480px;
-}
-
 :root {
   --bg-cream: #FDFBF7;
   --bg-linen: #F4EFEA;
