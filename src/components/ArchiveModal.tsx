@@ -58,7 +58,22 @@ export default function ArchiveModal({
     setIsLoading(true);
     try {
       const list = await getRoomDiariesFromFirestore(roomCode);
-      setDiaries(list);
+      // 상대방이 보낸 미개봉 비밀 편지는 React State/메모리 레벨에서도 완전히 마스킹 (F12/DevTools 스포일러 원천 차단)
+      const sanitized = list.map((item) => {
+        const isMine = item.authorName === currentUserName;
+        if (!isMine && !item.isWaxBroken) {
+          return {
+            ...item,
+            title: `${item.authorName} 님이 보낸 비밀 편지`,
+            content: '실링 왁스로 봉인되어 있습니다. 메인 화면에서 관문을 풀고 왁스를 녹여 소중한 온기를 확인해 보세요.',
+            photos: [],
+            warmthScore: undefined,
+            stamp: undefined,
+          };
+        }
+        return item;
+      });
+      setDiaries(sanitized);
     } catch (e) {
       console.warn('Failed to fetch archive:', e);
     } finally {
