@@ -237,8 +237,8 @@ export default function OpenedLetter({
           </button>
         )}
         {isAuthor ? (
-          <div className="w-full sm:w-auto px-6 py-3.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200 font-serif-warm text-sm font-medium flex items-center justify-center gap-2 select-none shadow-xs">
-            <span>⏳ {diary.recipientName} 님의 답장을 기다리는 중입니다</span>
+          <div className="w-full sm:w-auto px-6 py-3.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200 font-serif-warm text-sm font-medium flex items-center justify-center gap-2 select-none shadow-xs whitespace-nowrap">
+            <span className="truncate">⏳ {diary.recipientName} 님의 답장을 기다리는 중입니다</span>
           </div>
         ) : (
           <button

@@ -230,16 +230,16 @@ export default function HomeView({
         transition={{ duration: 0.5, delay: 0.1, ease: 'easeOut' }}
         className="rounded-3xl p-5 sm:p-6 bg-white border border-[#E8DFD3] shadow-md paper-texture space-y-4"
       >
-        <div className="flex items-center justify-between border-b border-[#E8DFD3]/70 pb-3">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-amber-100/70 border border-amber-200 flex items-center justify-center text-amber-900">
+        <div className="flex items-center justify-between border-b border-[#E8DFD3]/70 pb-3 gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <div className="w-8 h-8 rounded-xl bg-amber-100/70 border border-amber-200 flex items-center justify-center text-amber-900 shrink-0">
               <Mail className="w-4 h-4" />
             </div>
-            <div>
-              <h3 className="font-serif-warm font-bold text-stone-900 text-sm sm:text-base">
+            <div className="min-w-0 flex-1">
+              <h3 className="font-serif-warm font-bold text-stone-900 text-sm sm:text-base truncate">
                 오늘의 교환일기
               </h3>
-              <p className="text-[11px] text-stone-500 font-sans-ui">
+              <p className="text-[10px] sm:text-[11px] text-stone-500 font-sans-ui truncate">
                 {hasIncomingSealedLetter
                   ? `${partnerName} 님이 보낸 비밀 편지 도착`
                   : isMyLetterUnopenedByPartner
@@ -256,7 +256,7 @@ export default function HomeView({
           </div>
 
           <span
-            className={`text-xs px-2.5 py-1 rounded-full font-serif-warm font-bold border ${
+            className={`text-[11px] sm:text-xs px-2.5 py-1 rounded-full font-serif-warm font-bold border whitespace-nowrap shrink-0 text-center select-none ${
               hasIncomingSealedLetter
                 ? 'bg-rose-100/90 text-rose-950 border-rose-300 animate-pulse'
                 : isMyLetterUnopenedByPartner
