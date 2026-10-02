@@ -591,7 +591,7 @@ export default function HomeView({
       <AnimatePresence>
         {isDateModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-            <div className="w-full max-w-sm bg-[#FFFDF9] rounded-2xl p-6 paper-texture border border-[#E8DFC8] shadow-2xl space-y-4">
+            <div className="w-full max-w-sm bg-[#FFFDF9] rounded-2xl p-5 sm:p-6 paper-texture border border-[#E8DFC8] shadow-2xl space-y-4 overflow-hidden">
               <div className="flex items-center justify-between pb-2 border-b border-[#E8DFC8]">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-700">
@@ -613,12 +613,14 @@ export default function HomeView({
                 <p className="text-xs text-stone-600 font-serif-warm leading-relaxed">
                   교환일기를 시작한 날이나 연애를 시작한 기념일 날짜를 지정하세요. D-Day 일수와 기념일이 자동으로 계산됩니다.
                 </p>
-                <input
-                  type="date"
-                  value={customStartDate}
-                  onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white text-stone-800 text-sm font-sans-ui focus:outline-none focus:border-[#6B1724] shadow-2xs"
-                />
+                <div className="w-full min-w-0">
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="w-full max-w-full box-border px-3 sm:px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white text-stone-800 text-sm font-sans-ui focus:outline-none focus:border-[#6B1724] shadow-2xs block"
+                  />
+                </div>
               </div>
 
               <div className="flex gap-2 pt-2">

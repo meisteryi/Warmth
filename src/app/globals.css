@@ -119,8 +119,9 @@ body {
   box-shadow: 0 4px 12px rgba(44, 42, 41, 0.12), 0 0 0 1px #EADECE;
 }
 
-/* 모든 인터페이스에서 스크롤바 완전 숨김 (스크롤 터치/휠 기능은 100% 정상 작동) */
+/* 모든 인터페이스에서 box-sizing 통일 및 스크롤바 숨김 (스크롤 터치/휠 기능은 100% 정상 작동) */
 *, *::before, *::after {
+  box-sizing: border-box;
   -ms-overflow-style: none !important; /* IE and Edge */
   scrollbar-width: none !important; /* Firefox */
 }
@@ -132,6 +133,25 @@ body::-webkit-scrollbar {
   width: 0 !important;
   height: 0 !important;
   background: transparent !important;
+}
+
+/* date input 브라우저 호환성 및 카드 UI 오버플로우 원천 방지 */
+input[type="date"] {
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+}
+
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.65;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
 }
 
 /* iOS Safari 터치 최적화 유틸리티 */
@@ -153,6 +173,7 @@ body::-webkit-scrollbar {
 @media screen and (max-width: 640px) {
   input[type="text"],
   input[type="password"],
+  input[type="date"],
   textarea,
   select {
     font-size: 16px !important;
