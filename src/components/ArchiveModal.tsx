@@ -147,10 +147,118 @@ export default function ArchiveModal({
     };
   }, [diaries, currentUserName]);
 
-  // [2번 요구사항] 소책자 인쇄 / PDF 저장
-  const handlePrintBooklet = () => {
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfProgressText, setPdfProgressText] = useState('');
+
+  // [2번 요구사항] 소책자 인쇄 / PDF 저장 (모바일 PWA 및 웹 완벽 대응)
+  const handlePrintBooklet = async () => {
     soundEngine.playMissionPassChime();
-    window.print();
+
+    setIsGeneratingPdf(true);
+    setPdfProgressText('소책자 페이지 준비 중...');
+
+    try {
+      const element = document.getElementById('warmth-booklet-printable');
+      if (!element) {
+        if (typeof window !== 'undefined') window.print();
+        return;
+      }
+
+      setPdfProgressText('고화질 페이지 렌더링 중...');
+      const { default: html2canvas } = await import('html2canvas');
+      const { jsPDF } = await import('jspdf');
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        windowWidth: 800,
+      });
+
+      setPdfProgressText('A4 PDF 파일 생성 중...');
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+      heightLeft -= pdfHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+        heightLeft -= pdfHeight;
+      }
+
+      const fileName = `온기_교환일기_소책자_${roomCode}.pdf`;
+      const pdfBlob = pdf.output('blob');
+
+      // 1. 모바일 환경: Web Share API로 네이티브 파일 저장 및 프린트 시트 띄우기 (iOS 파일에 저장, 카카오톡, AirPrint)
+      if (
+        typeof navigator !== 'undefined' &&
+        navigator.share &&
+        navigator.canShare &&
+        navigator.canShare({
+          files: [new File([pdfBlob], fileName, { type: 'application/pdf' })],
+        })
+      ) {
+        try {
+          const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+          await navigator.share({
+            title: '온기 (Warmth) 소책자',
+            text: `${currentUserName} & ${partnerName} 둘만의 교환일기 소책자입니다.`,
+            files: [file],
+          });
+          return;
+        } catch (shareErr: unknown) {
+          if ((shareErr as Error)?.name === 'AbortError') {
+            return; // 사용자가 공유창을 직접 닫음
+          }
+          console.warn('Web Share failed, fallback to direct download:', shareErr);
+        }
+      }
+
+      // 2. 모바일/데스크톱 공통: 직접 다운로드 파일 링크 트리거
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+      // 3. 데스크톱 일반 브라우저에서는 인쇄 대화상자도 함께 제공
+      const isMobile = typeof window !== 'undefined' && (
+        window.innerWidth < 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+      );
+      const isStandalone = typeof window !== 'undefined' && (
+        window.matchMedia('(display-mode: standalone)').matches ||
+        (window.navigator as unknown as { standalone?: boolean }).standalone === true
+      );
+
+      if (!isMobile && !isStandalone && typeof window !== 'undefined') {
+        setTimeout(() => {
+          window.print();
+        }, 800);
+      }
+    } catch (err) {
+      console.warn('PDF generation failed, fallback to print:', err);
+      if (typeof window !== 'undefined') window.print();
+    } finally {
+      setIsGeneratingPdf(false);
+      setPdfProgressText('');
+    }
   };
 
   if (!isOpen) return null;
@@ -564,15 +672,30 @@ export default function ArchiveModal({
               <button
                 type="button"
                 onClick={handlePrintBooklet}
-                className="px-4 py-2.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] active:scale-95 text-amber-50 font-serif-warm font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                disabled={isGeneratingPdf}
+                className={`px-4 py-2.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] active:scale-95 text-amber-50 font-serif-warm font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 shrink-0 ${
+                  isGeneratingPdf ? 'opacity-80 cursor-wait' : 'cursor-pointer'
+                }`}
               >
-                <Download className="w-4 h-4" />
-                <span>PDF 다운로드 / 인쇄하기</span>
+                {isGeneratingPdf ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>{pdfProgressText || 'PDF 생성 중...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    <span>PDF 다운로드 / 인쇄하기</span>
+                  </>
+                )}
               </button>
             </div>
 
             {/* 실제 인쇄 및 미리보기 소책자 컨테이너 */}
-            <div className="warmth-booklet-printable bg-white p-6 sm:p-10 rounded-2xl border border-[#E8DFC8] shadow-sm font-serif-warm text-stone-900 space-y-8">
+            <div
+              id="warmth-booklet-printable"
+              className="warmth-booklet-printable bg-white p-6 sm:p-10 rounded-2xl border border-[#E8DFC8] shadow-sm font-serif-warm text-stone-900 space-y-8"
+            >
               {/* 1. 소책자 표지 */}
               <div className="text-center py-12 border-b-2 border-[#6B1724] print-page-break">
                 <div className="w-16 h-16 mx-auto rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-md mb-4 border-2 border-amber-200">
