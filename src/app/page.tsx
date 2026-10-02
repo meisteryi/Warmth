@@ -177,6 +177,7 @@ export default function HomePage() {
   const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
 
   // 껐다 켤 때 방 재입장 안내 반투명 팝업 상태
   const [isReentryModalOpen, setIsReentryModalOpen] = useState(false);
@@ -204,6 +205,15 @@ export default function HomePage() {
   const [isLastLeaverWarningOpen, setIsLastLeaverWarningOpen] = useState(false);
   const [hasCopiedLeaveCode, setHasCopiedLeaveCode] = useState(false);
   const isLeavingRef = useRef(false);
+
+  // 앱 진입 시 온기 브랜드 스플래시 화면 (0.8초 동안 우아하게 유지 후 부드러운 페이드아웃)
+  useEffect(() => {
+    setIsMounted(true);
+    const splashTimer = setTimeout(() => {
+      setShowSplash(false);
+    }, 850);
+    return () => clearTimeout(splashTimer);
+  }, []);
 
   // 매일 새벽 04:00 리셋 타이머 (1초 간격 갱신)
   const [countdown, setCountdown] = useState<ResetCountdownInfo>(() => getTimeUntilNextReset());
@@ -838,12 +848,28 @@ export default function HomePage() {
 
   if (!isMounted) {
     return (
-      <div className="min-h-screen min-h-dvh flex flex-col items-center justify-center bg-[#FDFBF7] text-[#2C2A29]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-sm">
-            <WarmthHanjaIcon className="w-5 h-5 text-amber-100" />
+      <div className="fixed inset-0 z-[100] min-h-screen min-h-dvh flex flex-col items-center justify-between bg-[#FDFBF7] text-[#2C2A29] pt-[max(env(safe-area-inset-top,0px),2.5rem)] pb-[max(env(safe-area-inset-bottom,0px),2.5rem)] px-6 select-none">
+        <div className="w-full h-8" />
+        <div className="flex flex-col items-center text-center space-y-4">
+          <div className="relative">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-2xl shadow-[#6B1724]/25 border border-amber-300/30">
+              <WarmthHanjaIcon className="w-10 h-10 sm:w-12 sm:h-12 text-amber-100" />
+            </div>
+            <div className="absolute -inset-1.5 rounded-full border border-amber-800/15 pointer-events-none" />
           </div>
-          <span className="font-serif-warm text-stone-500 text-xs tracking-widest">온기 · Warmth</span>
+          <div className="space-y-1.5 pt-1">
+            <h1 className="font-serif-warm font-bold text-3xl sm:text-4xl text-stone-900 tracking-wider">
+              온기
+            </h1>
+            <p className="font-serif-warm text-xs sm:text-sm text-stone-400 tracking-[0.3em] uppercase">
+              W A R M T H
+            </p>
+          </div>
+        </div>
+        <div className="text-center">
+          <p className="font-serif-warm text-xs text-stone-400/90 tracking-widest">
+            둘만의 다정한 아날로그 교환일기
+          </p>
         </div>
       </div>
     );
@@ -851,6 +877,51 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen min-h-dvh flex flex-col bg-[#FDFBF7] text-[#2C2A29] selection:bg-[#6B1724]/20 selection:text-[#6B1724]">
+      {/* 앱 시작 시 온기 감성 스플래시 화면 (0.85초 유지 후 0.35초 페이드아웃) */}
+      <AnimatePresence>
+        {showSplash && (
+          <motion.div
+            key="warmth-splash"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35, ease: 'easeInOut' }}
+            className="fixed inset-0 z-[100] flex flex-col items-center justify-between bg-[#FDFBF7] text-[#2C2A29] pt-[max(env(safe-area-inset-top,0px),2.5rem)] pb-[max(env(safe-area-inset-bottom,0px),2.5rem)] px-6 select-none pointer-events-auto"
+          >
+            <div className="w-full h-8" />
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 8 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+              className="flex flex-col items-center text-center space-y-4"
+            >
+              <div className="relative">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-2xl shadow-[#6B1724]/25 border border-amber-300/30">
+                  <WarmthHanjaIcon className="w-10 h-10 sm:w-12 sm:h-12 text-amber-100" />
+                </div>
+                <div className="absolute -inset-1.5 rounded-full border border-amber-800/15 pointer-events-none" />
+              </div>
+              <div className="space-y-1.5 pt-1">
+                <h1 className="font-serif-warm font-bold text-3xl sm:text-4xl text-stone-900 tracking-wider">
+                  온기
+                </h1>
+                <p className="font-serif-warm text-xs sm:text-sm text-stone-400 tracking-[0.3em] uppercase">
+                  W A R M T H
+                </p>
+              </div>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2, duration: 0.4 }}
+              className="text-center"
+            >
+              <p className="font-serif-warm text-xs text-stone-400/90 tracking-widest">
+                둘만의 다정한 아날로그 교환일기
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* 서재 상단 바 (정식 상용 헤더) */}
       <RoomHeader
         currentState={uiState}
