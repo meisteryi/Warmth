@@ -289,7 +289,7 @@ export default function ArchiveModal({
                         </span>
 
                         {/* [3번 요구사항] 저장된 날씨·기분 잉크 도장 표시 */}
-                        {item.stamp && (
+                        {item.stamp && item.stamp.style !== 'EMOJI_TITLE' && (
                           <span 
                             className="text-[10px] px-2 py-0.5 rounded-full border border-dashed font-serif-warm inline-flex items-center gap-1"
                             style={{
@@ -321,8 +321,13 @@ export default function ArchiveModal({
                       </div>
                     </div>
 
-                    <h3 className="font-serif-warm font-bold text-stone-900 text-base leading-snug group-hover:text-[#6B1724] transition-colors">
-                      {item.title || '(제목 없음)'}
+                    <h3 className="font-serif-warm font-bold text-stone-900 text-base leading-snug group-hover:text-[#6B1724] transition-colors flex items-center gap-1.5">
+                      {item.stamp && item.stamp.style === 'EMOJI_TITLE' && (
+                        <span className="text-xl -rotate-6 inline-block shrink-0" title={item.stamp.name}>
+                          {item.stamp.symbol}
+                        </span>
+                      )}
+                      <span>{item.title || '(제목 없음)'}</span>
                     </h3>
 
                     <p className="text-xs text-stone-600 line-clamp-2 leading-relaxed font-serif-warm">
@@ -535,7 +540,7 @@ export default function ArchiveModal({
                     <div className="flex items-center justify-between text-xs text-stone-500 pb-2 border-b border-stone-200">
                       <span>#{idx + 1}편 · {formatDate(diary.createdAt)}</span>
                       <div className="flex items-center gap-2">
-                        {diary.stamp && (
+                        {diary.stamp && diary.stamp.style !== 'EMOJI_TITLE' && (
                           <span className="px-2 py-0.5 rounded-full border border-stone-300 text-[10px]">
                             {diary.stamp.symbol} {diary.stamp.name}
                           </span>
@@ -544,8 +549,11 @@ export default function ArchiveModal({
                       </div>
                     </div>
 
-                    <h3 className="text-xl font-bold text-stone-900">
-                      {diary.title || '(제목 없음)'}
+                    <h3 className="text-xl font-bold text-stone-900 flex items-center gap-2">
+                      {diary.stamp && diary.stamp.style === 'EMOJI_TITLE' && (
+                        <span className="text-2xl">{diary.stamp.symbol}</span>
+                      )}
+                      <span>{diary.title || '(제목 없음)'}</span>
                     </h3>
 
                     {diary.photos && diary.photos.length > 0 && (

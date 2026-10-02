@@ -205,16 +205,18 @@ export default function HomePage() {
   }, [diary, userRole, userName]);
 
   const handleOpenWriteModal = (initialTitle?: string) => {
-    if (hasMyQuotaBeenUsedToday) {
-      showToast(`오늘의 일기는 이미 작성하셨습니다 (하루 각자 1통). 다음 편지는 내일 새벽 04:00(남은 시간: ${countdown.formattedKorean})에 열립니다.`);
-      return;
-    }
     if (!isMyTurn) {
       if (!diary) {
         showToast(`초대받은 ${partnerName} 님이 첫 번째 편지를 먼저 작성할 차례입니다.`);
+      } else if (diary.authorName === userName && !diary.isWaxBroken) {
+        showToast(`${partnerName} 님이 아직 편지를 읽지 않았습니다. 상대방이 편지를 읽고 답장을 보낸 후에 새 일기를 쓸 수 있습니다.`);
       } else {
-        showToast(`지금은 ${partnerName} 님의 작성 차례입니다. 답장을 기다려주세요.`);
+        showToast(`지금은 ${partnerName} 님의 답장 차례입니다. 답장이 도착하면 새 일기를 쓸 수 있습니다.`);
       }
+      return;
+    }
+    if (hasMyQuotaBeenUsedToday) {
+      showToast(`오늘의 일기는 이미 작성하셨습니다 (하루 각자 1통). 다음 편지는 내일 새벽 04:00(남은 시간: ${countdown.formattedKorean})에 열립니다.`);
       return;
     }
     setWriteModalInitialTitle(initialTitle);

@@ -50,7 +50,7 @@ export default function OpenedLetter({
               })}</span>
             </div>
             <div className="flex items-center gap-3">
-              {diary.stamp && (
+              {diary.stamp && diary.stamp.style !== 'EMOJI_TITLE' && (
                 <div 
                   className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-dashed text-xs font-serif-warm select-none rotate-[-2deg] shadow-2xs"
                   style={{
@@ -71,9 +71,22 @@ export default function OpenedLetter({
             </div>
           </div>
 
-          {/* 제목 */}
-          <div className="my-6">
-            <h1 className="font-serif-warm text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight leading-snug">
+          {/* 제목 및 스티커 */}
+          <div className="my-6 relative">
+            {diary.stamp && diary.stamp.style === 'EMOJI_TITLE' && (
+              <motion.div
+                initial={{ scale: 0, rotate: -20, opacity: 0 }}
+                animate={{ scale: 1, rotate: -10, opacity: 1 }}
+                transition={{ type: 'spring', damping: 14, stiffness: 200 }}
+                className="absolute -top-7 -left-3 sm:-top-8 sm:-left-4 text-4xl sm:text-5xl select-none pointer-events-none z-10 filter drop-shadow-md"
+                title={`오늘의 감정 스티커: ${diary.stamp.name}`}
+              >
+                <span>{diary.stamp.symbol}</span>
+              </motion.div>
+            )}
+            <h1 className={`font-serif-warm text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight leading-snug ${
+              diary.stamp?.style === 'EMOJI_TITLE' ? 'pt-2 sm:pt-1 pl-8 sm:pl-9' : ''
+            }`}>
               {diary.title}
             </h1>
           </div>

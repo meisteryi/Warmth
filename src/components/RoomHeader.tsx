@@ -102,22 +102,22 @@ export default function RoomHeader({
 
   return (
     <header className="w-full bg-[#FAF7F2]/95 backdrop-blur-md border-b border-[#E8DFD3] sticky top-0 z-40 px-3.5 sm:px-6 pt-[calc(env(safe-area-inset-top,0px)+0.65rem)] pb-2.5 sm:pb-3 shrink-0 shadow-2xs">
-      <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
+      <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
         {/* 좌측: 로고 및 다정한 커플 상태 (클릭 시 홈으로 이동) */}
         <div 
           onClick={onGoHome}
-          className={`flex items-center gap-2.5 sm:gap-3 ${onGoHome ? 'cursor-pointer group' : ''}`}
+          className={`flex items-center gap-2 sm:gap-2.5 shrink-0 ${onGoHome ? 'cursor-pointer group' : ''}`}
           title={onGoHome ? '홈 화면으로 이동' : undefined}
         >
-          <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-sm border border-amber-200/20 shrink-0 ${onGoHome ? 'group-hover:scale-105 transition-transform' : ''}`}>
-            <WarmthHanjaIcon className="w-5 h-5 sm:w-5.5 sm:h-5.5 text-amber-100" />
+          <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-sm border border-amber-200/20 shrink-0 ${onGoHome ? 'group-hover:scale-105 transition-transform' : ''}`}>
+            <WarmthHanjaIcon className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-amber-100" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-serif-warm font-bold text-stone-900 text-lg sm:text-xl leading-tight">
+          <div className="shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="font-serif-warm font-bold text-stone-900 text-lg sm:text-xl leading-none whitespace-nowrap shrink-0">
                 온기
               </span>
-              <span className="text-xs font-serif-warm text-stone-500 hidden xs:inline">· Warmth</span>
+              <span className="text-xs font-serif-warm text-stone-400 hidden sm:inline whitespace-nowrap">· Warmth</span>
               {isMatched && (
                 <button
                   type="button"
@@ -126,7 +126,7 @@ export default function RoomHeader({
                     handleCopyCode();
                   }}
                   title="초대코드 복사하기"
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100/90 hover:bg-amber-200/80 text-amber-950 text-xs font-mono font-bold border border-amber-300/60 transition-colors cursor-pointer active:scale-95"
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-100/90 hover:bg-amber-200/80 text-amber-950 text-[11px] sm:text-xs font-mono font-bold border border-amber-300/60 transition-colors cursor-pointer active:scale-95 shrink-0 whitespace-nowrap"
                 >
                   <span>#{roomCode}</span>
                   {copiedCode ? (
@@ -137,15 +137,15 @@ export default function RoomHeader({
                 </button>
               )}
             </div>
-            <div className="flex items-center gap-1.5 text-xs font-sans-ui leading-tight mt-0.5">
+            <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-sans-ui leading-tight mt-0.5 shrink-0">
               {isMatched ? (
-                <div className="inline-flex items-center gap-1.5 text-stone-700 font-medium">
-                  <span className="font-bold text-[#6B1724]">{userName}</span>
-                  <Heart className="w-3 h-3 text-rose-500 fill-rose-500 animate-pulse" />
-                  <span className="text-stone-600">{partnerName}</span>
+                <div className="inline-flex items-center gap-1 text-stone-700 font-medium whitespace-nowrap">
+                  <span className="font-bold text-[#6B1724] max-w-[55px] sm:max-w-[80px] truncate">{userName}</span>
+                  <Heart className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-rose-500 fill-rose-500 animate-pulse shrink-0" />
+                  <span className="text-stone-600 max-w-[55px] sm:max-w-[80px] truncate">{partnerName}</span>
                 </div>
               ) : (
-                <span className="text-amber-800 font-medium text-xs">일기장 연결 대기 중</span>
+                <span className="text-amber-800 font-medium text-[11px] sm:text-xs whitespace-nowrap">일기장 연결 대기 중</span>
               )}
             </div>
           </div>
@@ -153,20 +153,20 @@ export default function RoomHeader({
 
         {/* 우측: 정식 서비스 전용 액션 (홈, 둘만의 서재, 일기 쓰기, 더보기) */}
         {isMatched && (
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {/* 홈 바로가기 버튼 */}
             {onGoHome && (
               <button
                 onClick={onGoHome}
-                title="홈 화면 (이어진 날짜 및 온기 대시보드)"
-                className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border text-xs font-serif-warm font-bold shadow-2xs flex items-center gap-1.5 min-h-[36px] sm:min-h-[38px] active:scale-95 transition-all cursor-pointer ${
+                title="홈 화면"
+                className={`h-9 sm:h-10 px-2 sm:px-3 rounded-xl border text-xs font-serif-warm font-bold shadow-2xs flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap active:scale-95 transition-all cursor-pointer ${
                   currentState === 'VIEW_HOME'
                     ? 'bg-[#6B1724]/10 text-[#6B1724] border-[#6B1724]/30'
                     : 'border-stone-300/90 hover:border-[#6B1724]/40 bg-white hover:bg-stone-50 text-stone-800'
                 }`}
               >
-                <Home className="w-4 h-4 text-[#6B1724]" />
-                <span className="hidden xs:inline">홈</span>
+                <Home className="w-4 h-4 text-[#6B1724] shrink-0" />
+                <span className="hidden sm:inline">홈</span>
               </button>
             )}
 
@@ -174,39 +174,44 @@ export default function RoomHeader({
             <button
               onClick={onOpenArchive}
               title="둘만의 서재 (지난 일기 보관함)"
-              className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl border border-stone-300/90 hover:border-[#6B1724]/40 bg-white hover:bg-stone-50 text-stone-800 text-xs font-serif-warm font-bold shadow-2xs flex items-center gap-1.5 min-h-[36px] sm:min-h-[38px] active:scale-95 transition-all cursor-pointer"
+              className="h-9 sm:h-10 px-2 sm:px-3 rounded-xl border border-stone-300/90 hover:border-[#6B1724]/40 bg-white hover:bg-stone-50 text-stone-800 text-xs font-serif-warm font-bold shadow-2xs flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap active:scale-95 transition-all cursor-pointer"
             >
-              <BookOpen className="w-4 h-4 text-[#6B1724]" />
-              <span className="hidden xs:inline">둘만의 서재</span>
+              <BookOpen className="w-4 h-4 text-[#6B1724] shrink-0" />
+              <span className="hidden sm:inline">서재</span>
             </button>
 
-            {/* 일기 쓰기 버튼 (턴 상태 및 하루 1통 04시 리셋 동적 반영) */}
+            {/* 일기 쓰기 버튼 (상대방 답장 대기 상태 우선 판별 & 동일 높이 고정) */}
             <button
               onClick={onOpenWriteModal}
               title={
-                isTodayDiaryWritten
+                isMyTurn === false
+                  ? `${partnerName} 님의 작성 차례입니다 (답장을 기다려주세요)`
+                  : isTodayDiaryWritten
                   ? `오늘의 일기는 이미 작성되었습니다. 내일 새벽 04:00에 리셋됩니다 (남은 시간: ${countdownFormatted || ''})`
-                  : isMyTurn === false
-                  ? `${partnerName} 님의 작성 차례입니다`
                   : '새 일기 쓰기'
               }
-              className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs font-serif-warm font-bold shadow-xs flex items-center gap-1.5 min-h-[36px] sm:min-h-[38px] active:scale-95 transition-all cursor-pointer ${
-                isTodayDiaryWritten
-                  ? 'bg-amber-100/70 hover:bg-amber-200/70 text-amber-950 border border-amber-300/80'
-                  : isMyTurn === false
+              className={`h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-xs font-serif-warm font-bold shadow-xs flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap active:scale-95 transition-all cursor-pointer ${
+                isMyTurn === false
                   ? 'bg-stone-200/90 hover:bg-stone-300/80 text-stone-600 border border-stone-300'
+                  : isTodayDiaryWritten
+                  ? 'bg-amber-100/70 hover:bg-amber-200/70 text-amber-950 border border-amber-300/80'
                   : 'bg-[#6B1724] hover:bg-[#831D2D] text-amber-50'
               }`}
             >
-              {isTodayDiaryWritten ? (
+              {isMyTurn === false ? (
                 <>
-                  <Clock className="w-3.5 h-3.5 text-amber-800" />
-                  <span>04시 리셋</span>
+                  <PenLine className="w-3.5 h-3.5 text-stone-500 shrink-0" />
+                  <span className="whitespace-nowrap">답장 대기</span>
+                </>
+              ) : isTodayDiaryWritten ? (
+                <>
+                  <Clock className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                  <span className="whitespace-nowrap">04시 리셋</span>
                 </>
               ) : (
                 <>
-                  <PenLine className={`w-3.5 h-3.5 ${isMyTurn === false ? 'text-stone-500' : 'text-amber-200'}`} />
-                  <span>{isMyTurn === false ? '답장 대기 중' : '일기 쓰기'}</span>
+                  <PenLine className="w-3.5 h-3.5 text-amber-200 shrink-0" />
+                  <span className="whitespace-nowrap">일기 쓰기</span>
                 </>
               )}
             </button>
@@ -215,7 +220,7 @@ export default function RoomHeader({
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               title="더보기 설정"
-              className="p-2 rounded-xl border border-stone-300 text-stone-600 hover:bg-stone-100 text-sm min-h-[36px] min-w-[36px] sm:min-h-[38px] sm:min-w-[38px] flex items-center justify-center active:scale-95 cursor-pointer shadow-2xs transition-colors"
+              className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl border border-stone-300 text-stone-600 hover:bg-stone-100 text-sm flex items-center justify-center shrink-0 active:scale-95 cursor-pointer shadow-2xs transition-colors"
             >
               <MoreHorizontal className="w-4 h-4" />
             </button>

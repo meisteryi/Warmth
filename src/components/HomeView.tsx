@@ -21,6 +21,7 @@ import {
   Clock,
   ThermometerSun,
   ThermometerSnowflake,
+  CheckCheck,
 } from 'lucide-react';
 import { DiaryData, RoomData } from '@/types/diary';
 import { 
@@ -134,9 +135,20 @@ export default function HomeView({
   };
 
   // 편지 상태 분석
-  const hasSealedLetter = Boolean(diary && !diary.isWaxBroken && diary.authorName !== userName);
-  const isWaitingForReply = Boolean(diary && !diary.isWaxBroken && diary.authorName === userName);
-  const hasOpenedDiary = Boolean(diary && diary.isWaxBroken);
+  const isMine = Boolean(diary && diary.authorName === userName);
+  const isPartner = Boolean(diary && diary.authorName !== userName);
+  
+  // 1) 상대방이 보낸 편지인데 내가 아직 왁스를 안 깬 경우: 새 봉인 편지 도착!
+  const hasIncomingSealedLetter = Boolean(diary && isPartner && !diary.isWaxBroken);
+
+  // 2) 내가 보낸 편지인데 상대방이 아직 왁스를 안 깬 경우: 상대방 미개봉 상태!
+  const isMyLetterUnopenedByPartner = Boolean(diary && isMine && !diary.isWaxBroken);
+
+  // 3) 내가 보낸 편지인데 상대방이 이미 열어본 경우 (하지만 상대방이 아직 답장을 안 씀): 답장 대기 중!
+  const isMyLetterOpenedWaitingReply = Boolean(diary && isMine && diary.isWaxBroken);
+
+  // 4) 상대방이 보낸 편지를 내가 이미 열어본 상태: 내가 답장할 차례!
+  const isPartnerLetterOpenedByMe = Boolean(diary && isPartner && diary.isWaxBroken);
 
   return (
     <div className="w-full max-w-xl mx-auto px-4 py-6 sm:py-8 space-y-6">
@@ -229,7 +241,13 @@ export default function HomeView({
                 오늘의 교환일기
               </h3>
               <p className="text-[11px] text-stone-500 font-sans-ui">
-                {hasMyQuotaBeenUsedToday
+                {hasIncomingSealedLetter
+                  ? `${partnerName} 님이 보낸 비밀 편지 도착`
+                  : isMyLetterUnopenedByPartner
+                  ? `${partnerName} 님이 아직 편지를 읽지 않음 (미개봉)`
+                  : isMyLetterOpenedWaitingReply
+                  ? `${partnerName} 님이 편지를 읽음 (답장 대기 중)`
+                  : hasMyQuotaBeenUsedToday
                   ? `오늘 나의 온기 작성 완료 (새벽 04시 리셋)`
                   : isMyTurn
                   ? '내가 오늘 편지를 쓸 차례'
@@ -240,14 +258,26 @@ export default function HomeView({
 
           <span
             className={`text-xs px-2.5 py-1 rounded-full font-serif-warm font-bold border ${
-              hasMyQuotaBeenUsedToday
+              hasIncomingSealedLetter
+                ? 'bg-rose-100/90 text-rose-950 border-rose-300 animate-pulse'
+                : isMyLetterUnopenedByPartner
+                ? 'bg-amber-100/80 text-amber-950 border-amber-300'
+                : isMyLetterOpenedWaitingReply
+                ? 'bg-stone-100 text-stone-700 border-stone-300'
+                : hasMyQuotaBeenUsedToday
                 ? 'bg-amber-100/80 text-amber-950 border-amber-300'
                 : isMyTurn
                 ? 'bg-[#6B1724]/10 text-[#6B1724] border-[#6B1724]/30'
                 : 'bg-stone-100 text-stone-600 border-stone-200'
             }`}
           >
-            {hasMyQuotaBeenUsedToday
+            {hasIncomingSealedLetter
+              ? '새 편지 도착 📬'
+              : isMyLetterUnopenedByPartner
+              ? '상대방 미개봉 ✉️'
+              : isMyLetterOpenedWaitingReply
+              ? '상대방 답장 대기 ⏳'
+              : hasMyQuotaBeenUsedToday
               ? '오늘 작성 완료 🌙'
               : isMyTurn
               ? '내 턴 ✍️'
@@ -256,8 +286,8 @@ export default function HomeView({
         </div>
 
         {/* 상태별 콘텐츠 */}
-        {hasSealedLetter ? (
-          // A. 상대방이 보낸 미개봉 봉인 편지 도착
+        {hasIncomingSealedLetter ? (
+          // 1. 상대방이 보낸 미개봉 봉인 편지 도착
           <div className="p-4 rounded-2xl bg-gradient-to-r from-rose-50/80 via-amber-50/40 to-stone-50 border border-rose-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xs">
             <div className="flex items-center gap-3 text-center sm:text-left">
               <div className="w-12 h-12 rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-sm shrink-0">
@@ -283,37 +313,100 @@ export default function HomeView({
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
-        ) : isWaitingForReply ? (
-          // B. 내가 작성 후 상대방 답장 대기 중
-          <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xs">
-            <div className="flex items-center gap-3 text-center sm:text-left">
-              <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center shadow-2xs shrink-0">
-                <Feather className="w-5 h-5 text-amber-900" />
-              </div>
-              <div>
-                <p className="font-serif-warm font-bold text-stone-900 text-sm">
-                  {partnerName} 님에게 편지를 보냈어요
-                </p>
-                <p className="text-xs text-stone-600 font-serif-warm mt-0.5">
-                  오늘의 온기가 전달되었습니다. 상대방의 다음 답장은 내일 새벽 04:00 리셋 이후 작성됩니다.
-                </p>
+        ) : isMyLetterUnopenedByPartner ? (
+          // 2. 내가 마지막으로 편지를 보냈고, 상대방이 아직 안 읽은 상태 (미개봉)
+          <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-3 shadow-2xs">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-900 flex items-center justify-center shadow-2xs shrink-0 border border-amber-200">
+                  <Lock className="w-5 h-5 text-amber-800" />
+                </div>
+                <div>
+                  <p className="font-serif-warm font-bold text-stone-900 text-sm">
+                    {partnerName} 님이 아직 편지를 읽지 않았어요
+                  </p>
+                  <p className="text-xs text-stone-600 font-serif-warm mt-0.5">
+                    내가 보낸 편지가 안전하게 봉인되어 상대방의 확인을 기다리고 있습니다.
+                  </p>
+                </div>
               </div>
             </div>
-            <button
-              onClick={handleKnock}
-              disabled={knockCooldown}
-              className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-amber-300 bg-white hover:bg-amber-100/60 text-amber-950 text-xs font-serif-warm font-bold shadow-2xs cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-60"
-            >
-              <Bell className="w-3.5 h-3.5 text-amber-700" />
-              <span>{knockCooldown ? '노크 전송 완료 ✉️' : '풍경 소리 노크하기'}</span>
-            </button>
+
+            <div className="p-2.5 rounded-xl bg-white/80 border border-amber-200/60 text-[11px] font-serif-warm text-amber-950 flex items-center gap-1.5">
+              <span>💡</span>
+              <span>상대방이 편지를 확인하고 답장을 보내기 전까지는 새 일기를 작성할 수 없습니다.</span>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={() => {
+                  soundEngine.playPaperRustle();
+                  onOpenDiary();
+                }}
+                className="flex-1 py-2 rounded-xl bg-white hover:bg-stone-50 border border-stone-200 text-stone-700 text-xs font-serif-warm font-bold cursor-pointer transition-colors shadow-2xs"
+              >
+                내가 보낸 편지 확인하기
+              </button>
+              <button
+                onClick={handleKnock}
+                disabled={knockCooldown}
+                className="flex-1 py-2 rounded-xl border border-amber-300 bg-amber-100/70 hover:bg-amber-200/70 text-amber-950 text-xs font-serif-warm font-bold shadow-2xs cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-60"
+              >
+                <Bell className="w-3.5 h-3.5 text-amber-800" />
+                <span>{knockCooldown ? '노크 전송 완료 ✉️' : '풍경 소리 노크하기'}</span>
+              </button>
+            </div>
           </div>
-        ) : hasOpenedDiary && diary ? (
-          // C. 이미 편지를 열어본 상태 (최근 편지 요약)
+        ) : isMyLetterOpenedWaitingReply ? (
+          // 3. 내가 보낸 편지를 상대방이 읽었지만, 아직 답장을 작성하지 않은 상태 (답장 대기)
+          <div className="p-4 rounded-2xl bg-amber-50/40 border border-amber-200/70 space-y-3 shadow-2xs">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-100/80 text-emerald-800 flex items-center justify-center shadow-2xs shrink-0 border border-emerald-200">
+                  <CheckCheck className="w-5 h-5 text-emerald-700" />
+                </div>
+                <div>
+                  <p className="font-serif-warm font-bold text-stone-900 text-sm">
+                    {partnerName} 님이 내가 보낸 편지를 읽었어요!
+                  </p>
+                  <p className="text-xs text-stone-600 font-serif-warm mt-0.5">
+                    소중한 온기가 전해졌습니다. 이제 {partnerName} 님이 답장을 작성할 차례입니다.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-white/80 border border-stone-200/80 text-[11px] font-serif-warm text-stone-600 flex items-center gap-1.5">
+              <span>✉️</span>
+              <span>교환일기 특성상 상대방의 답장이 서재에 도착한 후에 새 일기를 쓸 수 있습니다.</span>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={() => {
+                  soundEngine.playPaperRustle();
+                  onOpenDiary();
+                }}
+                className="flex-1 py-2 rounded-xl bg-white hover:bg-stone-50 border border-stone-200 text-stone-700 text-xs font-serif-warm font-bold cursor-pointer transition-colors shadow-2xs"
+              >
+                내가 보낸 편지 다시 읽기
+              </button>
+              <button
+                onClick={handleKnock}
+                disabled={knockCooldown}
+                className="flex-1 py-2 rounded-xl border border-amber-300 bg-white hover:bg-amber-100/60 text-amber-950 text-xs font-serif-warm font-bold shadow-2xs cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-60"
+              >
+                <Bell className="w-3.5 h-3.5 text-amber-700" />
+                <span>{knockCooldown ? '노크 전송 완료 ✉️' : '풍경 소리 노크하기'}</span>
+              </button>
+            </div>
+          </div>
+        ) : isPartnerLetterOpenedByMe && diary ? (
+          // 4. 상대방이 보낸 편지를 내가 이미 열어본 상태 (최근 편지 요약 & 내가 답장할 차례)
           <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#E8DFC8] space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs text-stone-500 font-serif-warm">
-                가장 최근에 나눈 편지
+                {partnerName} 님이 보낸 최근 편지
               </span>
               {diary.warmthScore && typeof diary.warmthScore.temperature === 'number' && (
                 <span

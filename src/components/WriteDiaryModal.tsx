@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { WaxColor, WAX_COLORS, MissionData, DiaryData, WarmthScore, WEATHER_STAMPS, WeatherStamp } from '@/types/diary';
+import { WaxColor, WAX_COLORS, MissionData, DiaryData, WarmthScore, WEATHER_STAMPS, WeatherStamp, StampStyle } from '@/types/diary';
 import { soundEngine } from '@/lib/audio';
 import { compressImage, uploadPhotoIfPossible, CompressedImageResult } from '@/lib/imageUtils';
 import { fetchAiQuiz, fetchWarmthScore, fetchDailyPrompt } from '@/lib/aiClient';
@@ -63,6 +63,7 @@ export default function WriteDiaryModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [photoError, setPhotoError] = useState('');
   const [selectedStamp, setSelectedStamp] = useState<WeatherStamp>(WEATHER_STAMPS[0]);
+  const [stampStyle, setStampStyle] = useState<StampStyle>('BADGE');
   const [hasDraftNotice, setHasDraftNotice] = useState(false);
   const [lastSavedDraftTime, setLastSavedDraftTime] = useState<string | null>(null);
   const draftKey = `warmth_diary_draft_${roomCode}`;
@@ -129,6 +130,7 @@ export default function WriteDiaryModal({
           customQuizAnswer,
           customQuizHint,
           selectedStampId: selectedStamp.id,
+          stampStyle,
           savedAt: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
         };
         localStorage.setItem(draftKey, JSON.stringify(draftData));
@@ -137,7 +139,7 @@ export default function WriteDiaryModal({
     }, 600);
 
     return () => clearTimeout(timer);
-  }, [isOpen, title, content, selectedColor, customColor, selectedPhoto, missionType, customPrompt, customQuizAnswer, customQuizHint, selectedStamp, draftKey]);
+  }, [isOpen, title, content, selectedColor, customColor, selectedPhoto, missionType, customPrompt, customQuizAnswer, customQuizHint, selectedStamp, stampStyle, draftKey]);
 
   // 임시 저장본 불러와 이어쓰기
   const handleRestoreDraft = () => {
@@ -157,6 +159,9 @@ export default function WriteDiaryModal({
       if (parsed.selectedStampId) {
         const found = WEATHER_STAMPS.find((s) => s.id === parsed.selectedStampId);
         if (found) setSelectedStamp(found);
+      }
+      if (parsed.stampStyle) {
+        setStampStyle(parsed.stampStyle);
       }
       setHasDraftNotice(false);
       soundEngine.playPaperRustle();
@@ -359,7 +364,10 @@ export default function WriteDiaryModal({
         createdAt: new Date().toISOString(),
         isWaxBroken: false,
         warmthScore,
-        stamp: selectedStamp,
+        stamp: {
+          ...selectedStamp,
+          style: stampStyle,
+        },
       });
 
       // 임시 저장본 삭제
@@ -515,22 +523,79 @@ export default function WriteDiaryModal({
                     );
                   })}
                 </div>
+
+                {/* 스티커 표기 방식 선택 (인장 도장 vs 제목 위 대형 스티커) */}
+                <div className="mt-2.5 pt-2 border-t border-stone-200/70 flex items-center justify-between gap-2">
+                  <span className="text-xs font-sans-ui text-stone-600 font-medium">
+                    스티커 표기 위치
+                  </span>
+                  <div className="inline-flex rounded-lg bg-stone-100/90 p-0.5 border border-stone-200 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStampStyle('BADGE');
+                        soundEngine.playPaperRustle();
+                      }}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-sans-ui transition-all cursor-pointer ${
+                        stampStyle === 'BADGE'
+                          ? 'bg-white text-[#6B1724] font-bold shadow-2xs'
+                          : 'text-stone-600 hover:text-stone-900'
+                      }`}
+                    >
+                      🏷️ 날짜 옆 인장 도장
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStampStyle('EMOJI_TITLE');
+                        soundEngine.playPaperRustle();
+                      }}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-sans-ui transition-all cursor-pointer ${
+                        stampStyle === 'EMOJI_TITLE'
+                          ? 'bg-white text-[#6B1724] font-bold shadow-2xs'
+                          : 'text-stone-600 hover:text-stone-900'
+                      }`}
+                    >
+                      ✨ 제목 위 대형 스티커
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* 제목 입력 */}
               <div>
-                <label className="block text-xs font-sans-ui text-stone-600 mb-1">
-                  일기 제목
-                </label>
-                <input
-                  type="text"
-                  required
-                  maxLength={60}
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value.slice(0, 60))}
-                  placeholder="오늘의 제목을 적어주세요"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-base sm:text-sm text-stone-900"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-sans-ui text-stone-600">
+                    일기 제목
+                  </label>
+                  {stampStyle === 'EMOJI_TITLE' && (
+                    <span className="text-[11px] font-serif-warm text-[#6B1724] flex items-center gap-1">
+                      <span>{selectedStamp.symbol}</span>
+                      <span>스티커가 제목 왼쪽 위에 크게 표시됩니다</span>
+                    </span>
+                  )}
+                </div>
+                <div className="relative">
+                  {stampStyle === 'EMOJI_TITLE' && (
+                    <div 
+                      className="absolute -top-3.5 left-2 sm:-top-4 sm:left-2.5 z-10 text-2xl sm:text-3xl filter drop-shadow-sm pointer-events-none select-none -rotate-12 transition-transform duration-200"
+                      title="제목 위 스티커 미리보기"
+                    >
+                      {selectedStamp.symbol}
+                    </div>
+                  )}
+                  <input
+                    type="text"
+                    required
+                    maxLength={60}
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value.slice(0, 60))}
+                    placeholder="오늘의 제목을 적어주세요"
+                    className={`w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-base sm:text-sm text-stone-900 ${
+                      stampStyle === 'EMOJI_TITLE' ? 'pl-11 sm:pl-12' : ''
+                    }`}
+                  />
+                </div>
               </div>
 
               {/* 본문 입력 */}

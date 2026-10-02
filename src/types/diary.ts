@@ -61,11 +61,14 @@ export interface WarmthScore {
   keywords: string[]; // e.g. ["#퇴근길", "#붕어빵", "#다정한위로"]
 }
 
+export type StampStyle = 'BADGE' | 'EMOJI_TITLE';
+
 export interface WeatherStamp {
   id: string;
   name: string;
   symbol: string;
   color: string;
+  style?: StampStyle; // 'BADGE': 날짜 옆 빈티지 인장 도장, 'EMOJI_TITLE': 편지 제목 좌측 상단 대형 스티커
 }
 
 export const WEATHER_STAMPS: WeatherStamp[] = [
