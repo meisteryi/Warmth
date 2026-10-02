@@ -16,7 +16,7 @@ import { DiaryData, KnockData, UIState, WaxColor, RoomData } from '@/types/diary
 import { isDiaryWrittenInCurrentCycle, getTimeUntilNextReset, ResetCountdownInfo } from '@/lib/dateUtils';
 import { soundEngine } from '@/lib/audio';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LogOut, BookOpen, Sparkles } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
 import { 
   saveDiaryToFirestore, 
@@ -178,14 +178,6 @@ export default function HomePage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
-
-  // 껐다 켤 때 방 재입장 안내 반투명 팝업 상태
-  const [isReentryModalOpen, setIsReentryModalOpen] = useState(false);
-  const [reentryInfo, setReentryInfo] = useState<{
-    roomCode: string;
-    userName: string;
-    partnerName: string;
-  } | null>(null);
 
   // 실시간 노크 수신 상태
   const [receivedKnock, setReceivedKnock] = useState<KnockData | null>(null);
@@ -1293,88 +1285,6 @@ export default function HomePage() {
           </div>
         </div>
       )}
-
-      {/* 껐다 켤 때 방으로 재입장할 때 안내하는 반투명 팝업창 */}
-      <AnimatePresence>
-        {isReentryModalOpen && reentryInfo && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* 반투명 블러 백드롭 */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsReentryModalOpen(false)}
-              className="absolute inset-0 bg-stone-900/40 backdrop-blur-sm"
-            />
-
-            {/* 반투명 글래스모피즘 모달 카드 */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.92, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.92, y: 15 }}
-              transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-              className="relative z-10 w-full max-w-sm rounded-3xl p-6 sm:p-7 bg-[#FFFDF9]/90 backdrop-blur-md border border-[#E8DFD3]/90 shadow-2xl text-center space-y-4 paper-texture"
-            >
-              {/* 상단 엠블럼 아이콘 */}
-              <div className="relative mx-auto w-14 h-14 rounded-full bg-gradient-to-tr from-amber-100/90 to-rose-100/90 border border-amber-300/80 flex items-center justify-center shadow-inner">
-                <BookOpen className="w-6 h-6 text-[#6B1724]" />
-                <motion.div
-                  animate={{ scale: [1, 1.25, 1], opacity: [0.7, 1, 0.7] }}
-                  transition={{ repeat: Infinity, duration: 2 }}
-                  className="absolute -top-1 -right-1 text-amber-600"
-                >
-                  <Sparkles className="w-4 h-4 fill-amber-400 text-amber-500" />
-                </motion.div>
-              </div>
-
-              {/* 텍스트 안내 */}
-              <div className="space-y-1.5">
-                <span className="inline-block px-2.5 py-0.5 rounded-full bg-[#6B1724]/10 text-[#6B1724] text-[11px] font-sans-ui font-semibold">
-                  비밀 서재 자동 연결
-                </span>
-                <h3 className="font-serif-warm font-bold text-stone-900 text-xl tracking-tight">
-                  방으로 재입장합니다
-                </h3>
-                <p className="text-xs text-stone-600 font-serif-warm leading-relaxed">
-                  이전에 함께 나누던 따뜻한 일기장으로
-                  <br />
-                  안전하게 복귀했습니다.
-                </p>
-              </div>
-
-              {/* 방 정보 요약 카드 */}
-              <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/80 text-left space-y-1.5 shadow-2xs">
-                <div className="flex items-center justify-between text-xs font-serif-warm">
-                  <span className="text-stone-500">방 번호</span>
-                  <span className="font-mono font-bold text-[#6B1724] text-sm tracking-wider">
-                    #{reentryInfo.roomCode}
-                  </span>
-                </div>
-                <div className="pt-1.5 border-t border-amber-200/60 flex items-center justify-between text-[11px] font-serif-warm">
-                  <span className="text-stone-500">대화 상대</span>
-                  <span className="font-semibold text-stone-800">
-                    {reentryInfo.userName} & {reentryInfo.partnerName}
-                  </span>
-                </div>
-              </div>
-
-              {/* 확인 버튼 */}
-              <div className="pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsReentryModalOpen(false);
-                    soundEngine.playPaperRustle();
-                  }}
-                  className="w-full py-2.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-xs font-bold font-sans-ui shadow-xs cursor-pointer active:scale-95 transition-all"
-                >
-                  일기장 열기
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* 푸터 (iOS 홈 인디케이터 제스처 여백 확보) */}
       <footer className="py-2 sm:py-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.6rem)] text-center text-[10px] sm:text-[11px] text-stone-400 font-serif-warm border-t border-[#EAE1D5]/40 bg-[#FAF7F2]/50 px-3 shrink-0">
