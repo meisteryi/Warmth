@@ -24,7 +24,8 @@ import {
   sendKnockInFirestore,
   subscribeRoom,
   leaveRoomInFirestore,
-  getOrCreateUserId
+  getOrCreateUserId,
+  setExplicitUserId
 } from '@/lib/roomService';
 import { decryptDiaryData, decryptKnockData } from '@/lib/crypto';
 import { doc, getDoc } from 'firebase/firestore';
@@ -268,6 +269,8 @@ export default function HomePage() {
                   const role = (entry[1] as any).role as 'CREATOR' | 'PARTNER';
                   setUserRole(role);
                   sessionStore.set(STORAGE_KEYS.USER_ROLE, role);
+                  // Firestore 방에 등록된 본인 실제 UID로 확정 바인딩
+                  setExplicitUserId(entry[0]);
                 }
               }
               if (loadedRoomData.members) {
@@ -343,6 +346,7 @@ export default function HomePage() {
           setUserRole(role);
           try {
             sessionStore.set(STORAGE_KEYS.USER_ROLE, role);
+            setExplicitUserId(entry[0]);
           } catch {}
         }
       }
@@ -388,7 +392,7 @@ export default function HomePage() {
             const latestDiary = await decryptDiaryData(roomCode, rawDiary, room.roomSalt);
             setDiary(latestDiary);
 
-            // 상대방 편지가 도착했을 때 소리 및 푸시 알림
+            // 상대방 편지가 도착했을 때 소리, 푸시 알림 및 홈 화면으로 즉시 전환
             if (latestDiary.authorName !== userName) {
               soundEngine.playPaperRustle();
               showToast(`📬 ${latestDiary.authorName} 님에게서 새 일기가 도착했습니다!`);
@@ -396,6 +400,8 @@ export default function HomePage() {
                 '📬 새 일기가 도착했습니다!',
                 `${latestDiary.authorName} 님이 보낸 비밀 편지가 서재에 도착했습니다.`
               );
+              // 상대방 편지가 도착하면 대기 화면이나 책상 화면에서 즉시 홈 화면으로 전환
+              setUiState((prev) => (prev === 'VIEW_WAITING' || prev === 'VIEW_EMPTY' ? 'VIEW_HOME' : prev));
             }
           }
         } catch (err) {
@@ -598,18 +604,23 @@ export default function HomePage() {
       openedAt: null,
     };
     const nowIso = new Date().toISOString();
-    sessionStore.set(`warmth_last_written_${roomCode}_${userName}`, nowIso);
-    setDiary(updated);
-    setUiState('VIEW_WAITING');
-    showToast(`📮 일기가 왁스로 단단히 봉인되어 ${partnerName} 님에게 전달되었습니다!`);
 
     try {
+      // 1. Firestore에 먼저 안전하게 저장 및 턴 검증
       await saveDiaryToFirestore(roomCode, updated);
+
+      // 2. 저장이 성공했을 때만 로컬 상태 및 UI 턴 전환
+      sessionStore.set(`warmth_last_written_${roomCode}_${userName}`, nowIso);
+      setDiary(updated);
+      setUiState('VIEW_WAITING');
+      showToast(`📮 일기가 왁스로 단단히 봉인되어 ${partnerName} 님에게 전달되었습니다!`);
     } catch (e: unknown) {
       console.warn('Firestore save diary sync:', e);
-      const errMsg = e instanceof Error ? e.message : '';
+      const errMsg = e instanceof Error ? e.message : '알 수 없는 오류';
       if (errMsg.includes('턴') || errMsg.includes('전송')) {
-        showToast('⚠️ 상대방이 이미 새 일기를 등록했습니다.');
+        showToast('⚠️ 현재 상대방의 작성 턴이거나 이미 상대방의 새 일기가 도착하여 전송되지 않았습니다.');
+      } else {
+        showToast(`⚠️ 일기 전송에 실패했습니다: ${errMsg}`);
       }
     }
   };

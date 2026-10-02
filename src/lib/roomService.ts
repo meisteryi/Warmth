@@ -91,50 +91,59 @@ export function resetJoinRateLimit(): void {
   sessionStorage.removeItem(RATE_LIMIT_KEY_LOCKOUT);
 }
 
+// 사용자 고유 클라이언트 ID 명시적 동기화 (방에 등록된 본인 실제 UID 바인딩)
+export function setExplicitUserId(uid: string): void {
+  if (typeof window === 'undefined' || !uid) return;
+  try {
+    sessionStorage.setItem('warmth_active_uid', uid);
+    sessionStorage.setItem('warmth_user_uid', uid);
+    localStorage.setItem('warmth_user_uid', uid);
+  } catch {}
+}
+
 // 사용자 고유 클라이언트 ID 신규 발급 (동일 브라우저 탭 격리 및 신규 세션 생성용)
 export function createNewTabUserId(role: string = 'default'): string {
   if (typeof window === 'undefined') return 'user_ssr';
-  const storageKey = `warmth_user_uid_${role}`;
   const newUid = `user_${role}_` + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36);
   try {
-    sessionStorage.setItem(storageKey, newUid);
     sessionStorage.setItem('warmth_active_uid', newUid);
-    localStorage.setItem(storageKey, newUid);
+    sessionStorage.setItem('warmth_user_uid', newUid);
+    sessionStorage.setItem(`warmth_user_uid_${role}`, newUid);
+    localStorage.setItem('warmth_user_uid', newUid);
+    localStorage.setItem(`warmth_user_uid_${role}`, newUid);
   } catch {}
   return newUid;
 }
 
-// 사용자 고유 클라이언트 ID 생성/가져오기 (동일 브라우저 탭 격리를 위해 sessionStorage 우선)
+// 사용자 고유 클라이언트 ID 생성/가져오기 (통합 키 warmth_user_uid 우선)
 export function getOrCreateUserId(userRoleKey?: string): string {
   if (typeof window === 'undefined') return 'user_ssr';
-  let role = userRoleKey;
-  if (!role) {
-    try {
-      const param = new URLSearchParams(window.location.search).get('user');
-      role = param || 'default';
-    } catch {
-      role = 'default';
-    }
-  }
-  const storageKey = `warmth_user_uid_${role}`;
   let uid: string | null = null;
   try {
-    uid = sessionStorage.getItem('warmth_active_uid') || sessionStorage.getItem(storageKey);
+    uid = sessionStorage.getItem('warmth_active_uid') || sessionStorage.getItem('warmth_user_uid');
   } catch {}
 
   if (!uid) {
     try {
-      uid = localStorage.getItem(storageKey);
+      uid = localStorage.getItem('warmth_user_uid');
     } catch {}
 
+    // 레거시 롤 기반 키 마이그레이션 fallback
     if (!uid) {
-      uid = `user_${role}_` + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36);
       try {
-        localStorage.setItem(storageKey, uid);
+        uid = localStorage.getItem('warmth_user_uid_CREATOR') || 
+              localStorage.getItem('warmth_user_uid_PARTNER') || 
+              localStorage.getItem('warmth_user_uid_default');
       } catch {}
     }
+
+    if (!uid) {
+      const role = userRoleKey || 'user';
+      uid = `user_${role}_` + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36);
+    }
     try {
-      sessionStorage.setItem(storageKey, uid);
+      localStorage.setItem('warmth_user_uid', uid);
+      sessionStorage.setItem('warmth_user_uid', uid);
       sessionStorage.setItem('warmth_active_uid', uid);
     } catch {}
   }
@@ -370,20 +379,44 @@ export async function saveDiaryToFirestore(
     const roomSnap = await transaction.get(roomRef);
     if (roomSnap.exists()) {
       const roomData = roomSnap.data() as RoomData;
-      // 상대방의 턴이거나 이미 다른 최신 일기가 전송된 경우 덮어쓰기 방지
-      if (roomData.currentTurn && diary.authorId && roomData.currentTurn !== diary.authorId) {
-        if (roomData.members.length >= 2 && roomData.status === 'MATCHED') {
-          throw new Error('현재 상대방의 작성 턴이거나 이미 새 일기가 전송되었습니다.');
+
+      // 작성자의 UID를 memberInfo에서 닉네임으로 우선 정확히 매칭 (PWA/브라우저 세션 재접속 시 UID 불일치 방지)
+      let authorUid = diary.authorId;
+      if (roomData.memberInfo) {
+        const matchedMemberEntry = Object.entries(roomData.memberInfo).find(
+          ([_, info]: [string, any]) => info?.nickname && info.nickname.trim().toLowerCase() === (diary.authorName || '').trim().toLowerCase()
+        );
+        if (matchedMemberEntry) {
+          authorUid = matchedMemberEntry[0];
         }
       }
 
-      // 파트너 UID 결정 (턴 넘기기용)
-      const partnerUid = roomData.members.find((id) => id !== diary.authorId) || diary.recipientId || 'partner';
+      // 턴 일치 여부 검사: UID 또는 닉네임 일치 시 정상 턴으로 통과
+      let isAuthorTurn = false;
+      if (!roomData.currentTurn) {
+        isAuthorTurn = true;
+      } else if (roomData.currentTurn === authorUid || roomData.currentTurn === diary.authorId) {
+        isAuthorTurn = true;
+      } else if (roomData.memberInfo && roomData.memberInfo[roomData.currentTurn]) {
+        const turnOwnerNickname = (roomData.memberInfo[roomData.currentTurn]?.nickname || '').trim().toLowerCase();
+        if (turnOwnerNickname === (diary.authorName || '').trim().toLowerCase()) {
+          isAuthorTurn = true;
+        }
+      }
+
+      // 두 명 모두 입장해 있고, 명백하게 상대방의 턴인 경우만 차단
+      if (!isAuthorTurn && (roomData.members?.length || 0) >= 2 && roomData.status === 'MATCHED') {
+        throw new Error('현재 상대방의 작성 턴이거나 이미 새 일기가 전송되었습니다.');
+      }
+
+      // 파트너 UID 결정 (턴을 넘겨줄 상대방)
+      const partnerUid = (roomData.members || []).find((id: string) => id !== authorUid && id !== diary.authorId) || diary.recipientId || 'partner';
       const nowIso = new Date().toISOString();
       const existingLastWritten = roomData.lastWrittenByUser || {};
 
       transaction.set(diaryRef, {
         ...encryptedDiary,
+        authorId: authorUid,
         createdAt: nowIso,
       });
 
@@ -392,6 +425,7 @@ export async function saveDiaryToFirestore(
         currentTurn: partnerUid,
         lastWrittenByUser: {
           ...existingLastWritten,
+          ...(authorUid ? { [authorUid]: nowIso } : {}),
           ...(diary.authorId ? { [diary.authorId]: nowIso } : {}),
           ...(diary.authorName ? { [diary.authorName]: nowIso } : {}),
         },
