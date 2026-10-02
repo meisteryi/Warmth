@@ -108,8 +108,28 @@ const sessionStore = {
 };
 
 export default function HomePage() {
-  const [uiState, setUiState] = useState<UIState>('VIEW_ONBOARDING');
-  const [roomCode, setRoomCode] = useState('829104');
+  const [uiState, setUiState] = useState<UIState>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const savedRoom = sessionStore.get(STORAGE_KEYS.ROOM_CODE);
+        const savedUser = sessionStore.get(STORAGE_KEYS.USER_NAME);
+        const savedPartner = sessionStore.get(STORAGE_KEYS.PARTNER_NAME);
+        if (savedRoom && savedUser && savedPartner) {
+          return 'VIEW_HOME';
+        }
+      } catch {}
+    }
+    return 'VIEW_ONBOARDING';
+  });
+  const [roomCode, setRoomCode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = sessionStore.get(STORAGE_KEYS.ROOM_CODE);
+        if (saved) return saved;
+      } catch {}
+    }
+    return '';
+  });
   const [userName, setUserName] = useState(() => {
     if (typeof window !== 'undefined') {
       try {
