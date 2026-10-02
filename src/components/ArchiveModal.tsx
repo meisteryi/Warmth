@@ -15,7 +15,8 @@ import {
   Printer, 
   Flame, 
   Heart, 
-  Download
+  Download,
+  Lock
 } from 'lucide-react';
 import { soundEngine } from '@/lib/audio';
 import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
@@ -36,6 +37,7 @@ interface ArchiveModalProps {
   currentUserName: string;
   partnerName: string;
   onSelectDiary: (diary: DiaryData) => void;
+  onOpenSealedLetter?: () => void;
 }
 
 export default function ArchiveModal({
@@ -45,6 +47,7 @@ export default function ArchiveModal({
   currentUserName,
   partnerName,
   onSelectDiary,
+  onOpenSealedLetter,
 }: ArchiveModalProps) {
   const [diaries, setDiaries] = useState<DiaryData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -72,7 +75,11 @@ export default function ArchiveModal({
 
   // [5번 요구사항] 월간 및 누적 온기 통계 & 키워드 분석
   const stats = useMemo<WarmthStats | null>(() => {
-    if (diaries.length === 0) return null;
+    // 상대방이 보낸 미개봉 비밀 편지는 스포일러 방지를 위해 온기 통계에서 제외
+    const readableDiaries = diaries.filter(
+      (d) => d.isWaxBroken || d.authorName === currentUserName
+    );
+    if (readableDiaries.length === 0) return null;
 
     let totalTemp = 0;
     let validTempCount = 0;
@@ -81,7 +88,7 @@ export default function ArchiveModal({
     const keywordCounts: { [kw: string]: number } = {};
     const monthlyCounts: { [month: string]: number } = {};
 
-    diaries.forEach((d) => {
+    readableDiaries.forEach((d) => {
       const warmth = (d.warmthScore && typeof d.warmthScore.temperature === 'number')
         ? d.warmthScore
         : generateFallbackWarmth(d.title, d.content);
@@ -116,14 +123,14 @@ export default function ArchiveModal({
       .slice(0, 12);
 
     return {
-      totalDiaries: diaries.length,
+      totalDiaries: readableDiaries.length,
       avgTemp,
       hottestDiary,
       maxTemp: maxTemp > -999 ? maxTemp : avgTemp,
       topKeywords,
       monthlyCounts: Object.entries(monthlyCounts),
     };
-  }, [diaries]);
+  }, [diaries, currentUserName]);
 
   // [2번 요구사항] 소책자 인쇄 / PDF 저장
   const handlePrintBooklet = () => {
@@ -257,7 +264,62 @@ export default function ArchiveModal({
             ) : (
               diaries.map((item) => {
                 const isMine = item.authorName === currentUserName;
+                const isUnopenedByMe = !isMine && !item.isWaxBroken;
+                const isMyUnopenedLetter = isMine && !item.isWaxBroken;
                 const formattedDate = formatDate(item.createdAt);
+
+                // 상대방이 보낸 미개봉 비밀 편지인 경우 -> 잠금 카드 렌더링
+                if (isUnopenedByMe) {
+                  return (
+                    <div
+                      key={item.diaryId}
+                      onClick={() => {
+                        soundEngine.playPaperRustle();
+                        if (onOpenSealedLetter) {
+                          onOpenSealedLetter();
+                        } else {
+                          onClose();
+                        }
+                      }}
+                      className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-rose-50/70 via-amber-50/40 to-stone-50 border border-rose-200/90 hover:border-rose-300 hover:shadow-md transition-all cursor-pointer flex flex-col gap-2.5 shadow-2xs"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs text-stone-500 font-mono flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5 text-stone-400" />
+                            {formattedDate}
+                          </span>
+                          <span className="text-[11px] px-2.5 py-0.5 rounded-full font-serif-warm font-bold border bg-rose-100/90 text-rose-950 border-rose-300 animate-pulse flex items-center gap-1">
+                            <Lock className="w-3 h-3 text-rose-800" />
+                            <span>미개봉 비밀 편지</span>
+                          </span>
+                          <span className="text-[11px] px-2 py-0.5 rounded-full font-serif-warm font-bold border bg-rose-50 text-rose-900 border-rose-200">
+                            {item.authorName}의 온기
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1 text-xs font-serif-warm font-bold text-rose-900 group-hover:translate-x-0.5 transition-transform shrink-0">
+                          <span>메인에서 개봉하기</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </div>
+                      </div>
+
+                      <h3 className="font-serif-warm font-bold text-stone-900 text-base leading-snug flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-lg bg-[#6B1724] text-amber-100 flex items-center justify-center shrink-0 shadow-2xs">
+                          <Lock className="w-3.5 h-3.5 text-amber-200" />
+                        </div>
+                        <span>{item.authorName} 님이 보낸 비밀 편지</span>
+                      </h3>
+
+                      <p className="text-xs text-stone-600 leading-relaxed font-serif-warm bg-white/80 p-3 rounded-xl border border-rose-100/80 flex items-center gap-2">
+                        <span className="text-sm shrink-0">💌</span>
+                        <span>실링 왁스로 봉인되어 있습니다. 메인 화면에서 관문을 풀고 왁스를 녹여 소중한 온기를 확인해 보세요.</span>
+                      </p>
+                    </div>
+                  );
+                }
+
+                // 정상 열람 가능한 일기 (내가 쓴 일기 또는 이미 개봉된 일기)
                 const itemWarmth = (item.warmthScore && typeof item.warmthScore.temperature === 'number')
                   ? item.warmthScore
                   : generateFallbackWarmth(item.title, item.content);
@@ -286,6 +348,12 @@ export default function ArchiveModal({
                         >
                           {item.authorName}의 기록
                         </span>
+
+                        {isMyUnopenedLetter && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full font-serif-warm font-bold border bg-amber-50 text-amber-950 border-amber-200">
+                            상대방 미개봉 ✉️
+                          </span>
+                        )}
 
                         {/* [3번 요구사항] 저장된 날씨·기분 잉크 도장 표시 */}
                         {item.stamp && item.stamp.style !== 'EMOJI_TITLE' && (
@@ -515,21 +583,46 @@ export default function ArchiveModal({
                   목차 (Contents)
                 </h2>
                 <div className="space-y-2 text-xs">
-                  {diaries.map((d, idx) => (
-                    <div key={d.diaryId} className="flex justify-between items-baseline gap-2 border-b border-dashed border-stone-200 pb-1">
-                      <span className="truncate">
-                        #{idx + 1}. {d.title || '(제목 없음)'} ({d.authorName})
-                      </span>
-                      <span className="font-mono text-stone-400 shrink-0">
-                        {formatDate(d.createdAt)}
-                      </span>
-                    </div>
-                  ))}
+                  {diaries.map((d, idx) => {
+                    const isUnopenedByMe = d.authorName !== currentUserName && !d.isWaxBroken;
+                    return (
+                      <div key={d.diaryId} className="flex justify-between items-baseline gap-2 border-b border-dashed border-stone-200 pb-1">
+                        <span className="truncate">
+                          #{idx + 1}. {isUnopenedByMe ? `🔒 ${d.authorName} 님의 비밀 편지 (미개봉)` : `${d.title || '(제목 없음)'} (${d.authorName})`}
+                        </span>
+                        <span className="font-mono text-stone-400 shrink-0">
+                          {formatDate(d.createdAt)}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
               {/* 3. 각 일기 본문 페이지들 (시간 순 정렬) */}
               {diaries.map((diary, idx) => {
+                const isUnopenedByMe = diary.authorName !== currentUserName && !diary.isWaxBroken;
+
+                if (isUnopenedByMe) {
+                  return (
+                    <div key={diary.diaryId} className="pt-4 pb-8 border-b border-stone-300 print-page-break space-y-4">
+                      <div className="flex items-center justify-between text-xs text-stone-500 pb-2 border-b border-stone-200">
+                        <span>#{idx + 1}편 · {formatDate(diary.createdAt)}</span>
+                        <span className="font-semibold text-rose-900">작성자: {diary.authorName}</span>
+                      </div>
+                      <div className="p-8 rounded-xl bg-stone-50 border border-dashed border-stone-300 text-center space-y-2">
+                        <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-900 flex items-center justify-center mx-auto">
+                          <Lock className="w-5 h-5 text-rose-700" />
+                        </div>
+                        <h4 className="font-bold text-stone-900 text-base">미개봉 비밀 편지</h4>
+                        <p className="text-xs text-stone-600">
+                          수신자가 메인 화면에서 실링 왁스를 개봉한 후에 내용을 확인하실 수 있습니다.
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+
                 const diaryWarmth = (diary.warmthScore && typeof diary.warmthScore.temperature === 'number')
                   ? diary.warmthScore
                   : generateFallbackWarmth(diary.title, diary.content);

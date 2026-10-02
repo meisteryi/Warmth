@@ -1110,6 +1110,11 @@ export default function HomePage() {
           setIsArchiveOpen(false);
           showToast(`📖 ${selectedDiary.authorName} 님의 '${selectedDiary.title}' 일기를 서재에서 펼쳤습니다.`);
         }}
+        onOpenSealedLetter={() => {
+          setIsArchiveOpen(false);
+          if (!diary) return;
+          setUiState(diary.mission?.isPassed ? 'VIEW_WAX_READY' : 'VIEW_SEALED_LETTER');
+        }}
       />
 
       {/* 일기장 연결 해제 확인 인앱 모달 */}
