@@ -10,8 +10,6 @@ import {
   BookOpen,
   Bell,
   ChevronRight,
-  Copy,
-  Check,
   RefreshCw,
   Edit3,
   X,
@@ -63,7 +61,6 @@ export default function HomeView({
   onOpenSealedLetter,
   onOpenDiary,
 }: HomeViewProps) {
-  const [copied, setCopied] = useState(false);
   const [knockCooldown, setKnockCooldown] = useState(false);
   const [dailyPrompt, setDailyPrompt] = useState<string>('오늘 하루 중 너에게 가장 먼저 말해주고 싶었던 사소한 순간은?');
   const [isRefreshingPrompt, setIsRefreshingPrompt] = useState(false);
@@ -91,13 +88,6 @@ export default function HomeView({
       if (prompt) setDailyPrompt(prompt);
     });
   }, [partnerName]);
-
-  const handleCopyCode = () => {
-    soundEngine.playTileSlideSound();
-    navigator.clipboard.writeText(roomCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   const handleKnock = () => {
     if (knockCooldown) return;
@@ -172,15 +162,6 @@ export default function HomeView({
             <span className="font-serif-warm font-bold text-stone-900 text-xs sm:text-sm">
               {partnerName}
             </span>
-            <span className="text-stone-300">·</span>
-            <button
-              onClick={handleCopyCode}
-              className="text-[11px] font-mono text-stone-500 hover:text-amber-900 flex items-center gap-1 cursor-pointer transition-colors"
-              title="초대코드 복사"
-            >
-              <span>#{roomCode}</span>
-              {copied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3 text-stone-400" />}
-            </button>
           </div>
 
           {/* D-Day 대형 타이틀 */}
