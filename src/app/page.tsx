@@ -865,6 +865,8 @@ export default function HomePage() {
               diary={diary}
               onWriteReply={handleOpenWriteModal}
               onResetView={() => setUiState('VIEW_HOME')}
+              userName={userName}
+              isMyTurn={isMyTurn}
             />
           ) : (
             <EmptyDeskView

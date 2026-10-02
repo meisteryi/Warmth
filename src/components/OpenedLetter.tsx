@@ -10,13 +10,18 @@ interface OpenedLetterProps {
   diary: DiaryData;
   onWriteReply: () => void;
   onResetView?: () => void;
+  userName?: string;
+  isMyTurn?: boolean;
 }
 
 export default function OpenedLetter({
   diary,
   onWriteReply,
   onResetView,
+  userName,
+  isMyTurn,
 }: OpenedLetterProps) {
+  const isAuthor = Boolean(userName && diary.authorName === userName);
   const warmth = (diary.warmthScore && typeof diary.warmthScore.temperature === 'number')
     ? diary.warmthScore
     : generateFallbackWarmth(diary.title, diary.content);
@@ -231,13 +236,19 @@ export default function OpenedLetter({
             <span>← 홈 화면으로</span>
           </button>
         )}
-        <button
-          onClick={onWriteReply}
-          className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-[#6B1724] hover:bg-[#831D2D] active:scale-95 text-amber-50 font-serif-warm text-base font-semibold shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <PenLine className="w-5 h-5 text-amber-200" />
-          <span>답장 쓰기 (내 턴 시작하기)</span>
-        </button>
+        {isAuthor ? (
+          <div className="w-full sm:w-auto px-6 py-3.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200 font-serif-warm text-sm font-medium flex items-center justify-center gap-2 select-none shadow-xs">
+            <span>⏳ {diary.recipientName} 님의 답장을 기다리는 중입니다</span>
+          </div>
+        ) : (
+          <button
+            onClick={onWriteReply}
+            className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-[#6B1724] hover:bg-[#831D2D] active:scale-95 text-amber-50 font-serif-warm text-base font-semibold shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <PenLine className="w-5 h-5 text-amber-200" />
+            <span>답장 쓰기</span>
+          </button>
+        )}
       </div>
     </motion.div>
   );
