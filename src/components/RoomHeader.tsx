@@ -54,6 +54,7 @@ export default function RoomHeader({
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
   const [volume, setVolume] = useState<number>(0.8);
   const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const status = getNotificationStatus();
@@ -61,18 +62,34 @@ export default function RoomHeader({
     setVolume(soundEngine.getVolume());
   }, []);
 
-  // 외부 클릭 시 메뉴 닫기
+  // 외부 클릭 또는 ESC 키 누름 시 메뉴 닫기 (토글 버튼 클릭 시에는 버튼 onClick에서 안전하게 토글되도록 제외)
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
+      const target = event.target as Node;
+      if (
+        (menuRef.current && menuRef.current.contains(target)) ||
+        (buttonRef.current && buttonRef.current.contains(target))
+      ) {
+        return;
+      }
+      setIsMenuOpen(false);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
         setIsMenuOpen(false);
       }
     }
+
     if (isMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isMenuOpen]);
 
@@ -223,9 +240,17 @@ export default function RoomHeader({
 
             {/* 더보기 메뉴 버튼 */}
             <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              ref={buttonRef}
+              type="button"
+              onClick={() => setIsMenuOpen((prev) => !prev)}
               title="더보기 설정"
-              className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl border border-stone-300 text-stone-600 hover:bg-stone-100 text-sm flex items-center justify-center shrink-0 active:scale-95 cursor-pointer shadow-2xs transition-colors"
+              aria-label="더보기 설정"
+              aria-expanded={isMenuOpen}
+              className={`h-9 w-9 sm:h-10 sm:w-10 rounded-xl border text-sm flex items-center justify-center shrink-0 active:scale-95 cursor-pointer shadow-2xs transition-colors ${
+                isMenuOpen
+                  ? 'bg-stone-200/90 border-stone-400 text-stone-900'
+                  : 'border-stone-300 text-stone-600 hover:bg-stone-100'
+              }`}
             >
               <MoreHorizontal className="w-4 h-4" />
             </button>
