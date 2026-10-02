@@ -572,7 +572,7 @@ export default function HomeView({
       <AnimatePresence>
         {isDateModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-            <div className="w-full max-w-sm bg-[#FFFDF9] rounded-2xl p-5 sm:p-6 paper-texture border border-[#E8DFC8] shadow-2xl space-y-4 overflow-hidden">
+            <div className="w-full max-w-sm bg-[#FFFDF9] rounded-2xl p-5 sm:p-6 paper-texture border border-[#E8DFC8] shadow-2xl space-y-4">
               <div className="flex items-center justify-between pb-2 border-b border-[#E8DFC8]">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-700">
@@ -599,7 +599,7 @@ export default function HomeView({
                     type="date"
                     value={customStartDate}
                     onChange={(e) => setCustomStartDate(e.target.value)}
-                    className="w-full max-w-full box-border px-3 sm:px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white text-stone-800 text-sm font-sans-ui focus:outline-none focus:border-[#6B1724] shadow-2xs block"
+                    className="w-full min-w-0 max-w-full box-border px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white text-stone-800 text-sm font-sans-ui focus:outline-none focus:border-[#6B1724] shadow-2xs block"
                   />
                 </div>
               </div>
