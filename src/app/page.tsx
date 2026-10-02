@@ -35,7 +35,6 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { 
   registerServiceWorker, 
-  sendLocalNotification,
   subscribeToWebPush,
   sendServerWebPush
 } from '@/lib/notifications';
@@ -440,10 +439,6 @@ export default function HomePage() {
           const decryptedKnock = await decryptKnockData(roomCode, rawKnock, room.roomSalt);
           setReceivedKnock(decryptedKnock);
           setIsKnockModalOpen(true);
-          sendLocalNotification(
-            '🔔 똑똑, 노크가 도착했습니다!',
-            `${decryptedKnock.senderName || partnerName} 님이 일기장 문을 두드렸어요.`
-          );
         }
       }
 
@@ -469,10 +464,6 @@ export default function HomePage() {
             ) {
               soundEngine.playWaxCrackSound();
               showToast(`💌 ${partnerName} 님이 내가 보낸 편지의 실링 왁스를 개봉했습니다! 💖`);
-              sendLocalNotification(
-                '💌 편지 개봉 알림',
-                `${partnerName} 님이 비밀 편지를 열어 읽기 시작했어요.`
-              );
             }
 
             // 2) 상대방이 작성한 새 편지가 도착했을 때
@@ -482,10 +473,6 @@ export default function HomePage() {
             ) {
               soundEngine.playPaperRustle();
               showToast(`📬 ${latestDiary.authorName} 님에게서 새 일기가 도착했습니다!`);
-              sendLocalNotification(
-                '📬 새 일기가 도착했습니다!',
-                `${latestDiary.authorName} 님이 보낸 비밀 편지가 서재에 도착했습니다.`
-              );
               setUiState((p) => (p === 'VIEW_WAITING' || p === 'VIEW_EMPTY' ? 'VIEW_HOME' : p));
             }
 
@@ -516,10 +503,6 @@ export default function HomePage() {
           setPartnerDisconnectedNickname(leaver);
           setIsPartnerDisconnectedModalOpen(true);
           showToast(`💔 ${leaver} 님이 일기장 연결을 해제했습니다.`);
-          sendLocalNotification(
-            '💔 상대방이 일기장을 떠났습니다',
-            `${leaver} 님이 일기장 연결을 해제했습니다.`
-          );
         }
       }
     });
@@ -661,10 +644,31 @@ export default function HomePage() {
       showToast('일기장 연결이 해제되었습니다.');
     }
 
-    // 백그라운드에서 Firestore 비동기 상태 갱신
+    // 백그라운드에서 Firestore 비동기 상태 갱신 및 상대방에게 백그라운드 푸시 전송
     if (targetRoomCode) {
       try {
         const myUid = getOrCreateUserId();
+
+        // 상대방에게 백그라운드 Web Push 발송 (일기장 연결 해제 알림)
+        try {
+          const roomSnap = await getDoc(doc(db, 'rooms', targetRoomCode));
+          if (roomSnap.exists()) {
+            const freshRoom = roomSnap.data() as RoomData;
+            if (freshRoom.memberInfo) {
+              const partnerEntry = Object.entries(freshRoom.memberInfo).find(([uid]) => uid !== myUid);
+              if (partnerEntry?.[1]?.pushSubscription) {
+                await sendServerWebPush(
+                  partnerEntry[1].pushSubscription,
+                  '💔 일기장 연결 해제 알림',
+                  `${userName} 님이 일기장 연결을 해제했습니다.`
+                );
+              }
+            }
+          }
+        } catch (pushErr) {
+          console.warn('Disconnect background web push send failed:', pushErr);
+        }
+
         await leaveRoomInFirestore(targetRoomCode, myUid, userName);
       } catch (e) {
         console.warn('Failed to leave room in firestore:', e);
