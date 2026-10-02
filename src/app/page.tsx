@@ -596,7 +596,7 @@ export default function HomePage() {
   };
 
   // 3. 새 일기 작성 완료 -> Firestore 저장 & VIEW_WAITING (상대방 턴으로 전환)
-  const handleSaveDiary = async (newDiaryPart: Partial<DiaryData>) => {
+  const handleSaveDiary = async (newDiaryPart: Partial<DiaryData>): Promise<boolean> => {
     const myUid = getOrCreateUserId();
     const updated: DiaryData = {
       ...(diary || INITIAL_DIARY),
@@ -619,6 +619,7 @@ export default function HomePage() {
       setDiary(updated);
       setUiState('VIEW_WAITING');
       showToast(`📮 일기가 왁스로 단단히 봉인되어 ${partnerName} 님에게 전달되었습니다!`);
+      return true;
     } catch (e: unknown) {
       console.warn('Firestore save diary sync:', e);
       const errMsg = e instanceof Error ? e.message : '알 수 없는 오류';
@@ -627,6 +628,7 @@ export default function HomePage() {
       } else {
         showToast(`⚠️ 일기 전송에 실패했습니다: ${errMsg}`);
       }
+      return false;
     }
   };
 

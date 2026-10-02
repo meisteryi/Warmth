@@ -28,7 +28,7 @@ import {
 interface WriteDiaryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSaveDiary: (newDiary: Partial<DiaryData>) => void;
+  onSaveDiary: (newDiary: Partial<DiaryData>) => Promise<boolean> | void;
   currentUserName: string;
   partnerName: string;
   roomCode?: string;
@@ -353,7 +353,7 @@ export default function WriteDiaryModal({
         warmthScore = generateFallbackWarmth(title, content);
       }
 
-      onSaveDiary({
+      const diaryPayload: Partial<DiaryData> = {
         title,
         content,
         photos: finalPhotoUrl ? [finalPhotoUrl] : [],
@@ -368,27 +368,35 @@ export default function WriteDiaryModal({
           ...selectedStamp,
           style: stampStyle,
         },
-      });
+      };
 
-      // 임시 저장본 삭제
+      // 안전 비상 백업: 전송 도중 네트워크가 끊기더라도 글이 사라지지 않도록 아웃박스 보관
       try {
-        localStorage.removeItem(draftKey);
+        localStorage.setItem(`warmth_last_outbox_${roomCode}`, JSON.stringify(diaryPayload));
       } catch {}
 
-      // 입력 폼 초기화
-      setTitle('');
-      setContent('');
-      setSelectedPhoto(null);
-      setUploadedPhotoInfo(null);
-      setPhotoError('');
-      setCustomPrompt('');
-      setCustomQuizAnswer('');
-      setCustomQuizHint('');
+      // 서버 저장 완료 대기
+      const saveResult = await onSaveDiary(diaryPayload);
 
-      onClose();
+      // 서버 저장에 성공했거나 반환값이 없을 때만 임시 저장본 삭제 및 폼 초기화 후 모달 닫기
+      if (saveResult !== false) {
+        try {
+          localStorage.removeItem(draftKey);
+        } catch {}
+
+        setTitle('');
+        setContent('');
+        setSelectedPhoto(null);
+        setUploadedPhotoInfo(null);
+        setPhotoError('');
+        setCustomPrompt('');
+        setCustomQuizAnswer('');
+        setCustomQuizHint('');
+
+        onClose();
+      }
     } catch (err) {
       console.error('Failed to save diary:', err);
-      onClose();
     } finally {
       setIsSubmitting(false);
     }
