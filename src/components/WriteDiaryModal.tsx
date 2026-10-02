@@ -437,12 +437,12 @@ export default function WriteDiaryModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] bg-stone-900/60 backdrop-blur-sm overflow-y-auto overscroll-contain">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] bg-stone-900/60 backdrop-blur-sm overflow-y-auto overflow-x-hidden overscroll-contain">
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-xl my-auto bg-[#FFFDF9] rounded-2xl p-4 sm:p-8 paper-texture border border-[#E8DFC8] shadow-2xl text-stone-900 max-h-[92dvh] overflow-y-auto pb-[max(env(safe-area-inset-bottom,0px),1.5rem)]"
+            className="relative w-full max-w-xl my-auto bg-[#FFFDF9] rounded-2xl p-4 sm:p-8 paper-texture border border-[#E8DFC8] shadow-2xl text-stone-900 max-h-[92dvh] overflow-y-auto overflow-x-hidden pb-[max(env(safe-area-inset-bottom,0px),1.5rem)]"
           >
             {/* 닫기 버튼 */}
             <button
@@ -913,28 +913,43 @@ export default function WriteDiaryModal({
                       </div>
                     )}
 
-                    <input
-                      type="text"
-                      placeholder="질문 (예: 저번 편지에서 내가 주말에 가자고 했던 곳이 어디였게?)"
-                      value={customPrompt}
-                      onChange={(e) => setCustomPrompt(e.target.value)}
-                      className="w-full px-3 py-1.5 rounded-lg border border-stone-200 bg-white text-xs font-serif-warm"
-                    />
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="정답 (예: 서촌)"
-                        value={customQuizAnswer}
-                        onChange={(e) => setCustomQuizAnswer(e.target.value)}
-                        className="flex-1 px-3 py-1.5 rounded-lg border border-stone-200 bg-white text-xs font-serif-warm"
-                      />
-                      <input
-                        type="text"
-                        placeholder="힌트 (예: 저번 편지 셋째 줄에 적어뒀지!)"
-                        value={customQuizHint}
-                        onChange={(e) => setCustomQuizHint(e.target.value)}
-                        className="flex-1 px-3 py-1.5 rounded-lg border border-stone-200 bg-white text-xs font-serif-warm"
-                      />
+                    <div className="space-y-2">
+                      <div>
+                        <label className="block text-[11px] font-sans-ui text-stone-600 mb-1 font-medium">
+                          질문 내용
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="예: 저번 편지에서 내가 주말에 가자고 했던 곳이 어디였게?"
+                          value={customPrompt}
+                          onChange={(e) => setCustomPrompt(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-white text-xs font-serif-warm focus:outline-none focus:ring-1 focus:ring-amber-800"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-sans-ui text-stone-600 mb-1 font-medium">
+                          정답
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="예: 서촌 (상대방이 입력할 단어)"
+                          value={customQuizAnswer}
+                          onChange={(e) => setCustomQuizAnswer(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-white text-xs font-serif-warm focus:outline-none focus:ring-1 focus:ring-amber-800"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-sans-ui text-stone-600 mb-1 font-medium">
+                          힌트
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="예: 저번 편지 셋째 줄에 적어뒀지!"
+                          value={customQuizHint}
+                          onChange={(e) => setCustomQuizHint(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-white text-xs font-serif-warm focus:outline-none focus:ring-1 focus:ring-amber-800"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
