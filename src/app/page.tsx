@@ -186,6 +186,11 @@ export default function HomePage() {
 
   // 내가 오늘(새벽 4시 이후) 이미 편지를 썼는지 검사 (각자 하루 1통 규칙)
   const hasMyQuotaBeenUsedToday = useMemo(() => {
+    // 만약 현재 최신 일기가 상대방이 작성한 일기라면, 교환일기 특성상 내가 답장을 작성할 차례이므로 쿼터 미사용으로 간주
+    if (diary && diary.authorName !== userName) {
+      return false;
+    }
+
     // 1) Firestore roomData의 lastWrittenByUser 확인
     const myUid = getOrCreateUserId();
     const myLastTime = roomData?.lastWrittenByUser?.[myUid] || roomData?.lastWrittenByUser?.[userName];
@@ -196,7 +201,7 @@ export default function HomePage() {
     if (diary && diary.authorName === userName && isDiaryWrittenInCurrentCycle(diary.createdAt)) {
       return true;
     }
-    // 3) 로컬 세션스토리지 확인 (네트워크 지연 시 즉각 반영)
+    // 3) 로컬 세션스토리지 확인 (내가 마지막 일기를 작성한 경우에만 적용)
     const localLast = sessionStore.get(`warmth_last_written_${roomCode}_${userName}`);
     if (localLast && isDiaryWrittenInCurrentCycle(localLast)) {
       return true;
