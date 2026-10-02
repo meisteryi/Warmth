@@ -23,6 +23,7 @@ import {
   unsealDiaryInFirestore,
   sendKnockInFirestore,
   subscribeRoom,
+  subscribeDiary,
   leaveRoomInFirestore,
   getOrCreateUserId,
   setExplicitUserId
@@ -162,6 +163,8 @@ export default function HomePage() {
   const [isKnockModalOpen, setIsKnockModalOpen] = useState(false);
   const handledKnockTimeRef = useRef<string | null>(null);
   const handledDiaryIdRef = useRef<string | null>(null);
+  const diaryUnsubRef = useRef<(() => void) | null>(null);
+  const currentDiaryRef = useRef<DiaryData | null>(null);
 
   // 상대방 연결 해제 수신 모달 상태
   const [isPartnerDisconnectedModalOpen, setIsPartnerDisconnectedModalOpen] = useState(false);
@@ -386,33 +389,58 @@ export default function HomePage() {
       }
 
       // 2. 방에 최신 일기(latestDiaryId)가 업데이트되었을 때 실시간 동기화 & E2EE 복호화
-      if (room.latestDiaryId && room.latestDiaryId !== handledDiaryIdRef.current) {
-        handledDiaryIdRef.current = room.latestDiaryId;
-        try {
-          const diaryRef = doc(db, 'rooms', roomCode, 'diaries', room.latestDiaryId);
-          const snap = await getDoc(diaryRef);
-          if (snap.exists()) {
-            const rawDiary = snap.data() as DiaryData;
-            // 클라이언트에서 256-bit 복호화 수행 (서버는 암호문만 보관)
-            const latestDiary = await decryptDiaryData(roomCode, rawDiary, room.roomSalt);
-            setDiary(latestDiary);
+      if (room.latestDiaryId) {
+        if (room.latestDiaryId !== handledDiaryIdRef.current || !diaryUnsubRef.current) {
+          handledDiaryIdRef.current = room.latestDiaryId;
+          if (diaryUnsubRef.current) {
+            diaryUnsubRef.current();
+            diaryUnsubRef.current = null;
+          }
 
-            // 상대방 편지가 도착했을 때 소리, 푸시 알림 및 홈 화면으로 즉시 전환
-            if (latestDiary.authorName !== userName) {
+          diaryUnsubRef.current = subscribeDiary(roomCode, room.latestDiaryId, (latestDiary) => {
+            const prev = currentDiaryRef.current;
+
+            // 1) 내가 보낸 편지를 상대방이 개봉했을 때 실시간 감지 & 차임벨 & 축하 토스트
+            if (
+              prev &&
+              prev.diaryId === latestDiary.diaryId &&
+              !prev.isWaxBroken &&
+              latestDiary.isWaxBroken &&
+              latestDiary.authorName === userName
+            ) {
+              soundEngine.playWaxCrackSound();
+              showToast(`💌 ${partnerName} 님이 내가 보낸 편지의 실링 왁스를 개봉했습니다! 💖`);
+              sendLocalNotification(
+                '💌 편지 개봉 알림',
+                `${partnerName} 님이 비밀 편지를 열어 읽기 시작했어요.`
+              );
+            }
+
+            // 2) 상대방이 작성한 새 편지가 도착했을 때
+            if (
+              (!prev || prev.diaryId !== latestDiary.diaryId) &&
+              latestDiary.authorName !== userName
+            ) {
               soundEngine.playPaperRustle();
               showToast(`📬 ${latestDiary.authorName} 님에게서 새 일기가 도착했습니다!`);
               sendLocalNotification(
                 '📬 새 일기가 도착했습니다!',
                 `${latestDiary.authorName} 님이 보낸 비밀 편지가 서재에 도착했습니다.`
               );
-              // 상대방 편지가 도착하면 대기 화면이나 책상 화면에서 즉시 홈 화면으로 전환
-              setUiState((prev) => (prev === 'VIEW_WAITING' || prev === 'VIEW_EMPTY' ? 'VIEW_HOME' : prev));
+              setUiState((p) => (p === 'VIEW_WAITING' || p === 'VIEW_EMPTY' ? 'VIEW_HOME' : p));
             }
-          }
-        } catch (err) {
-          console.warn('Failed to fetch latest diary:', err);
+
+            currentDiaryRef.current = latestDiary;
+            setDiary(latestDiary);
+          });
         }
-      } else if (!room.latestDiaryId) {
+      } else {
+        if (diaryUnsubRef.current) {
+          diaryUnsubRef.current();
+          diaryUnsubRef.current = null;
+        }
+        handledDiaryIdRef.current = null;
+        currentDiaryRef.current = null;
         setDiary(null);
       }
 
@@ -437,8 +465,51 @@ export default function HomePage() {
       }
     });
 
-    return () => unsubscribe();
-  }, [roomCode, uiState, userName]);
+    return () => {
+      unsubscribe();
+      if (diaryUnsubRef.current) {
+        diaryUnsubRef.current();
+        diaryUnsubRef.current = null;
+      }
+    };
+  }, [roomCode, uiState, userName, partnerName]);
+
+  // 모바일 PWA 환경 백그라운드 복귀(잠금 해제, 앱 전환) 시 최신 방/일기 즉각 재검증
+  useEffect(() => {
+    if (!roomCode || uiState === 'VIEW_ONBOARDING') return;
+
+    const handleVisibilityOrFocus = async () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        try {
+          const roomRef = doc(db, 'rooms', roomCode);
+          const snap = await getDoc(roomRef);
+          if (snap.exists()) {
+            const freshRoom = snap.data() as RoomData;
+            setRoomData(freshRoom);
+            if (freshRoom.latestDiaryId) {
+              const diaryRef = doc(db, 'rooms', roomCode, 'diaries', freshRoom.latestDiaryId);
+              const dSnap = await getDoc(diaryRef);
+              if (dSnap.exists()) {
+                const rawDiary = dSnap.data() as DiaryData;
+                const decrypted = await decryptDiaryData(roomCode, rawDiary, freshRoom.roomSalt);
+                currentDiaryRef.current = decrypted;
+                setDiary(decrypted);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Visibility resume sync check failed:', e);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+    };
+  }, [roomCode, uiState]);
 
   // 0. 초대코드 매칭 완료 처리
   const handleMatched = async (code: string, me: string, partner: string, role?: 'CREATOR' | 'PARTNER') => {
@@ -577,14 +648,13 @@ export default function HomePage() {
   const handleUnsealComplete = async () => {
     if (!diary) return;
     soundEngine.playPaperRustle();
-    setDiary((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        isWaxBroken: true,
-        openedAt: new Date().toISOString(),
-      };
-    });
+    const unsealed: DiaryData = {
+      ...diary,
+      isWaxBroken: true,
+      openedAt: new Date().toISOString(),
+    };
+    currentDiaryRef.current = unsealed;
+    setDiary(unsealed);
     setUiState('VIEW_OPENED_DIARY');
     showToast('📬 편지 봉인이 해제되었습니다. 정성스레 적은 일기를 읽어보세요.');
 
@@ -615,6 +685,7 @@ export default function HomePage() {
       await saveDiaryToFirestore(roomCode, updated);
 
       // 2. 저장이 성공했을 때만 로컬 상태 및 UI 턴 전환
+      currentDiaryRef.current = updated;
       sessionStore.set(`warmth_last_written_${roomCode}_${userName}`, nowIso);
       setDiary(updated);
       setUiState('VIEW_WAITING');

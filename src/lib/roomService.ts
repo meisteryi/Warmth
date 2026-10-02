@@ -404,6 +404,26 @@ export async function saveDiaryToFirestore(
         }
       }
 
+      // 추가 안전망: 상대방이 마지막으로 일기를 작성했거나 내가 아직 답장을 안 쓴 상태라면 무조건 내 턴으로 인정
+      if (!isAuthorTurn && roomData.lastWrittenByUser) {
+        const myTimeStr = (
+          roomData.lastWrittenByUser[authorUid] ||
+          roomData.lastWrittenByUser[diary.authorId] ||
+          roomData.lastWrittenByUser[diary.authorName]
+        );
+        const myTime = myTimeStr ? new Date(myTimeStr as string).getTime() : 0;
+
+        const partnerTimes = Object.entries(roomData.lastWrittenByUser)
+          .filter(([key]) => key !== authorUid && key !== diary.authorId && key !== diary.authorName)
+          .map(([_, val]) => new Date(val as string).getTime())
+          .filter((t) => !isNaN(t));
+
+        const latestPartnerTime = partnerTimes.length > 0 ? Math.max(...partnerTimes) : 0;
+        if (latestPartnerTime > myTime) {
+          isAuthorTurn = true;
+        }
+      }
+
       // 두 명 모두 입장해 있고, 명백하게 상대방의 턴인 경우만 차단
       if (!isAuthorTurn && (roomData.members?.length || 0) >= 2 && roomData.status === 'MATCHED') {
         throw new Error('현재 상대방의 작성 턴이거나 이미 새 일기가 전송되었습니다.');
@@ -459,6 +479,7 @@ export async function updateMissionInFirestore(
   submissionText: string
 ): Promise<void> {
   const diaryRef = doc(db, 'rooms', roomCode, 'diaries', diaryId);
+  const roomRef = doc(db, 'rooms', roomCode);
   const roomSalt = await getOrFetchRoomSalt(roomCode);
   const encryptedSubmission = await encryptText(roomCode, submissionText, roomSalt);
 
@@ -469,6 +490,10 @@ export async function updateMissionInFirestore(
       submittedAt: new Date().toISOString(),
     },
   });
+
+  await updateDoc(roomRef, {
+    updatedAt: serverTimestamp(),
+  }).catch(() => {});
 }
 
 // 6. 실링 왁스 개봉 완료 업데이트
@@ -477,9 +502,19 @@ export async function unsealDiaryInFirestore(
   diaryId: string
 ): Promise<void> {
   const diaryRef = doc(db, 'rooms', roomCode, 'diaries', diaryId);
+  const roomRef = doc(db, 'rooms', roomCode);
+
   await updateDoc(diaryRef, {
     isWaxBroken: true,
     openedAt: new Date().toISOString(),
+  });
+
+  // 방 문서에도 실링 해제 시간 업데이트 (상대방 기기에 즉각 실시간 동기화)
+  await updateDoc(roomRef, {
+    lastUnsealedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  }).catch((err) => {
+    console.warn('Failed to update room unseal status:', err);
   });
 }
 
