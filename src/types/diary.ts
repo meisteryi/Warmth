@@ -122,6 +122,7 @@ export interface RoomData {
     [uid: string]: {
       nickname: string;
       role: 'CREATOR' | 'PARTNER';
+      pushSubscription?: string;
     };
   };
   roomSalt?: string;

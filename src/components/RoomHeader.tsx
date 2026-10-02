@@ -89,12 +89,17 @@ export default function RoomHeader({
       alert('이미 알림 권한이 허용되어 있습니다. 새로운 일기나 노크가 올 때 알림이 전달됩니다.');
       return;
     }
+    const status = getNotificationStatus();
+    if (!status.isSupported) {
+      alert('현재 브라우저 환경에서는 백그라운드 푸시 알림이 직접 지원되지 않습니다. 아이폰(iOS)의 경우 사파리 하단 공유 버튼(네모+화살표)을 눌러 "홈 화면에 추가"하신 뒤 앱처럼 실행하시면 잠금 화면에서도 백그라운드 푸시를 받으실 수 있습니다.');
+      return;
+    }
     const result = await requestNotificationPermission();
     setNotifPermission(result);
     if (result === 'granted') {
-      alert('🔔 알림이 켜졌습니다! 상대방이 보낸 새 일기와 노크를 실시간으로 받아보실 수 있습니다.');
+      alert('🔔 알림이 켜졌습니다! 상대방이 보낸 새 일기와 노크를 백그라운드에서도 받아보실 수 있습니다.');
     } else if (result === 'denied') {
-      alert('기기 설정에서 알림 권한이 차단되어 있습니다. 브라우저 설정에서 권한을 허용해주세요.');
+      alert('기기 설정에서 알림 권한이 차단되어 있습니다. 브라우저 설정에서 알림 권한을 허용해주세요.');
     }
   };
 

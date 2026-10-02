@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import RoomHeader from '@/components/RoomHeader';
 import OnboardingView from '@/components/OnboardingView';
 import Envelope from '@/components/Envelope';
@@ -26,12 +26,18 @@ import {
   subscribeDiary,
   leaveRoomInFirestore,
   getOrCreateUserId,
-  setExplicitUserId
+  setExplicitUserId,
+  savePushSubscriptionToRoom
 } from '@/lib/roomService';
 import { decryptDiaryData, decryptKnockData } from '@/lib/crypto';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { registerServiceWorker, sendLocalNotification } from '@/lib/notifications';
+import { 
+  registerServiceWorker, 
+  sendLocalNotification,
+  subscribeToWebPush,
+  sendServerWebPush
+} from '@/lib/notifications';
 
 // 초기 PRD 스펙 기반 샘플 일기 데이터 (데모 전환 및 폴백용)
 const INITIAL_DIARY: DiaryData = {
@@ -266,6 +272,34 @@ export default function HomePage() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
+  // 백그라운드 Web Push 구독 정보 Firestore 동기화
+  const syncPushSubscription = useCallback(async (targetCode?: string) => {
+    const code = targetCode || roomCode;
+    if (!code || typeof window === 'undefined') return;
+    try {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const sub = await subscribeToWebPush();
+        if (sub) {
+          const myUid = getOrCreateUserId();
+          await savePushSubscriptionToRoom(code, myUid, sub);
+        }
+      }
+    } catch (e) {
+      console.warn('Push subscription sync error:', e);
+    }
+  }, [roomCode]);
+
+  // 알림 권한 허용 이벤트 수신 시 구독 동기화
+  useEffect(() => {
+    const handlePermissionGranted = () => {
+      syncPushSubscription();
+    };
+    window.addEventListener('warmth-notification-permission-granted', handlePermissionGranted);
+    return () => {
+      window.removeEventListener('warmth-notification-permission-granted', handlePermissionGranted);
+    };
+  }, [syncPushSubscription]);
+
   // 1. 앱 마운트 시 저장된 세션(방 코드 및 닉네임) 자동 복구 & 재접속 및 서비스 워커 등록
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -279,6 +313,7 @@ export default function HomePage() {
         setRoomCode(savedRoom);
         setUserName(savedUser);
         setPartnerName(savedPartner);
+        syncPushSubscription(savedRoom);
 
         (async () => {
           try {
@@ -386,6 +421,15 @@ export default function HomePage() {
           (room.members.length === 1 && room.members.includes(myUid))
         );
         setIsLastPersonRemaining(partnerLeft);
+      }
+
+      // 0-2. 내 Web Push 구독 정보가 방에 아직 저장되지 않았고 권한이 허용된 경우 자동 동기화
+      if (room.memberInfo) {
+        const myUid = getOrCreateUserId();
+        const myInfo = room.memberInfo[myUid];
+        if (!myInfo?.pushSubscription && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          syncPushSubscription(roomCode);
+        }
       }
 
       // 1. 방에 상대방이 보낸 새 노크가 있는지 실시간 감지 & E2EE 복호화
@@ -536,6 +580,7 @@ export default function HomePage() {
     setRoomCode(code);
     setUserName(me);
     setPartnerName(partner);
+    syncPushSubscription(code);
 
     const detectedRole = role || (userRole === 'PARTNER' ? 'PARTNER' : 'CREATOR');
     setUserRole(detectedRole);
@@ -680,6 +725,29 @@ export default function HomePage() {
 
     try {
       await unsealDiaryInFirestore(roomCode, diary.diaryId);
+
+      // 작성자(상대방)에게 실링 왁스 개봉 알림 백그라운드 Web Push 발송
+      try {
+        const myUid = getOrCreateUserId();
+        const roomSnap = await getDoc(doc(db, 'rooms', roomCode));
+        if (roomSnap.exists()) {
+          const freshRoom = roomSnap.data() as RoomData;
+          if (freshRoom.memberInfo) {
+            const authorEntry = Object.entries(freshRoom.memberInfo).find(([uid, info]) => {
+              return uid === diary.authorId || info.nickname === diary.authorName || uid !== myUid;
+            });
+            if (authorEntry?.[1]?.pushSubscription) {
+              await sendServerWebPush(
+                authorEntry[1].pushSubscription,
+                '💌 편지 개봉 알림',
+                `${userName} 님이 내가 보낸 편지의 실링 왁스를 개봉했습니다! 💖`
+              );
+            }
+          }
+        }
+      } catch (pushErr) {
+        console.warn('Unseal web push send failed:', pushErr);
+      }
     } catch (e) {
       console.warn('Firestore unseal sync:', e);
     }
@@ -703,6 +771,26 @@ export default function HomePage() {
     try {
       // 1. Firestore에 먼저 안전하게 저장 및 턴 검증
       await saveDiaryToFirestore(roomCode, updated);
+
+      // 상대방에게 백그라운드 Web Push 발송 (앱이 꺼져 있어도 OS 잠금 화면에 알림 표시)
+      try {
+        const roomSnap = await getDoc(doc(db, 'rooms', roomCode));
+        if (roomSnap.exists()) {
+          const freshRoom = roomSnap.data() as RoomData;
+          if (freshRoom.memberInfo) {
+            const partnerEntry = Object.entries(freshRoom.memberInfo).find(([uid]) => uid !== myUid);
+            if (partnerEntry?.[1]?.pushSubscription) {
+              await sendServerWebPush(
+                partnerEntry[1].pushSubscription,
+                '📬 새 일기가 도착했습니다!',
+                `${userName} 님이 비밀 편지를 봉인하여 서재에 보냈습니다.`
+              );
+            }
+          }
+        }
+      } catch (pushErr) {
+        console.warn('Diary background web push send failed:', pushErr);
+      }
 
       // 2. 저장이 성공했을 때만 로컬 상태 및 UI 턴 전환
       currentDiaryRef.current = updated;
@@ -728,6 +816,27 @@ export default function HomePage() {
     try {
       await sendKnockInFirestore(roomCode, userName, message);
       showToast(`🔔 ${partnerName} 님에게 은은한 노크를 전했습니다.`);
+
+      // 상대방에게 백그라운드 Web Push 발송 (앱이 꺼져 있어도 OS 잠금 화면에 알림 표시)
+      try {
+        const myUid = getOrCreateUserId();
+        const roomSnap = await getDoc(doc(db, 'rooms', roomCode));
+        if (roomSnap.exists()) {
+          const freshRoom = roomSnap.data() as RoomData;
+          if (freshRoom.memberInfo) {
+            const partnerEntry = Object.entries(freshRoom.memberInfo).find(([uid]) => uid !== myUid);
+            if (partnerEntry?.[1]?.pushSubscription) {
+              await sendServerWebPush(
+                partnerEntry[1].pushSubscription,
+                '🔔 똑똑, 노크가 도착했습니다!',
+                `${userName} 님이 일기장 문을 두드렸어요: "${message}"`
+              );
+            }
+          }
+        }
+      } catch (pushErr) {
+        console.warn('Knock web push send failed:', pushErr);
+      }
     } catch (e) {
       console.warn('Firestore knock sync:', e);
       showToast(`🔔 ${partnerName} 님에게 은은한 노크를 전했습니다.`);

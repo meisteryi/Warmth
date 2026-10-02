@@ -633,3 +633,21 @@ export async function updateAnniversaryDateInFirestore(
   }
 }
 
+// 12. 웹 푸시 구독 정보 저장 (백그라운드 Web Push 알림용)
+export async function savePushSubscriptionToRoom(
+  roomCode: string,
+  uid: string,
+  subscription: PushSubscription | null
+): Promise<void> {
+  if (!roomCode || !uid || !subscription) return;
+  try {
+    const roomRef = doc(db, 'rooms', roomCode);
+    await updateDoc(roomRef, {
+      [`memberInfo.${uid}.pushSubscription`]: JSON.stringify(subscription),
+      updatedAt: serverTimestamp(),
+    });
+  } catch (e) {
+    console.warn('Failed to save push subscription to room:', e);
+  }
+}
+
