@@ -84,8 +84,8 @@ export async function sendLocalNotification(title: string, body: string): Promis
       if (reg) {
         await reg.showNotification(title, {
           body,
-          icon: '/icon',
-          badge: '/icon',
+          icon: '/icon-192.png',
+          badge: '/icon-192.png',
           tag: 'warmth-event',
         });
         return true;
@@ -95,8 +95,8 @@ export async function sendLocalNotification(title: string, body: string): Promis
     // 2. 데스크톱 일반 알림 폴백
     new Notification(title, {
       body,
-      icon: '/icon',
-      badge: '/icon',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
     });
     return true;
   } catch (e) {
