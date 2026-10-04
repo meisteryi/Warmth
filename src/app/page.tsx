@@ -168,6 +168,7 @@ export default function HomePage() {
 
   // 초기 상태: 작성된 편지가 없을 때는 null (맨 처음 편지 쓰기 플로우 우선)
   const [diary, setDiary] = useState<DiaryData | null>(null);
+  const [selectedArchiveDiary, setSelectedArchiveDiary] = useState<DiaryData | null>(null);
   const [roomData, setRoomData] = useState<RoomData | null>(null);
   const [writeModalInitialTitle, setWriteModalInitialTitle] = useState<string | undefined>(undefined);
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false);
@@ -385,7 +386,7 @@ export default function HomePage() {
 
   // 실시간 Firestore 룸 및 일기 구독 (상대방의 노크 및 새 일기 실시간 감지 + E2EE 복호화 + 웹 푸시 알림)
   useEffect(() => {
-    if (!roomCode || uiState === 'VIEW_ONBOARDING') return;
+    if (!roomCode) return;
     const myUid = getOrCreateUserId();
 
     const unsubscribe = subscribeRoom(roomCode, async (room) => {
@@ -514,11 +515,11 @@ export default function HomePage() {
         diaryUnsubRef.current = null;
       }
     };
-  }, [roomCode, uiState, userName, partnerName]);
+  }, [roomCode, userName, partnerName]);
 
   // 모바일 PWA 환경 백그라운드 복귀(잠금 해제, 앱 전환) 시 최신 방/일기 즉각 재검증
   useEffect(() => {
-    if (!roomCode || uiState === 'VIEW_ONBOARDING') return;
+    if (!roomCode) return;
 
     const handleVisibilityOrFocus = async () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
@@ -551,7 +552,7 @@ export default function HomePage() {
       document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
       window.removeEventListener('focus', handleVisibilityOrFocus);
     };
-  }, [roomCode, uiState]);
+  }, [roomCode]);
 
   // 0. 초대코드 매칭 완료 처리
   const handleMatched = async (code: string, me: string, partner: string, role?: 'CREATOR' | 'PARTNER') => {
@@ -634,6 +635,7 @@ export default function HomePage() {
     sessionStore.remove(STORAGE_KEYS.USER_ROLE);
 
     setDiary(null);
+    setSelectedArchiveDiary(null);
     setRoomCode('');
     setIsLastPersonRemaining(false);
     setUiState('VIEW_ONBOARDING');
@@ -719,6 +721,7 @@ export default function HomePage() {
     };
     currentDiaryRef.current = unsealed;
     setDiary(unsealed);
+    setSelectedArchiveDiary(null);
     setUiState('VIEW_OPENED_DIARY');
     showToast('📬 편지 봉인이 해제되었습니다. 정성스레 적은 일기를 읽어보세요.');
 
@@ -871,6 +874,12 @@ export default function HomePage() {
     );
   }
 
+  // 홈 화면 복귀 공통 헬퍼 (서재 열람 임시 상태 초기화)
+  const handleGoHome = () => {
+    setSelectedArchiveDiary(null);
+    setUiState('VIEW_HOME');
+  };
+
   return (
     <div className="min-h-screen min-h-dvh flex flex-col bg-[#FDFBF7] text-[#2C2A29] selection:bg-[#6B1724]/20 selection:text-[#6B1724]">
       {/* 앱 시작 시 온기 감성 스플래시 화면 (0.85초 유지 후 0.35초 페이드아웃) */}
@@ -924,7 +933,7 @@ export default function HomePage() {
         onOpenWriteModal={handleOpenWriteModal}
         onOpenArchive={() => setIsArchiveOpen(true)}
         onLeaveRoom={handleLeaveRoom}
-        onGoHome={() => setUiState('VIEW_HOME')}
+        onGoHome={handleGoHome}
         roomCode={roomCode}
         userName={userName}
         partnerName={partnerName}
@@ -963,10 +972,12 @@ export default function HomePage() {
             onSendKnock={() => handleSendKnock('오늘의 교환일기를 기다리고 있어요 ✉️')}
             onOpenSealedLetter={() => {
               if (!diary) return;
+              setSelectedArchiveDiary(null);
               setUiState(diary.mission?.isPassed ? 'VIEW_WAX_READY' : 'VIEW_SEALED_LETTER');
             }}
             onOpenDiary={() => {
               if (!diary) return;
+              setSelectedArchiveDiary(null);
               setUiState('VIEW_OPENED_DIARY');
             }}
           />
@@ -990,7 +1001,7 @@ export default function HomePage() {
           <WaitingLetter
             partnerName={partnerName}
             onSendKnock={handleSendKnock}
-            onGoHome={() => setUiState('VIEW_HOME')}
+            onGoHome={handleGoHome}
           />
         )}
 
@@ -1002,7 +1013,7 @@ export default function HomePage() {
               isLocked={true}
               onOpenMission={() => setIsMissionModalOpen(true)}
               onUnsealComplete={handleUnsealComplete}
-              onGoHome={() => setUiState('VIEW_HOME')}
+              onGoHome={handleGoHome}
             />
           ) : (
             <EmptyDeskView
@@ -1025,7 +1036,7 @@ export default function HomePage() {
               isLocked={false}
               onOpenMission={() => setIsMissionModalOpen(true)}
               onUnsealComplete={handleUnsealComplete}
-              onGoHome={() => setUiState('VIEW_HOME')}
+              onGoHome={handleGoHome}
             />
           ) : (
             <EmptyDeskView
@@ -1040,13 +1051,13 @@ export default function HomePage() {
           )
         )}
 
-        {/* 6. VIEW_OPENED_DIARY: 왁스 개봉 완료, 일기 본문 열람 */}
+        {/* 6. VIEW_OPENED_DIARY: 왁스 개봉 완료, 일기 본문 열람 (서재에서 선택한 특정 일기 우선 표시) */}
         {uiState === 'VIEW_OPENED_DIARY' && (
-          diary ? (
+          (selectedArchiveDiary || diary) ? (
             <OpenedLetter
-              diary={diary}
+              diary={selectedArchiveDiary || diary!}
               onWriteReply={handleOpenWriteModal}
-              onResetView={() => setUiState('VIEW_HOME')}
+              onResetView={handleGoHome}
               userName={userName}
               isMyTurn={isMyTurn}
             />
@@ -1105,7 +1116,7 @@ export default function HomePage() {
         currentUserName={userName}
         partnerName={partnerName}
         onSelectDiary={(selectedDiary) => {
-          setDiary(selectedDiary);
+          setSelectedArchiveDiary(selectedDiary);
           setUiState('VIEW_OPENED_DIARY');
           setIsArchiveOpen(false);
           showToast(`📖 ${selectedDiary.authorName} 님의 '${selectedDiary.title}' 일기를 서재에서 펼쳤습니다.`);
@@ -1113,6 +1124,7 @@ export default function HomePage() {
         onOpenSealedLetter={() => {
           setIsArchiveOpen(false);
           if (!diary) return;
+          setSelectedArchiveDiary(null);
           setUiState(diary.mission?.isPassed ? 'VIEW_WAX_READY' : 'VIEW_SEALED_LETTER');
         }}
       />
