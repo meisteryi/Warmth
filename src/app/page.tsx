@@ -841,7 +841,7 @@ export default function HomePage() {
 
       // 2. 저장이 성공했을 때만 로컬 상태 및 UI 턴 전환
       currentDiaryRef.current = updated;
-      sessionStore.set(`warmth_last_written_${roomCode}_${userName}`, nowIso);
+      sessionStore.set(`warmth_last_written_${roomCode}_${userName}`, updated.createdAt || nowIso);
       setDiary(updated);
       setUiState('VIEW_WAITING');
       showToast(`📮 일기가 왁스로 단단히 봉인되어 ${partnerName} 님에게 전달되었습니다!`);

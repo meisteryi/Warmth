@@ -442,12 +442,13 @@ export async function saveDiaryToFirestore(
       // 파트너 UID 결정 (턴을 넘겨줄 상대방)
       const partnerUid = (roomData.members || []).find((id: string) => id !== authorUid && id !== diary.authorId) || diary.recipientId || 'partner';
       const nowIso = new Date().toISOString();
+      const writtenTime = diary.createdAt || nowIso;
       const existingLastWritten = roomData.lastWrittenByUser || {};
 
       transaction.set(diaryRef, {
         ...encryptedDiary,
         authorId: authorUid,
-        createdAt: diary.createdAt || nowIso,
+        createdAt: writtenTime,
       });
 
       transaction.update(roomRef, {
@@ -455,17 +456,18 @@ export async function saveDiaryToFirestore(
         currentTurn: partnerUid,
         lastWrittenByUser: {
           ...existingLastWritten,
-          ...(authorUid ? { [authorUid]: nowIso } : {}),
-          ...(diary.authorId ? { [diary.authorId]: nowIso } : {}),
-          ...(diary.authorName ? { [diary.authorName]: nowIso } : {}),
+          ...(authorUid ? { [authorUid]: writtenTime } : {}),
+          ...(diary.authorId ? { [diary.authorId]: writtenTime } : {}),
+          ...(diary.authorName ? { [diary.authorName]: writtenTime } : {}),
         },
         updatedAt: serverTimestamp(),
       });
     } else {
       const nowIso = new Date().toISOString();
+      const writtenTime = diary.createdAt || nowIso;
       transaction.set(diaryRef, {
         ...encryptedDiary,
-        createdAt: diary.createdAt || nowIso,
+        createdAt: writtenTime,
       });
       transaction.set(roomRef, {
         roomId: roomCode,
@@ -473,8 +475,8 @@ export async function saveDiaryToFirestore(
         latestDiaryId: diary.diaryId,
         currentTurn: diary.recipientId || 'partner',
         lastWrittenByUser: {
-          ...(diary.authorId ? { [diary.authorId]: nowIso } : {}),
-          ...(diary.authorName ? { [diary.authorName]: nowIso } : {}),
+          ...(diary.authorId ? { [diary.authorId]: writtenTime } : {}),
+          ...(diary.authorName ? { [diary.authorName]: writtenTime } : {}),
         },
         updatedAt: serverTimestamp(),
       }, { merge: true });
