@@ -21,10 +21,10 @@ import {
   CheckCheck,
 } from 'lucide-react';
 import { DiaryData, RoomData } from '@/types/diary';
-import { 
-  calculateDaysTogether, 
-  DaysTogetherInfo, 
-  getTimeUntilNextReset, 
+import {
+  calculateDaysTogether,
+  DaysTogetherInfo,
+  getTimeUntilNextReset,
   ResetCountdownInfo,
   formatTodayKorean,
   formatDiaryDateWithRelative,
@@ -88,7 +88,8 @@ export default function HomeView({
   const [partnerLastDiaryDate, setPartnerLastDiaryDate] = useState<string | null>(null);
 
   useEffect(() => {
-    // 1) 현재 구독 중인 최신 diary가 상대방 작성 일기인 경우
+    // 1) 
+    // 현재 구독 중인 최신 diary가 상대방 작성 일기인 경우
     if (diary && diary.authorName === partnerName && diary.createdAt) {
       setPartnerLastDiaryDate(diary.createdAt);
       return;
@@ -118,7 +119,7 @@ export default function HomeView({
             setPartnerLastDiaryDate(partnerDiaries[0].createdAt);
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [diary, partnerName, roomData, roomCode, userName]);
 
@@ -183,7 +184,7 @@ export default function HomeView({
   // 편지 상태 분석
   const isMine = Boolean(diary && diary.authorName === userName);
   const isPartner = Boolean(diary && diary.authorName !== userName);
-  
+
   // 1) 상대방이 보낸 편지인데 내가 아직 왁스를 안 깬 경우: 새 봉인 편지 도착!
   const hasIncomingSealedLetter = Boolean(diary && isPartner && !diary.isWaxBroken);
 
@@ -197,7 +198,7 @@ export default function HomeView({
   const isPartnerLetterOpenedByMe = Boolean(diary && isPartner && diary.isWaxBroken);
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 25, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 15, scale: 0.98 }}
@@ -315,44 +316,43 @@ export default function HomeView({
                 {hasIncomingSealedLetter
                   ? `${partnerName} 님이 보낸 비밀 편지 도착`
                   : isMyLetterUnopenedByPartner
-                  ? `${partnerName} 님이 아직 편지를 읽지 않음 (미개봉)`
-                  : isMyLetterOpenedWaitingReply
-                  ? `${partnerName} 님이 편지를 읽음 (답장 대기 중)`
-                  : hasMyQuotaBeenUsedToday
-                  ? `오늘 나의 온기 작성 완료 (새벽 04시 리셋)`
-                  : isMyTurn
-                  ? '내가 오늘 편지를 쓸 차례'
-                  : `${partnerName} 님의 오늘 작성 차례`}
+                    ? `${partnerName} 님이 아직 편지를 읽지 않음 (미개봉)`
+                    : isMyLetterOpenedWaitingReply
+                      ? `${partnerName} 님이 편지를 읽음 (답장 대기 중)`
+                      : hasMyQuotaBeenUsedToday
+                        ? `오늘 나의 온기 작성 완료 (새벽 04시 리셋)`
+                        : isMyTurn
+                          ? '내가 오늘 편지를 쓸 차례'
+                          : `${partnerName} 님의 오늘 작성 차례`}
               </p>
             </div>
           </div>
 
           <span
-            className={`text-[11px] sm:text-xs px-2.5 py-1 rounded-full font-serif-warm font-bold border whitespace-nowrap shrink-0 text-center select-none ${
-              hasIncomingSealedLetter
+            className={`text-[11px] sm:text-xs px-2.5 py-1 rounded-full font-serif-warm font-bold border whitespace-nowrap shrink-0 text-center select-none ${hasIncomingSealedLetter
                 ? 'bg-rose-100/90 text-rose-950 border-rose-300 animate-pulse'
                 : isMyLetterUnopenedByPartner
-                ? 'bg-amber-100/80 text-amber-950 border-amber-300'
-                : isMyLetterOpenedWaitingReply
-                ? 'bg-stone-100 text-stone-700 border-stone-300'
-                : hasMyQuotaBeenUsedToday
-                ? 'bg-amber-100/80 text-amber-950 border-amber-300'
-                : isMyTurn
-                ? 'bg-[#6B1724]/10 text-[#6B1724] border-[#6B1724]/30'
-                : 'bg-stone-100 text-stone-600 border-stone-200'
-            }`}
+                  ? 'bg-amber-100/80 text-amber-950 border-amber-300'
+                  : isMyLetterOpenedWaitingReply
+                    ? 'bg-stone-100 text-stone-700 border-stone-300'
+                    : hasMyQuotaBeenUsedToday
+                      ? 'bg-amber-100/80 text-amber-950 border-amber-300'
+                      : isMyTurn
+                        ? 'bg-[#6B1724]/10 text-[#6B1724] border-[#6B1724]/30'
+                        : 'bg-stone-100 text-stone-600 border-stone-200'
+              }`}
           >
             {hasIncomingSealedLetter
               ? '새 편지 도착 📬'
               : isMyLetterUnopenedByPartner
-              ? '상대방 미개봉 ✉️'
-              : isMyLetterOpenedWaitingReply
-              ? '상대방 답장 대기 ⏳'
-              : hasMyQuotaBeenUsedToday
-              ? '오늘 작성 완료 🌙'
-              : isMyTurn
-              ? '내 턴 ✍️'
-              : '상대방 턴 ⏳'}
+                ? '상대방 미개봉 ✉️'
+                : isMyLetterOpenedWaitingReply
+                  ? '상대방 답장 대기 ⏳'
+                  : hasMyQuotaBeenUsedToday
+                    ? '오늘 작성 완료 🌙'
+                    : isMyTurn
+                      ? '내 턴 ✍️'
+                      : '상대방 턴 ⏳'}
           </span>
         </div>
 
@@ -380,7 +380,7 @@ export default function HomeView({
             </span>
             <div className="flex items-baseline gap-1.5 flex-wrap">
               <span className="text-[11px] text-stone-400 font-sans-ui">
-                {partnerName} 님의 마지막 일기
+                우리의 마지막 일기
               </span>
               {partnerLastInfo ? (
                 <span className="text-stone-900 font-bold text-xs sm:text-sm">
@@ -523,11 +523,10 @@ export default function HomeView({
               </span>
               {diary.warmthScore && typeof diary.warmthScore.temperature === 'number' && (
                 <span
-                  className={`text-[11px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
-                    diary.warmthScore.temperature <= 0
+                  className={`text-[11px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${diary.warmthScore.temperature <= 0
                       ? 'bg-sky-50 text-sky-800 border border-sky-200'
                       : 'bg-rose-50 text-rose-800 border border-rose-200'
-                  }`}
+                    }`}
                 >
                   {diary.warmthScore.temperature <= 0 ? (
                     <ThermometerSnowflake className="w-3 h-3" />

@@ -19,9 +19,9 @@ import { soundEngine } from '@/lib/audio';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LogOut } from 'lucide-react';
 import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
-import { 
-  saveDiaryToFirestore, 
-  updateMissionInFirestore, 
+import {
+  saveDiaryToFirestore,
+  updateMissionInFirestore,
   unsealDiaryInFirestore,
   sendKnockInFirestore,
   subscribeRoom,
@@ -35,8 +35,8 @@ import {
 import { decryptDiaryData, decryptKnockData } from '@/lib/crypto';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { 
-  registerServiceWorker, 
+import {
+  registerServiceWorker,
   subscribeToWebPush,
   sendServerWebPush
 } from '@/lib/notifications';
@@ -104,14 +104,14 @@ const sessionStore = {
     try {
       sessionStorage.setItem(key, val);
       localStorage.setItem(key, val);
-    } catch {}
+    } catch { }
   },
   remove: (key: string) => {
     if (typeof window === 'undefined') return;
     try {
       sessionStorage.removeItem(key);
       localStorage.removeItem(key);
-    } catch {}
+    } catch { }
   },
 };
 
@@ -125,7 +125,7 @@ export default function HomePage() {
         if (savedRoom && savedUser && savedPartner) {
           return 'VIEW_HOME';
         }
-      } catch {}
+      } catch { }
     }
     return 'VIEW_ONBOARDING';
   });
@@ -134,7 +134,7 @@ export default function HomePage() {
       try {
         const saved = sessionStore.get(STORAGE_KEYS.ROOM_CODE);
         if (saved) return saved;
-      } catch {}
+      } catch { }
     }
     return '';
   });
@@ -143,7 +143,7 @@ export default function HomePage() {
       try {
         const saved = sessionStore.get(STORAGE_KEYS.USER_NAME);
         if (saved) return saved;
-      } catch {}
+      } catch { }
     }
     return '나';
   });
@@ -152,7 +152,7 @@ export default function HomePage() {
       try {
         const saved = sessionStore.get(STORAGE_KEYS.PARTNER_NAME);
         if (saved) return saved;
-      } catch {}
+      } catch { }
     }
     return '상대방';
   });
@@ -163,7 +163,7 @@ export default function HomePage() {
       try {
         const saved = sessionStore.get(STORAGE_KEYS.USER_ROLE) as 'CREATOR' | 'PARTNER';
         if (saved === 'CREATOR' || saved === 'PARTNER') return saved;
-      } catch {}
+      } catch { }
     }
     return 'CREATOR';
   });
@@ -182,7 +182,7 @@ export default function HomePage() {
     if (typeof window !== 'undefined') {
       try {
         return sessionStore.get('warmth_active_user_birthdate') || '';
-      } catch {}
+      } catch { }
     }
     return '';
   });
@@ -443,7 +443,7 @@ export default function HomePage() {
           try {
             sessionStore.set(STORAGE_KEYS.USER_ROLE, role);
             setExplicitUserId(myEntry[0]);
-          } catch {}
+          } catch { }
         }
 
         // 상대방 정보 동기화 (상대방이 닉네임을 변경한 경우 자동 반영)
@@ -830,7 +830,7 @@ export default function HomePage() {
               await sendServerWebPush(
                 partnerEntry[1].pushSubscription,
                 '📬 새 일기가 도착했습니다!',
-                `${userName} 님이 비밀 편지를 봉인하여 서재에 보냈습니다.`
+                `${userName} 님이 비밀 편지를 봉인하여 보냈습니다.`
               );
             }
           }
