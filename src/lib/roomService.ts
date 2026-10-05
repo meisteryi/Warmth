@@ -8,6 +8,9 @@ import {
   onSnapshot, 
   serverTimestamp,
   runTransaction,
+  query,
+  orderBy,
+  limit,
   Unsubscribe 
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -315,8 +318,15 @@ export async function joinRoomInFirestore(
 
   // 4) 아직 매칭 대기 중인 경우 파트너로 신규 등록
   const updatedMembers = [...room.members, myUid];
+  // 방에 현재 남아있는 활성 멤버들의 memberInfo만 유지하여 최대 2명 정원 엄수
+  const activeMemberInfo: Record<string, any> = {};
+  for (const mId of room.members) {
+    if (room.memberInfo && room.memberInfo[mId]) {
+      activeMemberInfo[mId] = room.memberInfo[mId];
+    }
+  }
   const updatedMemberInfo = {
-    ...room.memberInfo,
+    ...activeMemberInfo,
     [myUid]: {
       nickname: partnerNickname || '상대방',
       role: 'PARTNER' as const,
@@ -437,7 +447,7 @@ export async function saveDiaryToFirestore(
       transaction.set(diaryRef, {
         ...encryptedDiary,
         authorId: authorUid,
-        createdAt: nowIso,
+        createdAt: diary.createdAt || nowIso,
       });
 
       transaction.update(roomRef, {
@@ -455,7 +465,7 @@ export async function saveDiaryToFirestore(
       const nowIso = new Date().toISOString();
       transaction.set(diaryRef, {
         ...encryptedDiary,
-        createdAt: nowIso,
+        createdAt: diary.createdAt || nowIso,
       });
       transaction.set(roomRef, {
         roomId: roomCode,
@@ -542,12 +552,21 @@ export async function sendKnockInFirestore(
 }
 
 // 8. 둘만의 서재(아카이브) 일기 목록 전체 가져오기 및 복호화
+// 8. 둘만의 서재(아카이브) 일기 목록 가져오기 및 복호화 (최근 5건 기본 쿼리로 렉 및 비용 최소화)
 export async function getRoomDiariesFromFirestore(
-  roomCode: string
+  roomCode: string,
+  limitCount = 5
 ): Promise<DiaryData[]> {
   try {
     const colRef = collection(db, 'rooms', roomCode, 'diaries');
-    const snapshot = await getDocs(colRef);
+    let snapshot;
+    try {
+      const q = query(colRef, orderBy('createdAt', 'desc'), limit(limitCount));
+      snapshot = await getDocs(q);
+    } catch (queryErr) {
+      console.warn('Ordered query fallback:', queryErr);
+      snapshot = await getDocs(colRef);
+    }
     const roomSalt = await getOrFetchRoomSalt(roomCode);
     const list: DiaryData[] = [];
     
@@ -557,10 +576,10 @@ export async function getRoomDiariesFromFirestore(
       list.push(decrypted);
     }
 
-    // 최신 날짜 순으로 정렬
-    return list.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    // 최신 날짜 순으로 정렬 후 상위 limitCount건 반환
+    return list
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, limitCount);
   } catch (error) {
     console.warn('Failed to fetch room diaries for archive:', error);
     return [];
@@ -573,7 +592,8 @@ export async function getLatestReadDiaryForPartner(
   partnerName: string
 ): Promise<DiaryData | null> {
   try {
-    const list = await getRoomDiariesFromFirestore(roomCode);
+    // 최근 5건 내에서 탐색하여 성능 최적화
+    const list = await getRoomDiariesFromFirestore(roomCode, 5);
     // 상대방(partnerName)이 이미 내용을 알고 있는 편지:
     // 1) 상대방이 직접 작성했던 편지 (authorName === partnerName)
     // 2) 내가 작성했고 상대방이 이미 실링 왁스를 개봉(isWaxBroken)해서 읽은 편지

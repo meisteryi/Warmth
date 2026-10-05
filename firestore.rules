@@ -64,7 +64,7 @@ service cloud.firestore {
              data.roomCode == current.roomCode &&
              data.roomSalt == current.roomSalt &&
              data.members is list &&
-             data.members.size() >= 1 &&
+             data.members.size() >= 0 &&
              data.members.size() <= 2 &&
              data.memberInfo is map &&
              data.memberInfo.size() <= 2 &&

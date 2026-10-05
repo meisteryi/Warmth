@@ -53,12 +53,15 @@ export default function ArchiveModal({
   const [diaries, setDiaries] = useState<DiaryData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'LIST' | 'REPORT' | 'BOOKLET'>('LIST');
+  const [diaryLimit, setDiaryLimit] = useState(5);
+  const [hasMore, setHasMore] = useState(false);
 
-  const fetchDiaries = async () => {
+  const fetchDiaries = async (limitCount = 5) => {
     if (!roomCode) return;
     setIsLoading(true);
     try {
-      const list = await getRoomDiariesFromFirestore(roomCode);
+      const list = await getRoomDiariesFromFirestore(roomCode, limitCount);
+      setHasMore(list.length >= limitCount);
       // 상대방이 보낸 미개봉 비밀 편지는 React State/메모리 레벨에서도 완전히 마스킹 (F12/DevTools 스포일러 원천 차단)
       const sanitized = list.map((item) => {
         const isMine = item.authorName === currentUserName;
@@ -85,9 +88,16 @@ export default function ArchiveModal({
   useEffect(() => {
     if (isOpen) {
       soundEngine.playPaperRustle();
-      fetchDiaries();
+      setDiaryLimit(5);
+      fetchDiaries(5);
     }
   }, [isOpen, roomCode]);
+
+  const handleLoadMore = () => {
+    const nextLimit = diaryLimit + 10;
+    setDiaryLimit(nextLimit);
+    fetchDiaries(nextLimit);
+  };
 
   // [5번 요구사항] 월간 및 누적 온기 통계 & 키워드 분석
   const stats = useMemo<WarmthStats | null>(() => {
@@ -321,7 +331,7 @@ export default function ArchiveModal({
 
           <div className="flex items-center gap-1.5">
             <button
-              onClick={fetchDiaries}
+              onClick={() => fetchDiaries(diaryLimit)}
               disabled={isLoading}
               title="새로고침"
               className="p-2 rounded-xl text-stone-600 hover:text-stone-900 hover:bg-stone-200/60 transition-colors disabled:opacity-50 cursor-pointer"
@@ -563,6 +573,19 @@ export default function ArchiveModal({
                   </div>
                 );
               })
+            )}
+
+            {hasMore && (
+              <div className="pt-2 pb-4 text-center">
+                <button
+                  type="button"
+                  onClick={handleLoadMore}
+                  disabled={isLoading}
+                  className="px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100/70 border border-amber-300/80 text-amber-950 text-xs font-serif-warm font-semibold transition-all cursor-pointer shadow-xs active:scale-95 disabled:opacity-50"
+                >
+                  {isLoading ? '불러오는 중...' : '📜 더 많은 지난 편지 불러오기 (+10건)'}
+                </button>
+              </div>
             )}
           </div>
         )}
