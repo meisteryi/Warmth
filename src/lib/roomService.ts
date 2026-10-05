@@ -29,13 +29,24 @@ export function setCachedRoomSalt(roomCode: string, salt: string) {
   if (salt) roomSaltCache.set(roomCode, salt);
 }
 
+// 방별 최근 일기 메모리 캐시 (오프라인 회복력 및 Stale-While-Revalidate 지원)
+const roomDiariesCache = new Map<string, DiaryData[]>();
+
+export function getCachedRoomDiaries(roomCode: string): DiaryData[] | undefined {
+  return roomDiariesCache.get(roomCode);
+}
+
 export async function getOrFetchRoomSalt(roomCode: string): Promise<string | undefined> {
   if (roomSaltCache.has(roomCode)) {
     return roomSaltCache.get(roomCode);
   }
   try {
     const roomRef = doc(db, 'rooms', roomCode);
-    const snap = await getDoc(roomRef);
+    // 소켓 정체 시 무한 대기를 막는 3.5초 안전 타임아웃
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('getDoc roomSalt timeout')), 3500)
+    );
+    const snap = await Promise.race([getDoc(roomRef), timeoutPromise]);
     if (snap.exists()) {
       const data = snap.data() as RoomData;
       if (data.roomSalt) {
@@ -482,6 +493,9 @@ export async function saveDiaryToFirestore(
       }, { merge: true });
     }
   });
+
+  // 새 일기 작성 완료 시 캐시 무효화 (서재 즉시 갱신 보장)
+  roomDiariesCache.delete(roomCode);
 }
 
 // 5. 미션 통과 업데이트 (답변 텍스트 암호화)
@@ -506,6 +520,8 @@ export async function updateMissionInFirestore(
   await updateDoc(roomRef, {
     updatedAt: serverTimestamp(),
   }).catch(() => {});
+
+  roomDiariesCache.delete(roomCode);
 }
 
 // 6. 실링 왁스 개봉 완료 업데이트
@@ -528,6 +544,9 @@ export async function unsealDiaryInFirestore(
   }).catch((err) => {
     console.warn('Failed to update room unseal status:', err);
   });
+
+  // 개봉 상태 갱신 시 캐시 무효화
+  roomDiariesCache.delete(roomCode);
 }
 
 // 7. 상대방에게 은은한 노크 전송 (메시지 암호화)
@@ -553,8 +572,8 @@ export async function sendKnockInFirestore(
   });
 }
 
-// 8. 둘만의 서재(아카이브) 일기 목록 전체 가져오기 및 복호화
-// 8. 둘만의 서재(아카이브) 일기 목록 가져오기 및 복호화 (최근 5건 기본 쿼리로 렉 및 비용 최소화)
+
+// 8. 둘만의 서재(아카이브) 일기 목록 가져오기 및 복호화 (최근 5건 기본 쿼리 & 5초 타임아웃으로 렉·무한로딩 원천 방지)
 export async function getRoomDiariesFromFirestore(
   roomCode: string,
   limitCount = 5
@@ -564,11 +583,27 @@ export async function getRoomDiariesFromFirestore(
     let snapshot;
     try {
       const q = query(colRef, orderBy('createdAt', 'desc'), limit(limitCount));
-      snapshot = await getDocs(q);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Firestore getDocs timeout')), 5000)
+      );
+      snapshot = await Promise.race([getDocs(q), timeoutPromise]);
     } catch (queryErr) {
-      console.warn('Ordered query fallback:', queryErr);
-      snapshot = await getDocs(colRef);
+      console.warn('Ordered query fallback or timeout:', queryErr);
+      try {
+        const fallbackTimeout = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Firestore fallback timeout')), 3000)
+        );
+        snapshot = await Promise.race([getDocs(colRef), fallbackTimeout]);
+      } catch (fallbackErr) {
+        console.warn('Firestore getDocs fallback also failed/timed out:', fallbackErr);
+        // 네트워크 타임아웃 발생 시 기존 메모리 캐시가 있다면 즉시 반환하여 무한 로딩 차단
+        if (roomDiariesCache.has(roomCode)) {
+          return roomDiariesCache.get(roomCode)!.slice(0, limitCount);
+        }
+        return [];
+      }
     }
+
     const roomSalt = await getOrFetchRoomSalt(roomCode);
     const list: DiaryData[] = [];
     
@@ -579,11 +614,20 @@ export async function getRoomDiariesFromFirestore(
     }
 
     // 최신 날짜 순으로 정렬 후 상위 limitCount건 반환
-    return list
+    const sorted = list
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, limitCount);
+
+    if (sorted.length > 0) {
+      roomDiariesCache.set(roomCode, sorted);
+    }
+
+    return sorted;
   } catch (error) {
     console.warn('Failed to fetch room diaries for archive:', error);
+    if (roomDiariesCache.has(roomCode)) {
+      return roomDiariesCache.get(roomCode)!.slice(0, limitCount);
+    }
     return [];
   }
 }
@@ -634,6 +678,9 @@ export async function leaveRoomInFirestore(
       },
       updatedAt: serverTimestamp(),
     });
+
+    roomDiariesCache.delete(roomCode);
+    roomSaltCache.delete(roomCode);
   } catch (e) {
     console.warn('Failed to leave room in firestore:', e);
   }

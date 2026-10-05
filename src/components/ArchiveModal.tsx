@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DiaryData } from '@/types/diary';
-import { getRoomDiariesFromFirestore } from '@/lib/roomService';
+import { getRoomDiariesFromFirestore, getCachedRoomDiaries } from '@/lib/roomService';
 import { generateFallbackWarmth } from '@/lib/gemini';
 import { 
   BookOpen, 
@@ -17,7 +17,8 @@ import {
   Flame, 
   Heart, 
   Download,
-  Lock
+  Lock,
+  AlertCircle
 } from 'lucide-react';
 import { soundEngine } from '@/lib/audio';
 import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
@@ -41,6 +42,24 @@ interface ArchiveModalProps {
   onOpenSealedLetter?: () => void;
 }
 
+// 상대방이 보낸 미개봉 비밀 편지는 React State/메모리 레벨에서도 완전히 마스킹 (F12/DevTools 스포일러 원천 차단)
+function maskUnopenedDiaries(list: DiaryData[], currentUserName: string): DiaryData[] {
+  return list.map((item) => {
+    const isMine = item.authorName === currentUserName;
+    if (!isMine && !item.isWaxBroken) {
+      return {
+        ...item,
+        title: `${item.authorName} 님이 보낸 비밀 편지`,
+        content: '실링 왁스로 봉인되어 있습니다. 메인 화면에서 관문을 풀고 왁스를 녹여 소중한 온기를 확인해 보세요.',
+        photos: [],
+        warmthScore: undefined,
+        stamp: undefined,
+      };
+    }
+    return item;
+  });
+}
+
 export default function ArchiveModal({
   isOpen,
   onClose,
@@ -50,45 +69,76 @@ export default function ArchiveModal({
   onSelectDiary,
   onOpenSealedLetter,
 }: ArchiveModalProps) {
-  const [diaries, setDiaries] = useState<DiaryData[]>([]);
+  // SWR(Stale-While-Revalidate): 메모리 캐시가 있으면 즉시 초기값으로 렌더링
+  const [diaries, setDiaries] = useState<DiaryData[]>(() => {
+    if (typeof window !== 'undefined' && roomCode) {
+      const cached = getCachedRoomDiaries(roomCode);
+      if (cached && cached.length > 0) {
+        return maskUnopenedDiaries(cached, currentUserName);
+      }
+    }
+    return [];
+  });
   const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'LIST' | 'REPORT' | 'BOOKLET'>('LIST');
   const [diaryLimit, setDiaryLimit] = useState(5);
   const [hasMore, setHasMore] = useState(false);
 
   const fetchDiaries = async (limitCount = 5) => {
     if (!roomCode) return;
-    setIsLoading(true);
+    // 캐시된 데이터가 전혀 없을 때만 로딩 스피너 표시 (기존 데이터가 있으면 백그라운드 갱신)
+    if (diaries.length === 0) {
+      setIsLoading(true);
+    }
+    setLoadError(null);
+
+    let isCompleted = false;
+    // 브라우저 백그라운드 소켓 정체 시 무한 로딩을 차단하는 6초 안전 타임아웃
+    const safetyTimer = setTimeout(() => {
+      if (!isCompleted) {
+        setIsLoading(false);
+        if (diaries.length === 0) {
+          setLoadError('네트워크 연결이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.');
+        }
+      }
+    }, 6000);
+
     try {
       const list = await getRoomDiariesFromFirestore(roomCode, limitCount);
+      isCompleted = true;
+      clearTimeout(safetyTimer);
       setHasMore(list.length >= limitCount);
-      // 상대방이 보낸 미개봉 비밀 편지는 React State/메모리 레벨에서도 완전히 마스킹 (F12/DevTools 스포일러 원천 차단)
-      const sanitized = list.map((item) => {
-        const isMine = item.authorName === currentUserName;
-        if (!isMine && !item.isWaxBroken) {
-          return {
-            ...item,
-            title: `${item.authorName} 님이 보낸 비밀 편지`,
-            content: '실링 왁스로 봉인되어 있습니다. 메인 화면에서 관문을 풀고 왁스를 녹여 소중한 온기를 확인해 보세요.',
-            photos: [],
-            warmthScore: undefined,
-            stamp: undefined,
-          };
-        }
-        return item;
-      });
+      
+      const sanitized = maskUnopenedDiaries(list, currentUserName);
       setDiaries(sanitized);
+      setLoadError(null);
     } catch (e) {
       console.warn('Failed to fetch archive:', e);
+      isCompleted = true;
+      clearTimeout(safetyTimer);
+      if (diaries.length === 0) {
+        setLoadError('일기를 불러오지 못했습니다. 네트워크 상태를 확인해 주세요.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && roomCode) {
       soundEngine.playPaperRustle();
       setDiaryLimit(5);
+      setLoadError(null);
+
+      // 모달이 열릴 때 캐시가 있으면 즉시 화면에 주입하여 깜빡임 제거
+      const cached = getCachedRoomDiaries(roomCode);
+      if (cached && cached.length > 0) {
+        setDiaries(maskUnopenedDiaries(cached, currentUserName));
+      } else {
+        setDiaries([]);
+      }
+
       fetchDiaries(5);
     }
   }, [isOpen, roomCode]);
@@ -401,10 +451,30 @@ export default function ArchiveModal({
         {/* 탭 1: 일기 목록 영역 */}
         {activeTab === 'LIST' && (
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3">
-            {isLoading ? (
+            {isLoading && diaries.length === 0 ? (
               <div className="py-16 text-center text-stone-500 font-serif-warm">
                 <RefreshCw className="w-6 h-6 animate-spin mx-auto text-[#6B1724] mb-2" />
                 <p className="text-sm">보관된 일기를 불러오는 중입니다...</p>
+              </div>
+            ) : loadError && diaries.length === 0 ? (
+              <div className="py-16 px-4 text-center">
+                <div className="w-14 h-14 rounded-full bg-rose-50 text-rose-700 flex items-center justify-center mx-auto mb-3 border border-rose-200 shadow-2xs">
+                  <AlertCircle className="w-6 h-6" />
+                </div>
+                <h3 className="font-serif-warm font-bold text-stone-800 text-base mb-1">
+                  일기를 불러오지 못했습니다
+                </h3>
+                <p className="text-xs text-stone-500 max-w-sm mx-auto leading-relaxed mb-4">
+                  {loadError}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => fetchDiaries(diaryLimit)}
+                  className="px-4 py-2 bg-[#6B1724] text-white rounded-xl text-xs font-serif-warm font-semibold shadow hover:bg-[#851E2E] transition-all inline-flex items-center gap-1.5 cursor-pointer active:scale-95"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>다시 시도하기</span>
+                </button>
               </div>
             ) : diaries.length === 0 ? (
               <div className="py-16 px-4 text-center">
