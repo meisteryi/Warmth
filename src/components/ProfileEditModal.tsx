@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Calendar, Cake, X, Check, Sparkles } from 'lucide-react';
+import { User, Cake, X, Check } from 'lucide-react';
 import { soundEngine } from '@/lib/audio';
 
 interface ProfileEditModalProps {

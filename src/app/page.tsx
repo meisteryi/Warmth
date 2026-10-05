@@ -1040,7 +1040,6 @@ export default function HomePage() {
               hasMyQuotaBeenUsedToday={hasMyQuotaBeenUsedToday}
               userRole={userRole}
               userBirthDate={userBirthDate}
-              onOpenProfile={() => setIsProfileModalOpen(true)}
               onOpenWriteModal={handleOpenWriteModal}
               onOpenArchive={() => setIsArchiveOpen(true)}
               onSendKnock={() => handleSendKnock('오늘의 교환일기를 기다리고 있어요 ✉️')}
@@ -1140,7 +1139,6 @@ export default function HomePage() {
                 onWriteReply={handleOpenWriteModal}
                 onResetView={handleGoHome}
                 userName={userName}
-                isMyTurn={isMyTurn}
               />
             ) : (
               <EmptyDeskView

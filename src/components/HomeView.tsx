@@ -43,7 +43,6 @@ interface HomeViewProps {
   hasMyQuotaBeenUsedToday?: boolean;
   userRole?: 'CREATOR' | 'PARTNER';
   userBirthDate?: string;
-  onOpenProfile?: () => void;
   onOpenWriteModal: (initialTitle?: string) => void;
   onOpenArchive: () => void;
   onSendKnock: () => void;
@@ -60,7 +59,6 @@ export default function HomeView({
   isMyTurn,
   hasMyQuotaBeenUsedToday,
   userBirthDate,
-  onOpenProfile,
   onOpenWriteModal,
   onOpenArchive,
   onSendKnock,

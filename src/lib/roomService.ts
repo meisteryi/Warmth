@@ -330,7 +330,7 @@ export async function joinRoomInFirestore(
   // 4) 아직 매칭 대기 중인 경우 파트너로 신규 등록
   const updatedMembers = [...room.members, myUid];
   // 방에 현재 남아있는 활성 멤버들의 memberInfo만 유지하여 최대 2명 정원 엄수
-  const activeMemberInfo: Record<string, any> = {};
+  const activeMemberInfo: RoomData['memberInfo'] = {};
   for (const mId of room.members) {
     if (room.memberInfo && room.memberInfo[mId]) {
       activeMemberInfo[mId] = room.memberInfo[mId];
@@ -405,7 +405,7 @@ export async function saveDiaryToFirestore(
       let authorUid = diary.authorId;
       if (roomData.memberInfo) {
         const matchedMemberEntry = Object.entries(roomData.memberInfo).find(
-          ([_, info]: [string, any]) => info?.nickname && info.nickname.trim().toLowerCase() === (diary.authorName || '').trim().toLowerCase()
+          ([, info]) => info?.nickname && info.nickname.trim().toLowerCase() === (diary.authorName || '').trim().toLowerCase()
         );
         if (matchedMemberEntry) {
           authorUid = matchedMemberEntry[0];
@@ -436,7 +436,7 @@ export async function saveDiaryToFirestore(
 
         const partnerTimes = Object.entries(roomData.lastWrittenByUser)
           .filter(([key]) => key !== authorUid && key !== diary.authorId && key !== diary.authorName)
-          .map(([_, val]) => new Date(val as string).getTime())
+          .map(([, val]) => new Date(val as string).getTime())
           .filter((t) => !isNaN(t));
 
         const latestPartnerTime = partnerTimes.length > 0 ? Math.max(...partnerTimes) : 0;
@@ -636,7 +636,7 @@ export async function getRoomDiariesFromFirestore(
 export async function getLatestReadDiaryForPartner(
   roomCode: string,
   myUserName: string,
-  partnerName?: string
+  _partnerName?: string
 ): Promise<DiaryData | null> {
   try {
     // 최근 10건 내에서 내가 작성했고 상대방이 이미 읽은 일기 탐색
@@ -729,7 +729,7 @@ export async function updateUserProfileInFirestore(
   if (!roomCode || !uid || !newNickname.trim()) return false;
   try {
     const roomRef = doc(db, 'rooms', roomCode);
-    const updates: Record<string, any> = {
+    const updates: Record<string, unknown> = {
       [`memberInfo.${uid}.nickname`]: newNickname.trim(),
       updatedAt: serverTimestamp(),
     };

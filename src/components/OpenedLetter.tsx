@@ -11,7 +11,6 @@ interface OpenedLetterProps {
   onWriteReply: () => void;
   onResetView?: () => void;
   userName?: string;
-  isMyTurn?: boolean;
 }
 
 export default function OpenedLetter({
@@ -19,7 +18,6 @@ export default function OpenedLetter({
   onWriteReply,
   onResetView,
   userName,
-  isMyTurn,
 }: OpenedLetterProps) {
   const isAuthor = Boolean(userName && diary.authorName === userName);
   const warmth = (diary.warmthScore && typeof diary.warmthScore.temperature === 'number')
