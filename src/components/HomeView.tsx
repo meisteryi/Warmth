@@ -192,13 +192,23 @@ export default function HomeView({
             </button>
           </div>
 
-          {/* 매일 새벽 04시 초기화 타이머 뱃지 (하루 1통) */}
-          <div className="mt-4 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-950/5 border border-amber-900/15 text-stone-700 text-xs font-serif-warm shadow-2xs">
-            <Clock className="w-3.5 h-3.5 text-amber-800" />
-            <span>매일 04:00 리셋</span>
-            <span className="text-stone-300">·</span>
-            <span className="font-mono font-bold text-[#6B1724]">
-              {hasMyQuotaBeenUsedToday ? `오늘 작성 완료 (다음 편지까지 ${countdown.formatted})` : `오늘 작성 가능 (${countdown.formatted} 남음)`}
+          {/* 매일 새벽 04시 초기화 타이머 뱃지 (한 줄 표시 보장 & 모바일 최적화) */}
+          <div className="mt-4 inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 rounded-full bg-amber-950/5 border border-amber-900/15 text-stone-700 text-[11px] sm:text-xs font-serif-warm shadow-2xs max-w-full overflow-hidden whitespace-nowrap">
+            <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-800 shrink-0" />
+            <span className="shrink-0 font-medium">매일 04:00 리셋</span>
+            <span className="text-stone-300 shrink-0">·</span>
+            <span className="font-mono font-bold text-[#6B1724] truncate">
+              {hasMyQuotaBeenUsedToday ? (
+                <>
+                  <span className="hidden sm:inline">오늘 작성 완료 (다음 편지까지 {countdown.formatted})</span>
+                  <span className="sm:hidden">작성 완료 ({countdown.formatted})</span>
+                </>
+              ) : (
+                <>
+                  <span className="hidden sm:inline">오늘 작성 가능 ({countdown.formatted} 남음)</span>
+                  <span className="sm:hidden">작성 가능 ({countdown.formatted})</span>
+                </>
+              )}
             </span>
           </div>
         </div>

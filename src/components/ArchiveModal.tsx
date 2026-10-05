@@ -227,18 +227,8 @@ export default function ArchiveModal({
         }
       }
 
-      // 2. 모바일/데스크톱 공통: 직접 다운로드 파일 링크 트리거
+      // 2. 모바일/데스크톱 공통: 다운로드 및 뷰어 트리거
       const url = URL.createObjectURL(pdfBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      link.target = '_blank';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
-
-      // 3. 데스크톱 일반 브라우저에서는 인쇄 대화상자도 함께 제공
       const isMobile = typeof window !== 'undefined' && (
         window.innerWidth < 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
       );
@@ -247,6 +237,29 @@ export default function ArchiveModal({
         (window.navigator as unknown as { standalone?: boolean }).standalone === true
       );
 
+      if (isMobile) {
+        // 모바일 환경: 새 창/탭으로 PDF 직접 열기 (iOS Safari 및 Android 내장 뷰어에서 '파일에 저장', 'AirPrint' 직접 가능)
+        const opened = window.open(url, '_blank');
+        if (!opened || opened.closed || typeof opened.closed === 'undefined') {
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      } else {
+        // 데스크톱: 직접 다운로드 파일 링크
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+
+      // 3. 데스크톱 일반 브라우저에서는 인쇄 대화상자도 함께 제공
       if (!isMobile && !isStandalone && typeof window !== 'undefined') {
         setTimeout(() => {
           window.print();

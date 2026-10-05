@@ -22,6 +22,7 @@ import {
   Dices,
   BookOpen,
   Save,
+  Calendar,
 } from 'lucide-react';
 
 interface WriteDiaryModalProps {
@@ -45,6 +46,15 @@ export default function WriteDiaryModal({
   fallbackPreviousDiary,
   initialTitle,
 }: WriteDiaryModalProps) {
+  const getTodayDateString = () => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  const [diaryDate, setDiaryDate] = useState<string>(getTodayDateString);
   const [title, setTitle] = useState(initialTitle || '');
   const [content, setContent] = useState('');
   const [selectedColor, setSelectedColor] = useState<WaxColor>('#6B1724');
@@ -137,6 +147,7 @@ export default function WriteDiaryModal({
         const draftData = {
           title,
           content,
+          diaryDate,
           selectedColor,
           customColor,
           selectedPhoto,
@@ -154,7 +165,7 @@ export default function WriteDiaryModal({
     }, 600);
 
     return () => clearTimeout(timer);
-  }, [isOpen, title, content, selectedColor, customColor, selectedPhoto, missionType, customPrompt, customQuizAnswer, customQuizHint, selectedStamp, stampStyle, draftKey]);
+  }, [isOpen, title, content, diaryDate, selectedColor, customColor, selectedPhoto, missionType, customPrompt, customQuizAnswer, customQuizHint, selectedStamp, stampStyle, draftKey]);
 
   // 임시 저장본 불러와 이어쓰기 (초안 및 아웃박스 복원)
   const handleRestoreDraft = () => {
@@ -180,6 +191,7 @@ export default function WriteDiaryModal({
       const parsed = JSON.parse(raw);
       if (parsed.title) setTitle(parsed.title);
       if (parsed.content) setContent(parsed.content);
+      if (parsed.diaryDate) setDiaryDate(parsed.diaryDate);
       if (parsed.selectedColor) setSelectedColor(parsed.selectedColor);
       if (parsed.customColor) setCustomColor(parsed.customColor);
       if (parsed.selectedPhoto) setSelectedPhoto(parsed.selectedPhoto);
@@ -204,6 +216,7 @@ export default function WriteDiaryModal({
     try {
       localStorage.removeItem(draftKey);
     } catch {}
+    setDiaryDate(getTodayDateString());
     setHasDraftNotice(false);
     soundEngine.playTileSlideSound();
   };
@@ -384,6 +397,19 @@ export default function WriteDiaryModal({
         warmthScore = generateFallbackWarmth(title, content);
       }
 
+      // 사용자가 지정한 일기 날짜(diaryDate) 반영
+      let diaryCreatedAt = new Date().toISOString();
+      if (diaryDate) {
+        try {
+          const now = new Date();
+          const [year, month, day] = diaryDate.split('-').map(Number);
+          const selectedDate = new Date(year, month - 1, day, now.getHours(), now.getMinutes(), now.getSeconds());
+          if (!isNaN(selectedDate.getTime())) {
+            diaryCreatedAt = selectedDate.toISOString();
+          }
+        } catch {}
+      }
+
       const diaryPayload: Partial<DiaryData> = {
         title,
         content,
@@ -392,7 +418,7 @@ export default function WriteDiaryModal({
         mission,
         authorName: currentUserName,
         recipientName: partnerName,
-        createdAt: new Date().toISOString(),
+        createdAt: diaryCreatedAt,
         isWaxBroken: false,
         warmthScore,
         stamp: {
@@ -417,6 +443,7 @@ export default function WriteDiaryModal({
 
         setTitle('');
         setContent('');
+        setDiaryDate(getTodayDateString());
         setSelectedPhoto(null);
         setUploadedPhotoInfo(null);
         setPhotoError('');
@@ -598,6 +625,64 @@ export default function WriteDiaryModal({
                       ✨ 제목 위 대형 스티커
                     </button>
                   </div>
+                </div>
+              </div>
+
+              {/* [NEW] 일기 날짜 선택 및 빠른 프리셋 */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-stone-700 font-sans-ui flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-[#6B1724]" />
+                    <span>일기 날짜</span>
+                  </label>
+                  <div className="flex items-center gap-1.5 text-[11px] font-sans-ui">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDiaryDate(getTodayDateString());
+                        soundEngine.playPaperRustle();
+                      }}
+                      className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+                        diaryDate === getTodayDateString()
+                          ? 'bg-[#6B1724] text-amber-50 font-bold shadow-2xs'
+                          : 'bg-stone-100 hover:bg-stone-200/70 text-stone-600'
+                      }`}
+                    >
+                      오늘
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const y = new Date();
+                        y.setDate(y.getDate() - 1);
+                        const yStr = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
+                        setDiaryDate(yStr);
+                        soundEngine.playPaperRustle();
+                      }}
+                      className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${
+                        (() => {
+                          const y = new Date();
+                          y.setDate(y.getDate() - 1);
+                          const yStr = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
+                          return diaryDate === yStr
+                            ? 'bg-[#6B1724] text-amber-50 font-bold shadow-2xs'
+                            : 'bg-stone-100 hover:bg-stone-200/70 text-stone-600';
+                        })()
+                      }`}
+                    >
+                      어제
+                    </button>
+                  </div>
+                </div>
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={diaryDate}
+                    onChange={(e) => {
+                      if (e.target.value) setDiaryDate(e.target.value);
+                    }}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-mono text-sm text-stone-900 cursor-pointer shadow-2xs"
+                  />
                 </div>
               </div>
 
