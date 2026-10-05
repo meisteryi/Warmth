@@ -216,17 +216,11 @@ export default function HomeView({
         <div className="absolute -bottom-10 -left-10 w-36 h-36 bg-amber-500/10 rounded-full blur-xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col items-center text-center">
-          {/* 커플 닉네임 뱃지 (클릭 시 내 프로필 편집 연결) */}
+          {/* 커플 닉네임 뱃지 */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/80 border border-[#E5DAC8] shadow-2xs mb-2">
-            <button
-              type="button"
-              onClick={onOpenProfile}
-              title="내 프로필 편집 (이름, 생년월일)"
-              className="font-serif-warm font-bold text-stone-900 text-xs sm:text-sm hover:text-[#6B1724] transition-colors cursor-pointer inline-flex items-center gap-1 group"
-            >
-              <span>{userName}</span>
-              <span className="text-[10px] text-stone-400 group-hover:text-[#6B1724]">✏️</span>
-            </button>
+            <span className="font-serif-warm font-bold text-stone-900 text-xs sm:text-sm">
+              {userName}
+            </span>
             <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500 animate-pulse shrink-0" />
             <span className="font-serif-warm font-bold text-stone-900 text-xs sm:text-sm">
               {partnerName}
