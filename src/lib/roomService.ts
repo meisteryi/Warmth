@@ -651,3 +651,29 @@ export async function savePushSubscriptionToRoom(
   }
 }
 
+// 13. 방 내 사용자 프로필 (이름, 생년월일) 실시간 업데이트
+export async function updateUserProfileInFirestore(
+  roomCode: string,
+  uid: string,
+  newNickname: string,
+  newBirthDate?: string
+): Promise<boolean> {
+  if (!roomCode || !uid || !newNickname.trim()) return false;
+  try {
+    const roomRef = doc(db, 'rooms', roomCode);
+    const updates: Record<string, any> = {
+      [`memberInfo.${uid}.nickname`]: newNickname.trim(),
+      updatedAt: serverTimestamp(),
+    };
+    if (newBirthDate !== undefined) {
+      updates[`memberInfo.${uid}.birthDate`] = newBirthDate.trim();
+    }
+    await updateDoc(roomRef, updates);
+    return true;
+  } catch (e) {
+    console.warn('Failed to update user profile in Firestore:', e);
+    return false;
+  }
+}
+
+

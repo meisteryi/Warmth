@@ -17,6 +17,7 @@ import {
   VolumeX,
   Home,
   Clock,
+  User,
 } from 'lucide-react';
 import { getNotificationStatus, requestNotificationPermission } from '@/lib/notifications';
 import { soundEngine } from '@/lib/audio';
@@ -29,6 +30,7 @@ interface RoomHeaderProps {
   onOpenArchive?: () => void;
   onLeaveRoom?: () => void;
   onGoHome?: () => void;
+  onOpenProfile?: () => void;
   roomCode: string;
   userName: string;
   partnerName: string;
@@ -43,6 +45,7 @@ export default function RoomHeader({
   onOpenArchive,
   onLeaveRoom,
   onGoHome,
+  onOpenProfile,
   roomCode,
   userName,
   partnerName,
@@ -270,6 +273,27 @@ export default function RoomHeader({
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
             className="absolute right-3.5 sm:right-6 top-[calc(100%+6px)] w-64 bg-[#FAF7F2] rounded-2xl shadow-xl border border-[#E8DFD3] py-2 z-50 font-sans-ui text-stone-700"
           >
+            {/* 0. 내 프로필 설정 (이름 · 생년월일) */}
+            {onOpenProfile && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  onOpenProfile();
+                }}
+                className="w-full px-3.5 py-2.5 text-left flex items-center justify-between hover:bg-stone-100/70 transition-colors text-xs cursor-pointer border-b border-[#E8DFD3]/80"
+              >
+                <span className="flex items-center gap-2">
+                  <User className="w-3.5 h-3.5 text-[#6B1724]" />
+                  <span className="font-semibold text-stone-800">내 프로필 편집</span>
+                </span>
+                <span className="text-[11px] text-stone-500 font-sans-ui flex items-center gap-1">
+                  <span className="font-medium text-stone-700 max-w-[80px] truncate">{userName}</span>
+                  <span className="text-stone-400">✏️</span>
+                </span>
+              </button>
+            )}
+
             {/* 1. 방 정보 및 코드 복사 */}
             <div className="px-3.5 py-2 border-b border-[#E8DFD3]/80 flex items-center justify-between">
               <div>

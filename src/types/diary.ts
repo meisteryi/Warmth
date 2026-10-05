@@ -123,6 +123,7 @@ export interface RoomData {
       nickname: string;
       role: 'CREATOR' | 'PARTNER';
       pushSubscription?: string;
+      birthDate?: string; // YYYY-MM-DD
     };
   };
   roomSalt?: string;

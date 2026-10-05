@@ -42,6 +42,8 @@ interface HomeViewProps {
   isMyTurn: boolean;
   hasMyQuotaBeenUsedToday?: boolean;
   userRole?: 'CREATOR' | 'PARTNER';
+  userBirthDate?: string;
+  onOpenProfile?: () => void;
   onOpenWriteModal: (initialTitle?: string) => void;
   onOpenArchive: () => void;
   onSendKnock: () => void;
@@ -57,6 +59,8 @@ export default function HomeView({
   diary,
   isMyTurn,
   hasMyQuotaBeenUsedToday,
+  userBirthDate,
+  onOpenProfile,
   onOpenWriteModal,
   onOpenArchive,
   onSendKnock,
@@ -121,6 +125,15 @@ export default function HomeView({
   // 오늘 날짜 및 상대방 마지막 일기 감성 포맷팅
   const todayFormatted = useMemo(() => formatTodayKorean(new Date(), true), []);
   const partnerLastInfo = useMemo(() => formatDiaryDateWithRelative(partnerLastDiaryDate), [partnerLastDiaryDate]);
+
+  // 상대방의 생년월일 추출
+  const partnerBirthDate = useMemo(() => {
+    if (!roomData?.memberInfo) return null;
+    const partnerEntry = Object.entries(roomData.memberInfo).find(
+      ([key, info]) => key !== userName && info.nickname !== userName
+    );
+    return partnerEntry?.[1]?.birthDate || null;
+  }, [roomData, userName]);
 
   // 이어진 날짜 계산 (기념일 설정값 -> 매칭일 -> 방 생성일 -> 오늘 순 우선순위)
   const effectiveStartDate = roomData?.anniversaryDate || roomData?.matchedAt || roomData?.createdAt || null;
@@ -203,16 +216,40 @@ export default function HomeView({
         <div className="absolute -bottom-10 -left-10 w-36 h-36 bg-amber-500/10 rounded-full blur-xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col items-center text-center">
-          {/* 커플 닉네임 뱃지 */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/80 border border-[#E5DAC8] shadow-2xs mb-4">
-            <span className="font-serif-warm font-bold text-stone-900 text-xs sm:text-sm">
-              {userName}
-            </span>
-            <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500 animate-pulse" />
+          {/* 커플 닉네임 뱃지 (클릭 시 내 프로필 편집 연결) */}
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/80 border border-[#E5DAC8] shadow-2xs mb-2">
+            <button
+              type="button"
+              onClick={onOpenProfile}
+              title="내 프로필 편집 (이름, 생년월일)"
+              className="font-serif-warm font-bold text-stone-900 text-xs sm:text-sm hover:text-[#6B1724] transition-colors cursor-pointer inline-flex items-center gap-1 group"
+            >
+              <span>{userName}</span>
+              <span className="text-[10px] text-stone-400 group-hover:text-[#6B1724]">✏️</span>
+            </button>
+            <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500 animate-pulse shrink-0" />
             <span className="font-serif-warm font-bold text-stone-900 text-xs sm:text-sm">
               {partnerName}
             </span>
           </div>
+
+          {/* 생일 정보 뱃지 (생년월일이 등록된 경우 표시) */}
+          {(userBirthDate || partnerBirthDate) && (
+            <div className="flex items-center gap-1.5 text-[10.5px] font-sans-ui text-stone-500 mb-3 flex-wrap justify-center">
+              {userBirthDate && (
+                <span className="inline-flex items-center gap-1 bg-amber-50/90 border border-amber-200/90 px-2 py-0.5 rounded-md text-amber-900 shadow-2xs">
+                  <span>🎂 {userName}:</span>
+                  <span className="font-semibold font-mono">{userBirthDate.slice(5).replace('-', '월 ') + '일'}</span>
+                </span>
+              )}
+              {partnerBirthDate && (
+                <span className="inline-flex items-center gap-1 bg-rose-50/90 border border-rose-200/90 px-2 py-0.5 rounded-md text-rose-900 shadow-2xs">
+                  <span>🎂 {partnerName}:</span>
+                  <span className="font-semibold font-mono">{partnerBirthDate.slice(5).replace('-', '월 ') + '일'}</span>
+                </span>
+              )}
+            </div>
+          )}
 
           {/* D-Day 대형 타이틀 */}
           <p className="font-serif-warm text-stone-600 text-xs sm:text-sm tracking-wide font-medium">

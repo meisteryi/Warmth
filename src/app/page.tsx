@@ -12,6 +12,7 @@ import WriteDiaryModal from '@/components/WriteDiaryModal';
 import KnockNotificationModal from '@/components/KnockNotificationModal';
 import ArchiveModal from '@/components/ArchiveModal';
 import HomeView from '@/components/HomeView';
+import ProfileEditModal from '@/components/ProfileEditModal';
 import { DiaryData, KnockData, UIState, WaxColor, RoomData } from '@/types/diary';
 import { isDiaryWrittenInCurrentCycle, getTimeUntilNextReset, ResetCountdownInfo } from '@/lib/dateUtils';
 import { soundEngine } from '@/lib/audio';
@@ -28,7 +29,8 @@ import {
   leaveRoomInFirestore,
   getOrCreateUserId,
   setExplicitUserId,
-  savePushSubscriptionToRoom
+  savePushSubscriptionToRoom,
+  updateUserProfileInFirestore
 } from '@/lib/roomService';
 import { decryptDiaryData, decryptKnockData } from '@/lib/crypto';
 import { doc, getDoc } from 'firebase/firestore';
@@ -175,6 +177,15 @@ export default function HomePage() {
   const [isWriteModalOpen, setIsWriteModalOpen] = useState(false);
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
   const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [userBirthDate, setUserBirthDate] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        return sessionStore.get('warmth_active_user_birthdate') || '';
+      } catch {}
+    }
+    return '';
+  });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
@@ -332,14 +343,28 @@ export default function HomePage() {
               if (loadedRoomData.memberInfo) {
                 const myUid = getOrCreateUserId();
                 const entry = Object.entries(loadedRoomData.memberInfo).find(([uid, info]: any) => {
-                  return (info.nickname && info.nickname.trim().toLowerCase() === savedUser.trim().toLowerCase()) || uid === myUid;
+                  return uid === myUid || (info.nickname && info.nickname.trim().toLowerCase() === savedUser.trim().toLowerCase());
                 });
                 if (entry) {
-                  const role = (entry[1] as any).role as 'CREATOR' | 'PARTNER';
+                  const myInfo = entry[1] as any;
+                  const role = myInfo.role as 'CREATOR' | 'PARTNER';
                   setUserRole(role);
                   sessionStore.set(STORAGE_KEYS.USER_ROLE, role);
                   // Firestore 방에 등록된 본인 실제 UID로 확정 바인딩
                   setExplicitUserId(entry[0]);
+
+                  if (myInfo.birthDate) {
+                    setUserBirthDate(myInfo.birthDate);
+                    sessionStore.set('warmth_active_user_birthdate', myInfo.birthDate);
+                  }
+                }
+
+                // 상대방 정보 동기화 (상대방이 닉네임을 변경한 경우 자동 반영)
+                const partnerEntry = Object.entries(loadedRoomData.memberInfo).find(([uid]) => uid !== myUid);
+                if (partnerEntry && (partnerEntry[1] as any)?.nickname) {
+                  const pName = (partnerEntry[1] as any).nickname;
+                  setPartnerName(pName);
+                  sessionStore.set(STORAGE_KEYS.PARTNER_NAME, pName);
                 }
               }
               if (loadedRoomData.members) {
@@ -393,19 +418,39 @@ export default function HomePage() {
       if (isLeavingRef.current) return;
       setRoomData(room);
 
-      // 0. 방 멤버 정보로부터 내 역할(CREATOR vs PARTNER) 동기화
+      // 0. 방 멤버 정보로부터 내 역할(CREATOR vs PARTNER) 동기화 및 닉네임/생년월일 동기화
       if (room.memberInfo) {
         const myUid = getOrCreateUserId();
-        const entry = Object.entries(room.memberInfo).find(([uid, info]) => {
-          return (info.nickname && info.nickname.trim().toLowerCase() === userName.trim().toLowerCase()) || uid === myUid;
+        const myEntry = Object.entries(room.memberInfo).find(([uid, info]) => {
+          return uid === myUid || (info.nickname && info.nickname.trim().toLowerCase() === userName.trim().toLowerCase());
         });
-        if (entry) {
-          const role = entry[1].role;
+        if (myEntry) {
+          const myInfo = myEntry[1];
+          const role = myInfo.role;
           setUserRole(role);
+          if (myInfo.nickname && myInfo.nickname !== userName) {
+            setUserName(myInfo.nickname);
+            sessionStore.set(STORAGE_KEYS.USER_NAME, myInfo.nickname);
+          }
+          if (myInfo.birthDate !== undefined) {
+            setUserBirthDate(myInfo.birthDate || '');
+            if (myInfo.birthDate) {
+              sessionStore.set('warmth_active_user_birthdate', myInfo.birthDate);
+            } else {
+              sessionStore.remove('warmth_active_user_birthdate');
+            }
+          }
           try {
             sessionStore.set(STORAGE_KEYS.USER_ROLE, role);
-            setExplicitUserId(entry[0]);
+            setExplicitUserId(myEntry[0]);
           } catch {}
+        }
+
+        // 상대방 정보 동기화 (상대방이 닉네임을 변경한 경우 자동 반영)
+        const partnerEntry = Object.entries(room.memberInfo).find(([uid]) => uid !== myUid);
+        if (partnerEntry && partnerEntry[1]?.nickname && partnerEntry[1].nickname !== partnerName) {
+          setPartnerName(partnerEntry[1].nickname);
+          sessionStore.set(STORAGE_KEYS.PARTNER_NAME, partnerEntry[1].nickname);
         }
       }
 
@@ -845,6 +890,29 @@ export default function HomePage() {
     }
   };
 
+  // 내 프로필 (이름, 생년월일) 저장 및 Firestore & 로컬 실시간 동기화
+  const handleSaveProfile = async (newName: string, newBirthDate: string) => {
+    const trimmedName = newName.trim();
+    setUserName(trimmedName);
+    setUserBirthDate(newBirthDate);
+    sessionStore.set(STORAGE_KEYS.USER_NAME, trimmedName);
+    if (newBirthDate) {
+      sessionStore.set('warmth_active_user_birthdate', newBirthDate);
+    } else {
+      sessionStore.remove('warmth_active_user_birthdate');
+    }
+
+    if (roomCode) {
+      try {
+        const myUid = getOrCreateUserId();
+        await updateUserProfileInFirestore(roomCode, myUid, trimmedName, newBirthDate);
+      } catch (err) {
+        console.error('Failed to update profile in Firestore:', err);
+      }
+    }
+    showToast(`내 프로필이 '${trimmedName}'(으)로 변경되었습니다. ✨`);
+  };
+
   if (!isMounted) {
     return (
       <div className="fixed inset-0 z-[100] min-h-screen min-h-dvh flex flex-col items-center justify-between bg-[#FDFBF7] text-[#2C2A29] pt-[max(env(safe-area-inset-top,0px),2.5rem)] pb-[max(env(safe-area-inset-bottom,0px),2.5rem)] px-6 select-none">
@@ -934,6 +1002,7 @@ export default function HomePage() {
         onOpenArchive={() => setIsArchiveOpen(true)}
         onLeaveRoom={handleLeaveRoom}
         onGoHome={handleGoHome}
+        onOpenProfile={() => setIsProfileModalOpen(true)}
         roomCode={roomCode}
         userName={userName}
         partnerName={partnerName}
@@ -969,6 +1038,8 @@ export default function HomePage() {
               isMyTurn={isMyTurn}
               hasMyQuotaBeenUsedToday={hasMyQuotaBeenUsedToday}
               userRole={userRole}
+              userBirthDate={userBirthDate}
+              onOpenProfile={() => setIsProfileModalOpen(true)}
               onOpenWriteModal={handleOpenWriteModal}
               onOpenArchive={() => setIsArchiveOpen(true)}
               onSendKnock={() => handleSendKnock('오늘의 교환일기를 기다리고 있어요 ✉️')}
@@ -1359,6 +1430,15 @@ export default function HomePage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 내 프로필 편집 (이름, 생년월일) 모달 */}
+      <ProfileEditModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        currentName={userName}
+        currentBirthDate={userBirthDate}
+        onSave={handleSaveProfile}
+      />
 
       {/* 푸터 (iOS 홈 인디케이터 제스처 여백 확보 및 제작자 문의) */}
       <footer className="py-2.5 sm:py-3.5 pb-[calc(env(safe-area-inset-bottom,0px)+0.6rem)] text-center text-[10px] sm:text-[11px] text-stone-400 font-serif-warm border-t border-[#EAE1D5]/40 bg-[#FAF7F2]/50 px-3 shrink-0 flex flex-col items-center gap-1">
