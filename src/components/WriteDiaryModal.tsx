@@ -55,7 +55,8 @@ export default function WriteDiaryModal({
   };
 
   const [diaryDate, setDiaryDate] = useState<string>(getTodayDateString);
-  const [title, setTitle] = useState(initialTitle || '');
+  const safeInitialTitle = typeof initialTitle === 'string' ? initialTitle : '';
+  const [title, setTitle] = useState(safeInitialTitle);
   const [content, setContent] = useState('');
   const [selectedColor, setSelectedColor] = useState<WaxColor>('#6B1724');
   const [customColor, setCustomColor] = useState<string>('#9E2A3C');
@@ -89,7 +90,7 @@ export default function WriteDiaryModal({
   // 모달이 열릴 때마다 오늘의 온기 글감 추천 로드
   useEffect(() => {
     if (isOpen) {
-      if (initialTitle) {
+      if (typeof initialTitle === 'string' && initialTitle) {
         setTitle(initialTitle);
       }
       const clean = partnerName && partnerName.trim() && partnerName !== '상대방' && partnerName !== '파트너'
@@ -189,8 +190,8 @@ export default function WriteDiaryModal({
 
       if (!raw) return;
       const parsed = JSON.parse(raw);
-      if (parsed.title) setTitle(parsed.title);
-      if (parsed.content) setContent(parsed.content);
+      if (typeof parsed.title === 'string') setTitle(parsed.title);
+      if (typeof parsed.content === 'string') setContent(parsed.content);
       if (parsed.diaryDate) setDiaryDate(parsed.diaryDate);
       if (parsed.selectedColor) setSelectedColor(parsed.selectedColor);
       if (parsed.customColor) setCustomColor(parsed.customColor);
@@ -255,10 +256,12 @@ export default function WriteDiaryModal({
     try {
       let targetDiary: DiaryData | null = null;
       if (roomCode) {
-        targetDiary = await getLatestReadDiaryForPartner(roomCode, partnerName);
+        targetDiary = await getLatestReadDiaryForPartner(roomCode, currentUserName, partnerName);
       }
       if (!targetDiary && fallbackPreviousDiary) {
-        targetDiary = fallbackPreviousDiary;
+        if (fallbackPreviousDiary.authorName === currentUserName && fallbackPreviousDiary.isWaxBroken) {
+          targetDiary = fallbackPreviousDiary;
+        }
       }
 
       if (targetDiary) {
@@ -271,14 +274,14 @@ export default function WriteDiaryModal({
         setCustomPrompt(quiz.prompt);
         setCustomQuizAnswer(quiz.answer);
         setCustomQuizHint(quiz.hint);
-        setQuizSourceInfo(`상대방이 읽은 최근 편지「${targetDiary.title || '제목 없음'}」기반`);
+        setQuizSourceInfo(`내가 썼고 ${partnerName} 님이 읽은 최근 편지「${targetDiary.title || '제목 없음'}」기반`);
       } else {
         // 지난 편지가 아직 없는 첫 편지인 경우
         const quiz = await fetchAiQuiz(null, currentUserName, partnerName);
         setCustomPrompt(quiz.prompt);
         setCustomQuizAnswer(quiz.answer);
         setCustomQuizHint(quiz.hint);
-        setQuizSourceInfo('아직 지난 편지가 없어 둘만의 첫인사 퀴즈로 생성');
+        setQuizSourceInfo('상대방이 읽은 내 지난 편지가 없어 둘만의 첫인사 퀴즈로 생성');
       }
       soundEngine.playMissionPassChime();
     } catch (e) {

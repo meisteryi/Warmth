@@ -263,7 +263,8 @@ export default function HomePage() {
     return diary.authorName !== userName;
   }, [diary, userRole, userName]);
 
-  const handleOpenWriteModal = (initialTitle?: string) => {
+  const handleOpenWriteModal = (initialTitle?: unknown) => {
+    const validTitle = typeof initialTitle === 'string' && initialTitle.trim() ? initialTitle.trim() : undefined;
     if (!isMyTurn) {
       if (!diary) {
         showToast(`초대받은 ${partnerName} 님이 첫 번째 편지를 먼저 작성할 차례입니다.`);
@@ -278,7 +279,7 @@ export default function HomePage() {
       showToast(`오늘의 일기는 이미 작성하셨습니다 (하루 각자 1통). 다음 편지는 내일 새벽 04:00(남은 시간: ${countdown.formattedKorean})에 열립니다.`);
       return;
     }
-    setWriteModalInitialTitle(initialTitle);
+    setWriteModalInitialTitle(validTitle);
     setIsWriteModalOpen(true);
   };
 

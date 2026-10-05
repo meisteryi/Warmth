@@ -208,7 +208,7 @@ export default function RoomHeader({
 
             {/* 일기 쓰기 버튼 (상대방 답장 대기 상태 우선 판별 & 동일 높이 고정) */}
             <button
-              onClick={onOpenWriteModal}
+              onClick={() => onOpenWriteModal()}
               title={
                 isMyTurn === false
                   ? `${partnerName} 님의 작성 차례입니다 (답장을 기다려주세요)`
