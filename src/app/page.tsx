@@ -1360,9 +1360,18 @@ export default function HomePage() {
         )}
       </AnimatePresence>
 
-      {/* 푸터 (iOS 홈 인디케이터 제스처 여백 확보) */}
-      <footer className="py-2 sm:py-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.6rem)] text-center text-[10px] sm:text-[11px] text-stone-400 font-serif-warm border-t border-[#EAE1D5]/40 bg-[#FAF7F2]/50 px-3 shrink-0">
+      {/* 푸터 (iOS 홈 인디케이터 제스처 여백 확보 및 제작자 문의) */}
+      <footer className="py-2.5 sm:py-3.5 pb-[calc(env(safe-area-inset-bottom,0px)+0.6rem)] text-center text-[10px] sm:text-[11px] text-stone-400 font-serif-warm border-t border-[#EAE1D5]/40 bg-[#FAF7F2]/50 px-3 shrink-0 flex flex-col items-center gap-1">
         <p>온기 (Warmth) · 하루걸러 띄우는 우리 둘만의 아날로그 비밀 교환일기</p>
+        <p className="text-[10px] text-stone-400/90 font-sans-ui flex items-center justify-center gap-1.5 flex-wrap">
+          <span>제작자 문의 (Contact):</span>
+          <a
+            href="mailto:yjh020701@gmail.com"
+            className="text-stone-500 hover:text-stone-800 underline underline-offset-2 transition-colors font-mono"
+          >
+            yjh020701@gmail.com
+          </a>
+        </p>
       </footer>
     </div>
   );
