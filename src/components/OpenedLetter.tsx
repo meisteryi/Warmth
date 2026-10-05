@@ -56,7 +56,7 @@ export default function OpenedLetter({
             </div>
             <div className="flex items-center gap-3">
               {diary.stamp && diary.stamp.style !== 'EMOJI_TITLE' && (
-                <div 
+                <div
                   className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-dashed text-xs font-serif-warm select-none rotate-[-2deg] shadow-2xs"
                   style={{
                     borderColor: diary.stamp.color || '#A83232',
@@ -89,9 +89,8 @@ export default function OpenedLetter({
                 <span>{diary.stamp.symbol}</span>
               </motion.div>
             )}
-            <h1 className={`font-serif-warm text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight leading-snug ${
-              diary.stamp?.style === 'EMOJI_TITLE' ? 'pt-2 sm:pt-1 pl-8 sm:pl-9' : ''
-            }`}>
+            <h1 className={`font-serif-warm text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight leading-snug ${diary.stamp?.style === 'EMOJI_TITLE' ? 'pt-2 sm:pt-1 pl-8 sm:pl-9' : ''
+              }`}>
               {diary.title}
             </h1>
           </div>
@@ -103,9 +102,8 @@ export default function OpenedLetter({
                 <motion.div
                   key={idx}
                   whileHover={{ scale: 1.03, rotate: 0 }}
-                  className={`polaroid-frame w-48 sm:w-56 transition-transform ${
-                    idx % 2 === 0 ? '-rotate-1' : 'rotate-2'
-                  }`}
+                  className={`polaroid-frame w-48 sm:w-56 transition-transform ${idx % 2 === 0 ? '-rotate-1' : 'rotate-2'
+                    }`}
                 >
                   <div className="w-full aspect-[4/3] bg-stone-200 overflow-hidden rounded-xs relative">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -134,20 +132,18 @@ export default function OpenedLetter({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className={`my-6 p-3.5 sm:p-4 rounded-xl border shadow-xs ${
-                warmth.temperature <= 0
+              className={`my-6 p-3.5 sm:p-4 rounded-xl border shadow-xs ${warmth.temperature <= 0
                   ? 'bg-gradient-to-r from-[#F0F7FF] via-[#F8FBFF] to-[#FAF7F2] border-[#D0E2F5]'
                   : 'bg-gradient-to-r from-[#FFF7ED] via-[#FDF8F3] to-[#F7EDE2] border-[#ECDCCB]'
-              }`}
+                }`}
             >
               <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#EBD6C2]/60">
                 <div className="flex items-center gap-2.5">
                   <div
-                    className={`w-8 h-8 rounded-full border flex items-center justify-center shadow-2xs shrink-0 ${
-                      warmth.temperature <= 0
+                    className={`w-8 h-8 rounded-full border flex items-center justify-center shadow-2xs shrink-0 ${warmth.temperature <= 0
                         ? 'bg-sky-100/90 border-sky-200/80 text-sky-800'
                         : 'bg-rose-100/90 border-rose-200/80 text-rose-800'
-                    }`}
+                      }`}
                   >
                     {warmth.temperature <= 0 ? (
                       <ThermometerSnowflake className="w-4 h-4" />
@@ -161,11 +157,10 @@ export default function OpenedLetter({
                         오늘의 온기 온도
                       </span>
                       <span
-                        className={`text-xs font-serif-warm font-bold px-2.5 py-0.5 rounded-full border shadow-2xs ${
-                          warmth.temperature <= 0
+                        className={`text-xs font-serif-warm font-bold px-2.5 py-0.5 rounded-full border shadow-2xs ${warmth.temperature <= 0
                             ? 'text-sky-900 bg-sky-50 border-sky-200'
                             : 'text-rose-900 bg-rose-50 border-rose-200'
-                        }`}
+                          }`}
                       >
                         {warmth.temperature > 0 ? `+${warmth.temperature}` : warmth.temperature}°C
                       </span>
