@@ -106,3 +106,51 @@ export function getTimeUntilNextReset(now: Date = new Date()): ResetCountdownInf
     nextResetTime: nextReset,
   };
 }
+
+/**
+ * 오늘 날짜를 한국어 감성 포맷으로 반환 (예: "10월 5일 (월)")
+ */
+export function formatTodayKorean(now: Date = new Date(), includeYear = false): string {
+  const days = ['일', '월', '화', '수', '목', '금', '토'];
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1;
+  const d = now.getDate();
+  const dayName = days[now.getDay()];
+  return includeYear ? `${y}년 ${m}월 ${d}일 (${dayName})` : `${m}월 ${d}일 (${dayName})`;
+}
+
+/**
+ * 일기 작성 일시를 "M월 D일 (요일)" 및 상대 시간("오늘", "어제", "N일 전")으로 포맷
+ */
+export function formatDiaryDateWithRelative(dateStr?: string | null): { dateText: string; relativeText: string } | null {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+
+  const days = ['일', '월', '화', '수', '목', '금', '토'];
+  const m = d.getMonth() + 1;
+  const date = d.getDate();
+  const dayName = days[d.getDay()];
+  const dateText = `${m}월 ${date}일 (${dayName})`;
+
+  const now = new Date();
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const targetMidnight = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diffDays = Math.round((todayMidnight - targetMidnight) / (1000 * 60 * 60 * 24));
+
+  let relativeText = '';
+  if (diffDays === 0) {
+    relativeText = '오늘';
+  } else if (diffDays === 1) {
+    relativeText = '어제';
+  } else if (diffDays === 2) {
+    relativeText = '그저께';
+  } else if (diffDays > 0) {
+    relativeText = `${diffDays}일 전`;
+  } else {
+    relativeText = '방금';
+  }
+
+  return { dateText, relativeText };
+}
+

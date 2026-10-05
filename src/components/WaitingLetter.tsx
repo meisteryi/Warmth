@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Feather, Bell, Clock, Compass, Send, CheckCircle2 } from 'lucide-react';
+import { Feather, Bell, Clock, Compass, Send, CheckCircle2, Calendar } from 'lucide-react';
 import { soundEngine } from '@/lib/audio';
+import { formatTodayKorean } from '@/lib/dateUtils';
 
 const KNOCK_PRESETS = [
   '오늘의 교환일기를 기다리고 있어요 ✉️',
@@ -85,10 +86,16 @@ export default function WaitingLetter({
           </div>
         </div>
 
-        {/* 턴 대기 텍스트 */}
-        <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-900/10 text-stone-700 text-[11px] sm:text-xs font-sans-ui mb-1.5 sm:mb-2.5">
-          <Clock className="w-3 h-3 text-amber-800 animate-spin" />
-          <span>상대방의 턴</span>
+        {/* 턴 대기 & 오늘 날짜 텍스트 */}
+        <div className="flex flex-wrap items-center justify-center gap-1.5 mb-2">
+          <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-900/10 text-stone-700 text-[11px] sm:text-xs font-sans-ui">
+            <Clock className="w-3 h-3 text-amber-800 animate-spin" />
+            <span>상대방의 턴</span>
+          </div>
+          <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/80 border border-[#DECDBB] text-stone-600 text-[11px] sm:text-xs font-serif-warm shadow-2xs">
+            <Calendar className="w-3 h-3 text-amber-800" />
+            <span>오늘 {formatTodayKorean(new Date(), false)}</span>
+          </div>
         </div>
 
         <h3 className="font-serif-warm text-xl sm:text-2xl font-bold text-stone-900 leading-tight">

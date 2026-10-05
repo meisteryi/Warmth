@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Heart,
@@ -25,9 +25,11 @@ import {
   calculateDaysTogether, 
   DaysTogetherInfo, 
   getTimeUntilNextReset, 
-  ResetCountdownInfo 
+  ResetCountdownInfo,
+  formatTodayKorean,
+  formatDiaryDateWithRelative,
 } from '@/lib/dateUtils';
-import { updateAnniversaryDateInFirestore } from '@/lib/roomService';
+import { updateAnniversaryDateInFirestore, getRoomDiariesFromFirestore } from '@/lib/roomService';
 import { fetchDailyPrompt } from '@/lib/aiClient';
 import { soundEngine } from '@/lib/audio';
 
@@ -77,6 +79,48 @@ export default function HomeView({
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // 상대방의 마지막 일기 작성 일시 추적 (하루 하나의 일기 콘셉트)
+  const [partnerLastDiaryDate, setPartnerLastDiaryDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    // 1) 현재 구독 중인 최신 diary가 상대방 작성 일기인 경우
+    if (diary && diary.authorName === partnerName && diary.createdAt) {
+      setPartnerLastDiaryDate(diary.createdAt);
+      return;
+    }
+
+    // 2) Firestore roomData.lastWrittenByUser에서 상대방 기록 확인
+    if (roomData?.lastWrittenByUser) {
+      if (roomData.lastWrittenByUser[partnerName]) {
+        setPartnerLastDiaryDate(roomData.lastWrittenByUser[partnerName]);
+        return;
+      }
+      const partnerEntry = Object.entries(roomData.lastWrittenByUser).find(
+        ([key]) => key !== userName && key !== 'user_ssr'
+      );
+      if (partnerEntry && partnerEntry[1]) {
+        setPartnerLastDiaryDate(partnerEntry[1]);
+        return;
+      }
+    }
+
+    // 3) 보관함에서 상대방이 작성한 가장 최근 일기 1건 탐색
+    if (roomCode) {
+      getRoomDiariesFromFirestore(roomCode)
+        .then((list) => {
+          const partnerDiaries = list.filter((d) => d.authorName === partnerName);
+          if (partnerDiaries.length > 0) {
+            setPartnerLastDiaryDate(partnerDiaries[0].createdAt);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [diary, partnerName, roomData, roomCode, userName]);
+
+  // 오늘 날짜 및 상대방 마지막 일기 감성 포맷팅
+  const todayFormatted = useMemo(() => formatTodayKorean(new Date(), true), []);
+  const partnerLastInfo = useMemo(() => formatDiaryDateWithRelative(partnerLastDiaryDate), [partnerLastDiaryDate]);
 
   // 이어진 날짜 계산 (기념일 설정값 -> 매칭일 -> 방 생성일 -> 오늘 순 우선순위)
   const effectiveStartDate = roomData?.anniversaryDate || roomData?.matchedAt || roomData?.createdAt || null;
@@ -279,6 +323,48 @@ export default function HomeView({
               ? '내 턴 ✍️'
               : '상대방 턴 ⏳'}
           </span>
+        </div>
+
+        {/* 하루 하나의 일기 콘셉트: 오늘 날짜 및 상대방 마지막 일기 날짜 안내 바 */}
+        <div className="p-3 sm:p-3.5 rounded-2xl bg-[#FAF6EE] border border-[#E8DFC8] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs font-serif-warm shadow-2xs">
+          {/* 오늘 날짜 */}
+          <div className="flex items-center gap-2 text-stone-700">
+            <span className="flex items-center justify-center w-7 h-7 rounded-xl bg-white border border-[#DECDBB] text-amber-800 shadow-2xs shrink-0">
+              <Calendar className="w-3.5 h-3.5" />
+            </span>
+            <div className="flex items-baseline gap-1.5 flex-wrap">
+              <span className="text-[11px] text-stone-400 font-sans-ui">오늘 날짜</span>
+              <strong className="text-stone-900 font-bold text-xs sm:text-sm">
+                {todayFormatted}
+              </strong>
+            </div>
+          </div>
+
+          <div className="hidden sm:block w-px h-6 bg-[#E3DACB]" />
+
+          {/* 상대방의 마지막 일기 */}
+          <div className="flex items-center gap-2 text-stone-700">
+            <span className="flex items-center justify-center w-7 h-7 rounded-xl bg-white border border-[#DECDBB] text-[#6B1724] shadow-2xs shrink-0">
+              <PenLine className="w-3.5 h-3.5" />
+            </span>
+            <div className="flex items-baseline gap-1.5 flex-wrap">
+              <span className="text-[11px] text-stone-400 font-sans-ui">
+                {partnerName} 님의 마지막 일기
+              </span>
+              {partnerLastInfo ? (
+                <span className="text-stone-900 font-bold text-xs sm:text-sm">
+                  {partnerLastInfo.dateText}
+                  <span className="text-[10.5px] font-sans-ui font-semibold text-amber-950 bg-amber-100/90 px-1.5 py-0.5 rounded-md border border-amber-300/80 ml-1.5 align-middle">
+                    {partnerLastInfo.relativeText}
+                  </span>
+                </span>
+              ) : (
+                <span className="text-stone-400 font-normal italic text-xs">
+                  아직 도착한 일기가 없어요 ✉️
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* 상태별 콘텐츠 */}
