@@ -951,128 +951,139 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* 0. VIEW_ONBOARDING: 방 생성(6자리 코드 발급) 및 1:1 초대코드 매칭 */}
-        {uiState === 'VIEW_ONBOARDING' && (
-          <OnboardingView onMatched={handleMatched} />
-        )}
+        <AnimatePresence mode="wait">
+          {/* 0. VIEW_ONBOARDING: 방 생성(6자리 코드 발급) 및 1:1 초대코드 매칭 */}
+          {uiState === 'VIEW_ONBOARDING' && (
+            <OnboardingView key="view-onboarding" onMatched={handleMatched} />
+          )}
 
-        {/* 1. VIEW_HOME: 우리가 온기로 이어진 지 N일 차 커플 메인 홈 화면 */}
-        {uiState === 'VIEW_HOME' && (
-          <HomeView
-            partnerName={partnerName}
-            userName={userName}
-            roomCode={roomCode}
-            roomData={roomData}
-            diary={diary}
-            isMyTurn={isMyTurn}
-            hasMyQuotaBeenUsedToday={hasMyQuotaBeenUsedToday}
-            userRole={userRole}
-            onOpenWriteModal={handleOpenWriteModal}
-            onOpenArchive={() => setIsArchiveOpen(true)}
-            onSendKnock={() => handleSendKnock('오늘의 교환일기를 기다리고 있어요 ✉️')}
-            onOpenSealedLetter={() => {
-              if (!diary) return;
-              setSelectedArchiveDiary(null);
-              setUiState(diary.mission?.isPassed ? 'VIEW_WAX_READY' : 'VIEW_SEALED_LETTER');
-            }}
-            onOpenDiary={() => {
-              if (!diary) return;
-              setSelectedArchiveDiary(null);
-              setUiState('VIEW_OPENED_DIARY');
-            }}
-          />
-        )}
-
-        {/* 2. VIEW_EMPTY: 초기 상태 - 방 화면(책상) */}
-        {uiState === 'VIEW_EMPTY' && (
-          <EmptyDeskView
-            partnerName={partnerName}
-            userName={userName}
-            onOpenWriteModal={handleOpenWriteModal}
-            onSendKnock={() => handleSendKnock('첫 번째 교환일기장을 기다리고 있어요 ✉️')}
-            roomCode={roomCode}
-            isMyTurn={isMyTurn}
-            userRole={userRole}
-          />
-        )}
-
-        {/* 3. VIEW_WAITING: 내가 작성 후 상대방 턴 진행 중 (답장 대기) */}
-        {uiState === 'VIEW_WAITING' && (
-          <WaitingLetter
-            partnerName={partnerName}
-            onSendKnock={handleSendKnock}
-            onGoHome={handleGoHome}
-          />
-        )}
-
-        {/* 4. VIEW_SEALED_LETTER: 편지가 있을 때 -> 편지를 까는 메뉴 (미션 게이트 대기) */}
-        {uiState === 'VIEW_SEALED_LETTER' && (
-          diary ? (
-            <Envelope
+          {/* 1. VIEW_HOME: 우리가 온기로 이어진 지 N일 차 커플 메인 홈 화면 */}
+          {uiState === 'VIEW_HOME' && (
+            <HomeView
+              key="view-home"
+              partnerName={partnerName}
+              userName={userName}
+              roomCode={roomCode}
+              roomData={roomData}
               diary={diary}
-              isLocked={true}
-              onOpenMission={() => setIsMissionModalOpen(true)}
-              onUnsealComplete={handleUnsealComplete}
+              isMyTurn={isMyTurn}
+              hasMyQuotaBeenUsedToday={hasMyQuotaBeenUsedToday}
+              userRole={userRole}
+              onOpenWriteModal={handleOpenWriteModal}
+              onOpenArchive={() => setIsArchiveOpen(true)}
+              onSendKnock={() => handleSendKnock('오늘의 교환일기를 기다리고 있어요 ✉️')}
+              onOpenSealedLetter={() => {
+                if (!diary) return;
+                setSelectedArchiveDiary(null);
+                setUiState(diary.mission?.isPassed ? 'VIEW_WAX_READY' : 'VIEW_SEALED_LETTER');
+              }}
+              onOpenDiary={() => {
+                if (!diary) return;
+                setSelectedArchiveDiary(null);
+                setUiState('VIEW_OPENED_DIARY');
+              }}
+            />
+          )}
+
+          {/* 2. VIEW_EMPTY: 초기 상태 - 방 화면(책상) */}
+          {uiState === 'VIEW_EMPTY' && (
+            <EmptyDeskView
+              key="view-empty"
+              partnerName={partnerName}
+              userName={userName}
+              onOpenWriteModal={handleOpenWriteModal}
+              onSendKnock={() => handleSendKnock('첫 번째 교환일기장을 기다리고 있어요 ✉️')}
+              roomCode={roomCode}
+              isMyTurn={isMyTurn}
+              userRole={userRole}
+            />
+          )}
+
+          {/* 3. VIEW_WAITING: 내가 작성 후 상대방 턴 진행 중 (답장 대기) */}
+          {uiState === 'VIEW_WAITING' && (
+            <WaitingLetter
+              key="view-waiting"
+              partnerName={partnerName}
+              onSendKnock={handleSendKnock}
               onGoHome={handleGoHome}
             />
-          ) : (
-            <EmptyDeskView
-              partnerName={partnerName}
-              userName={userName}
-              onOpenWriteModal={handleOpenWriteModal}
-              onSendKnock={() => handleSendKnock('첫 번째 교환일기장을 기다리고 있어요 ✉️')}
-              roomCode={roomCode}
-              isMyTurn={isMyTurn}
-              userRole={userRole}
-            />
-          )
-        )}
+          )}
 
-        {/* 5. VIEW_WAX_READY: 미션 클리어 후 3초 실링 왁스 롱프레스 개봉 */}
-        {uiState === 'VIEW_WAX_READY' && (
-          diary ? (
-            <Envelope
-              diary={diary}
-              isLocked={false}
-              onOpenMission={() => setIsMissionModalOpen(true)}
-              onUnsealComplete={handleUnsealComplete}
-              onGoHome={handleGoHome}
-            />
-          ) : (
-            <EmptyDeskView
-              partnerName={partnerName}
-              userName={userName}
-              onOpenWriteModal={handleOpenWriteModal}
-              onSendKnock={() => handleSendKnock('첫 번째 교환일기장을 기다리고 있어요 ✉️')}
-              roomCode={roomCode}
-              isMyTurn={isMyTurn}
-              userRole={userRole}
-            />
-          )
-        )}
+          {/* 4. VIEW_SEALED_LETTER: 편지가 있을 때 -> 편지를 까는 메뉴 (미션 게이트 대기) */}
+          {uiState === 'VIEW_SEALED_LETTER' && (
+            diary ? (
+              <Envelope
+                key="view-sealed"
+                diary={diary}
+                isLocked={true}
+                onOpenMission={() => setIsMissionModalOpen(true)}
+                onUnsealComplete={handleUnsealComplete}
+                onGoHome={handleGoHome}
+              />
+            ) : (
+              <EmptyDeskView
+                key="view-sealed-empty"
+                partnerName={partnerName}
+                userName={userName}
+                onOpenWriteModal={handleOpenWriteModal}
+                onSendKnock={() => handleSendKnock('첫 번째 교환일기장을 기다리고 있어요 ✉️')}
+                roomCode={roomCode}
+                isMyTurn={isMyTurn}
+                userRole={userRole}
+              />
+            )
+          )}
 
-        {/* 6. VIEW_OPENED_DIARY: 왁스 개봉 완료, 일기 본문 열람 (서재에서 선택한 특정 일기 우선 표시) */}
-        {uiState === 'VIEW_OPENED_DIARY' && (
-          (selectedArchiveDiary || diary) ? (
-            <OpenedLetter
-              diary={selectedArchiveDiary || diary!}
-              onWriteReply={handleOpenWriteModal}
-              onResetView={handleGoHome}
-              userName={userName}
-              isMyTurn={isMyTurn}
-            />
-          ) : (
-            <EmptyDeskView
-              partnerName={partnerName}
-              userName={userName}
-              onOpenWriteModal={handleOpenWriteModal}
-              onSendKnock={() => handleSendKnock('첫 번째 교환일기장을 기다리고 있어요 ✉️')}
-              roomCode={roomCode}
-              isMyTurn={isMyTurn}
-              userRole={userRole}
-            />
-          )
-        )}
+          {/* 5. VIEW_WAX_READY: 미션 클리어 후 3초 실링 왁스 롱프레스 개봉 */}
+          {uiState === 'VIEW_WAX_READY' && (
+            diary ? (
+              <Envelope
+                key="view-wax"
+                diary={diary}
+                isLocked={false}
+                onOpenMission={() => setIsMissionModalOpen(true)}
+                onUnsealComplete={handleUnsealComplete}
+                onGoHome={handleGoHome}
+              />
+            ) : (
+              <EmptyDeskView
+                key="view-wax-empty"
+                partnerName={partnerName}
+                userName={userName}
+                onOpenWriteModal={handleOpenWriteModal}
+                onSendKnock={() => handleSendKnock('첫 번째 교환일기장을 기다리고 있어요 ✉️')}
+                roomCode={roomCode}
+                isMyTurn={isMyTurn}
+                userRole={userRole}
+              />
+            )
+          )}
+
+          {/* 6. VIEW_OPENED_DIARY: 왁스 개봉 완료, 일기 본문 열람 (서재에서 선택한 특정 일기 우선 표시) */}
+          {uiState === 'VIEW_OPENED_DIARY' && (
+            (selectedArchiveDiary || diary) ? (
+              <OpenedLetter
+                key={selectedArchiveDiary ? `view-opened-${selectedArchiveDiary.diaryId}` : (diary ? `view-opened-${diary.diaryId}` : 'view-opened')}
+                diary={selectedArchiveDiary || diary!}
+                onWriteReply={handleOpenWriteModal}
+                onResetView={handleGoHome}
+                userName={userName}
+                isMyTurn={isMyTurn}
+              />
+            ) : (
+              <EmptyDeskView
+                key="view-opened-empty"
+                partnerName={partnerName}
+                userName={userName}
+                onOpenWriteModal={handleOpenWriteModal}
+                onSendKnock={() => handleSendKnock('첫 번째 교환일기장을 기다리고 있어요 ✉️')}
+                roomCode={roomCode}
+                isMyTurn={isMyTurn}
+                userRole={userRole}
+              />
+            )
+          )}
+        </AnimatePresence>
       </main>
 
       {/* 실시간 인앱 노크 도착 알림 팝업 모달 */}
@@ -1130,73 +1141,172 @@ export default function HomePage() {
       />
 
       {/* 일기장 연결 해제 확인 인앱 모달 */}
-      {isLeaveConfirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="w-full max-w-sm bg-[#FFFDF9] rounded-2xl p-5 sm:p-6 paper-texture border border-[#E8DFC8] shadow-2xl space-y-4">
-            <div className="w-12 h-12 rounded-full bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-700 mx-auto shadow-2xs">
-              <LogOut className="w-6 h-6" />
-            </div>
-            <div className="text-center space-y-1.5">
-              <h3 className="font-serif-warm font-bold text-stone-900 text-lg">
-                일기장 연결을 해제하시겠습니까?
-              </h3>
-              <p className="text-xs text-stone-600 font-serif-warm leading-relaxed">
-                현재 기기에서 일기장의 연결을 끊고 초기 화면으로 돌아갑니다.
-                <br />
-                <span className="font-mono font-semibold text-amber-950 bg-amber-100/70 px-1.5 py-0.5 rounded border border-amber-200">
-                  초대코드 #{roomCode}
-                </span>{' '}
-                로 언제든 다시 연결하실 수 있습니다.
-              </p>
-            </div>
-            <div className="flex gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setIsLeaveConfirmOpen(false)}
-                className="flex-1 py-2.5 rounded-xl border border-stone-300 hover:bg-stone-100 text-stone-700 text-xs font-semibold font-sans-ui cursor-pointer active:scale-95 transition-all"
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={confirmLeaveRoom}
-                className="flex-1 py-2.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-xs font-bold font-sans-ui shadow-xs cursor-pointer active:scale-95 transition-all"
-              >
-                연결 해제하기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {isLeaveConfirmOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 25 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full max-w-sm bg-[#FFFDF9] rounded-2xl p-5 sm:p-6 paper-texture border border-[#E8DFC8] shadow-2xl space-y-4"
+            >
+              <div className="w-12 h-12 rounded-full bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-700 mx-auto shadow-2xs">
+                <LogOut className="w-6 h-6" />
+              </div>
+              <div className="text-center space-y-1.5">
+                <h3 className="font-serif-warm font-bold text-stone-900 text-lg">
+                  일기장 연결을 해제하시겠습니까?
+                </h3>
+                <p className="text-xs text-stone-600 font-serif-warm leading-relaxed">
+                  현재 기기에서 일기장의 연결을 끊고 초기 화면으로 돌아갑니다.
+                  <br />
+                  <span className="font-mono font-semibold text-amber-950 bg-amber-100/70 px-1.5 py-0.5 rounded border border-amber-200">
+                    초대코드 #{roomCode}
+                  </span>{' '}
+                  로 언제든 다시 연결하실 수 있습니다.
+                </p>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsLeaveConfirmOpen(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-stone-300 hover:bg-stone-100 text-stone-700 text-xs font-semibold font-sans-ui cursor-pointer active:scale-95 transition-all"
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmLeaveRoom}
+                  className="flex-1 py-2.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-xs font-bold font-sans-ui shadow-xs cursor-pointer active:scale-95 transition-all"
+                >
+                  연결 해제하기
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 상대방이 일기장 연결을 해제했을 때의 안내 모달 */}
-      {isPartnerDisconnectedModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="w-full max-w-sm bg-[#FFFDF9] rounded-2xl p-5 sm:p-6 paper-texture border border-[#E8DFC8] shadow-2xl space-y-4">
-            <div className="w-12 h-12 rounded-full bg-stone-100 border border-stone-200 flex items-center justify-center text-xl mx-auto shadow-2xs">
-              🍂
-            </div>
-            <div className="text-center space-y-1.5">
-              <h3 className="font-serif-warm font-bold text-stone-900 text-lg">
-                상대방이 일기장을 떠났습니다
-              </h3>
-              <p className="text-xs text-stone-600 font-serif-warm leading-relaxed">
-                <span className="font-semibold text-stone-800">
-                  {partnerDisconnectedNickname || partnerName || '상대방'}
-                </span>
-                {' '}님이 일기장 연결을 해제했습니다.
-                <br />
-                함께 작성했던 소중한 시간들이 마무리되었습니다.
-                <br />
-                나중에 다시 접속하시려면 아래 초대코드를 기억해주세요.
-              </p>
+      <AnimatePresence>
+        {isPartnerDisconnectedModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 25 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full max-w-sm bg-[#FFFDF9] rounded-2xl p-5 sm:p-6 paper-texture border border-[#E8DFC8] shadow-2xl space-y-4"
+            >
+              <div className="w-12 h-12 rounded-full bg-stone-100 border border-stone-200 flex items-center justify-center text-xl mx-auto shadow-2xs">
+                🍂
+              </div>
+              <div className="text-center space-y-1.5">
+                <h3 className="font-serif-warm font-bold text-stone-900 text-lg">
+                  상대방이 일기장을 떠났습니다
+                </h3>
+                <p className="text-xs text-stone-600 font-serif-warm leading-relaxed">
+                  <span className="font-semibold text-stone-800">
+                    {partnerDisconnectedNickname || partnerName || '상대방'}
+                  </span>
+                  {' '}님이 일기장 연결을 해제했습니다.
+                  <br />
+                  함께 작성했던 소중한 시간들이 마무리되었습니다.
+                  <br />
+                  나중에 다시 접속하시려면 아래 초대코드를 기억해주세요.
+                </p>
 
-              {/* 방 코드 복사 카드 */}
-              {roomCode && (
-                <div className="mt-2 p-2.5 rounded-xl bg-amber-50/90 border border-amber-300/80 flex items-center justify-between shadow-inner">
+                {/* 방 코드 복사 카드 */}
+                {roomCode && (
+                  <div className="mt-2 p-2.5 rounded-xl bg-amber-50/90 border border-amber-300/80 flex items-center justify-between shadow-inner">
+                    <div className="text-left">
+                      <div className="text-[10px] text-amber-800 font-sans-ui font-medium">우리 둘만의 초대코드</div>
+                      <div className="text-lg font-mono font-bold tracking-widest text-[#6B1724]">
+                        #{roomCode}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (navigator.clipboard) {
+                          navigator.clipboard.writeText(roomCode);
+                          setHasCopiedLeaveCode(true);
+                          showToast('초대코드가 클립보드에 복사되었습니다.');
+                          setTimeout(() => setHasCopiedLeaveCode(false), 3000);
+                        }
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-white hover:bg-amber-100/60 border border-amber-300 text-amber-900 text-xs font-sans-ui font-semibold shadow-2xs transition-colors cursor-pointer active:scale-95"
+                    >
+                      {hasCopiedLeaveCode ? '복사됨 ✓' : '코드 복사'}
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={handleAcknowledgePartnerDisconnect}
+                  className="w-full py-2.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-xs font-bold font-sans-ui shadow-xs cursor-pointer active:scale-95 transition-all"
+                >
+                  확인 (시작 화면으로 이동)
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 둘 중 마지막에 나가는 사람을 위한 방 코드 기억 경고 모달 */}
+      <AnimatePresence>
+        {isLastLeaverWarningOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/65 backdrop-blur-xs"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 25 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full max-w-sm bg-[#FFFDF9] rounded-2xl p-5 sm:p-6 paper-texture border border-[#E8DFC8] shadow-2xl space-y-4"
+            >
+              <div className="w-12 h-12 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-xl mx-auto shadow-2xs">
+                ⚠️
+              </div>
+              <div className="text-center space-y-2">
+                <span className="inline-block px-2.5 py-0.5 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-[11px] font-sans-ui font-semibold">
+                  마지막 퇴장 전 필수 확인
+                </span>
+                <h3 className="font-serif-warm font-bold text-stone-900 text-lg">
+                  방 코드를 꼭 기억해두세요!
+                </h3>
+                <p className="text-xs text-stone-600 font-serif-warm leading-relaxed">
+                  상대방이 이미 일기장을 떠나 <strong className="text-stone-900">{userName}</strong> 님이 마지막으로 방을 나가게 됩니다.
+                  <br />
+                  둘 다 방을 나가면, 아래 <strong>6자리 초대코드</strong>를 알고 있어야만 나중에 다시 접속하여 소중한 추억들을 열람할 수 있습니다.
+                </p>
+
+                {/* 코드 복사 카드 */}
+                <div className="mt-2 p-3 rounded-xl bg-amber-50/90 border border-amber-300/80 flex items-center justify-between shadow-inner">
                   <div className="text-left">
                     <div className="text-[10px] text-amber-800 font-sans-ui font-medium">우리 둘만의 초대코드</div>
-                    <div className="text-lg font-mono font-bold tracking-widest text-[#6B1724]">
+                    <div className="text-xl font-mono font-bold tracking-widest text-[#6B1724]">
                       #{roomCode}
                     </div>
                   </div>
@@ -1210,102 +1320,45 @@ export default function HomePage() {
                         setTimeout(() => setHasCopiedLeaveCode(false), 3000);
                       }
                     }}
-                    className="px-2.5 py-1 rounded-lg bg-white hover:bg-amber-100/60 border border-amber-300 text-amber-900 text-xs font-sans-ui font-semibold shadow-2xs transition-colors cursor-pointer active:scale-95"
+                    className="px-3 py-1.5 rounded-lg bg-white hover:bg-amber-100/60 border border-amber-300 text-amber-900 text-xs font-sans-ui font-semibold shadow-2xs transition-colors cursor-pointer active:scale-95"
                   >
                     {hasCopiedLeaveCode ? '복사됨 ✓' : '코드 복사'}
                   </button>
                 </div>
-              )}
-            </div>
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={handleAcknowledgePartnerDisconnect}
-                className="w-full py-2.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-xs font-bold font-sans-ui shadow-xs cursor-pointer active:scale-95 transition-all"
-              >
-                확인 (시작 화면으로 이동)
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+              </div>
 
-      {/* 둘 중 마지막에 나가는 사람을 위한 방 코드 기억 경고 모달 */}
-      {isLastLeaverWarningOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/65 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="w-full max-w-sm bg-[#FFFDF9] rounded-2xl p-5 sm:p-6 paper-texture border border-[#E8DFC8] shadow-2xl space-y-4">
-            <div className="w-12 h-12 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-xl mx-auto shadow-2xs">
-              ⚠️
-            </div>
-            <div className="text-center space-y-2">
-              <span className="inline-block px-2.5 py-0.5 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-[11px] font-sans-ui font-semibold">
-                마지막 퇴장 전 필수 확인
-              </span>
-              <h3 className="font-serif-warm font-bold text-stone-900 text-lg">
-                방 코드를 꼭 기억해두세요!
-              </h3>
-              <p className="text-xs text-stone-600 font-serif-warm leading-relaxed">
-                상대방이 이미 일기장을 떠나 <strong className="text-stone-900">{userName}</strong> 님이 마지막으로 방을 나가게 됩니다.
-                <br />
-                둘 다 방을 나가면, 아래 <strong>6자리 초대코드</strong>를 알고 있어야만 나중에 다시 접속하여 소중한 추억들을 열람할 수 있습니다.
-              </p>
-
-              {/* 코드 복사 카드 */}
-              <div className="mt-2 p-3 rounded-xl bg-amber-50/90 border border-amber-300/80 flex items-center justify-between shadow-inner">
-                <div className="text-left">
-                  <div className="text-[10px] text-amber-800 font-sans-ui font-medium">우리 둘만의 초대코드</div>
-                  <div className="text-xl font-mono font-bold tracking-widest text-[#6B1724]">
-                    #{roomCode}
-                  </div>
-                </div>
+              <div className="flex flex-col gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => {
                     if (navigator.clipboard) {
                       navigator.clipboard.writeText(roomCode);
-                      setHasCopiedLeaveCode(true);
-                      showToast('초대코드가 클립보드에 복사되었습니다.');
-                      setTimeout(() => setHasCopiedLeaveCode(false), 3000);
                     }
+                    executeLeaveRoom(true);
                   }}
-                  className="px-3 py-1.5 rounded-lg bg-white hover:bg-amber-100/60 border border-amber-300 text-amber-900 text-xs font-sans-ui font-semibold shadow-2xs transition-colors cursor-pointer active:scale-95"
+                  className="w-full py-2.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-xs font-bold font-sans-ui shadow-xs cursor-pointer active:scale-95 transition-all"
                 >
-                  {hasCopiedLeaveCode ? '복사됨 ✓' : '코드 복사'}
+                  초대코드 복사하고 나가기
+                </button>
+                <button
+                  type="button"
+                  onClick={() => executeLeaveRoom(false)}
+                  className="w-full py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 text-xs font-semibold font-sans-ui cursor-pointer active:scale-95 transition-all"
+                >
+                  코드 기억했으니 바로 나가기
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsLastLeaverWarningOpen(false)}
+                  className="w-full py-1.5 text-center text-[11px] text-stone-400 hover:text-stone-600 font-sans-ui transition-colors cursor-pointer"
+                >
+                  취소 (서재에 머무르기)
                 </button>
               </div>
-            </div>
-
-            <div className="flex flex-col gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  if (navigator.clipboard) {
-                    navigator.clipboard.writeText(roomCode);
-                  }
-                  executeLeaveRoom(true);
-                }}
-                className="w-full py-2.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-xs font-bold font-sans-ui shadow-xs cursor-pointer active:scale-95 transition-all"
-              >
-                초대코드 복사하고 나가기
-              </button>
-              <button
-                type="button"
-                onClick={() => executeLeaveRoom(false)}
-                className="w-full py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 text-xs font-semibold font-sans-ui cursor-pointer active:scale-95 transition-all"
-              >
-                코드 기억했으니 바로 나가기
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsLastLeaverWarningOpen(false)}
-                className="w-full py-1.5 text-center text-[11px] text-stone-400 hover:text-stone-600 font-sans-ui transition-colors cursor-pointer"
-              >
-                취소 (서재에 머무르기)
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 푸터 (iOS 홈 인디케이터 제스처 여백 확보) */}
       <footer className="py-2 sm:py-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.6rem)] text-center text-[10px] sm:text-[11px] text-stone-400 font-serif-warm border-t border-[#EAE1D5]/40 bg-[#FAF7F2]/50 px-3 shrink-0">

@@ -18,18 +18,23 @@ export default function KnockNotificationModal({
   onClose,
   onWriteDiary,
 }: KnockNotificationModalProps) {
-  if (!isOpen || !knock) return null;
-
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pt-[calc(env(safe-area-inset-top,0px)+1rem)] pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] bg-black/40 backdrop-blur-sm">
+      {isOpen && knock && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.92, y: 15 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-          className="w-full max-w-sm bg-[#FFFDF9] rounded-2xl p-4 sm:p-7 shadow-2xl border border-[#E3DACB] text-center relative overflow-hidden my-auto"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 pt-[calc(env(safe-area-inset-top,0px)+1rem)] pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] bg-black/40 backdrop-blur-sm"
         >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92, y: 25 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 15 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            className="w-full max-w-sm bg-[#FFFDF9] rounded-2xl p-4 sm:p-7 shadow-2xl border border-[#E3DACB] text-center relative overflow-hidden my-auto"
+          >
           {/* 닫기 버튼 */}
           <button
             onClick={onClose}
@@ -103,7 +108,8 @@ export default function KnockNotificationModal({
             </button>
           </div>
         </motion.div>
-      </div>
-    </AnimatePresence>
-  );
+      </motion.div>
+    )}
+  </AnimatePresence>
+);
 }

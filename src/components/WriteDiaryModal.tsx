@@ -463,11 +463,18 @@ export default function WriteDiaryModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] bg-stone-900/60 backdrop-blur-sm overflow-y-auto overflow-x-hidden overscroll-contain">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] bg-stone-900/60 backdrop-blur-sm overflow-y-auto overflow-x-hidden overscroll-contain"
+        >
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            initial={{ opacity: 0, scale: 0.95, y: 30 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
             className="relative w-full max-w-xl my-auto bg-[#FFFDF9] rounded-2xl p-4 sm:p-8 paper-texture border border-[#E8DFC8] shadow-2xl text-stone-900 max-h-[92dvh] overflow-y-auto overflow-x-hidden pb-[max(env(safe-area-inset-bottom,0px),1.5rem)]"
           >
             {/* 닫기 버튼 */}
@@ -1067,7 +1074,7 @@ export default function WriteDiaryModal({
               </div>
             </form>
           </motion.div>
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>
   );

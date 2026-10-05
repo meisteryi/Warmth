@@ -140,7 +140,13 @@ export default function HomeView({
   const isPartnerLetterOpenedByMe = Boolean(diary && isPartner && diary.isWaxBroken);
 
   return (
-    <div className="w-full max-w-xl mx-auto px-4 py-6 sm:py-8 space-y-6">
+    <motion.div 
+      initial={{ opacity: 0, y: 25, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 15, scale: 0.98 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+      className="w-full max-w-xl mx-auto px-4 py-6 sm:py-8 space-y-6"
+    >
       {/* 1. 커플 D-Day 메인 카드 (우리가 온기로 이어진 지 N일 차) */}
       <motion.div
         initial={{ opacity: 0, y: 15 }}
@@ -581,8 +587,20 @@ export default function HomeView({
       {/* 4. 기념일 / 시작일 변경 모달 */}
       <AnimatePresence>
         {isDateModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-            <div className="w-full max-w-sm bg-[#FFFDF9] rounded-2xl p-5 sm:p-6 paper-texture border border-[#E8DFC8] shadow-2xl space-y-4">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.93, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full max-w-sm bg-[#FFFDF9] rounded-2xl p-5 sm:p-6 paper-texture border border-[#E8DFC8] shadow-2xl space-y-4"
+            >
               <div className="flex items-center justify-between pb-2 border-b border-[#E8DFC8]">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-full bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-700">
@@ -631,10 +649,10 @@ export default function HomeView({
                   {isSavingDate ? '저장 중...' : '적용하기'}
                 </button>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

@@ -217,7 +217,12 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto px-3 sm:px-4 py-2 sm:py-6 flex flex-col items-center my-auto">
+    <motion.div
+      initial={{ opacity: 0, y: 30, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.5, ease: 'easeOut' }}
+      className="w-full max-w-lg mx-auto px-3 sm:px-4 py-2 sm:py-6 flex flex-col items-center my-auto"
+    >
       {/* 헤더 타이틀 */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -440,6 +445,6 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
           </div>
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   );
 }

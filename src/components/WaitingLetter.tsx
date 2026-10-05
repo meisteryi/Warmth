@@ -55,11 +55,13 @@ export default function WaitingLetter({
   };
 
   return (
-    <div className="w-full max-w-sm sm:max-w-md mx-auto px-3 sm:px-4 py-1 sm:py-6 flex flex-col items-center text-center my-auto">
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
+    <motion.div
+      initial={{ opacity: 0, y: 30, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.5, ease: 'easeOut' }}
+      className="w-full max-w-sm sm:max-w-md mx-auto px-3 sm:px-4 py-1 sm:py-6 flex flex-col items-center text-center my-auto"
+    >
+      <div
         className="w-full bg-[#FAF6EE] rounded-2xl p-4 sm:p-7 envelope-shadow border border-[#E3DACB] relative overflow-hidden"
       >
         {/* 상단 은은한 펜촉 애니메이션 */}
@@ -184,8 +186,8 @@ export default function WaitingLetter({
             </button>
           </div>
         )}
-      </motion.div>
-    </div>
+      </div>
+    </motion.div>
   );
 }
 

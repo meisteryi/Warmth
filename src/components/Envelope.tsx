@@ -22,7 +22,12 @@ export default function Envelope({
   onGoHome,
 }: EnvelopeProps) {
   return (
-    <div className="relative w-full max-w-sm sm:max-w-md mx-auto px-3 sm:px-4 py-2 sm:py-6 flex flex-col items-center justify-center my-auto">
+    <motion.div 
+      initial={{ opacity: 0, y: 30, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.5, ease: 'easeOut' }}
+      className="relative w-full max-w-sm sm:max-w-md mx-auto px-3 sm:px-4 py-2 sm:py-6 flex flex-col items-center justify-center my-auto"
+    >
       {/* 상태 안내 뱃지 */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -155,6 +160,6 @@ export default function Envelope({
           </button>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }

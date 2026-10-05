@@ -221,20 +221,22 @@ export async function analyzeWarmthTemperature(
       const prompt = `당신은 아날로그 교환일기 '온기(Warmth)'의 감성 온도 분석가입니다.
 작성자(${cleanAuthor})가 연인(${cleanPartner})에게 쓴 편지를 읽고 '온기의 온도'를 측정해주세요.
 
-★ 매우 중요한 규칙:
-1. 어떠한 감정도 담겨 있지 않은 무미건조한 사실/일정 나열(예: '오늘 2시에 회의함', '점심에 김밥 먹음')일 때만 온도를 측정하지 말고 {"hasDistinctEmotion": false, "temperature": null, "comment": null, "keywords": []} 로 응답하세요.
-2. 비록 짧은 한두 문장이나 단문이라도 '사랑해', '고마워', '보고싶어', '힘들었어' 등 감정이나 애정이 담겨 있다면 반드시 정서적 온도를 정성껏 측정해야 합니다.
-3. 온도 범위: 한국 날씨 기온 범위인 -20°C ~ 영상 40°C (정수 또는 소수점 1자리):
-   - 혹한기 (-20°C ~ -1°C): 몹시 지치고 외롭거나, 마음이 시리고 아프며 서운하고 쓸쓸한 감정
-   - 쌀쌀/차분 (0°C ~ 14°C): 담담하고 잔잔한 일상, 소소한 생각
-   - 따스함 (15°C ~ 29°C): 다정하고 포근한 위로, 감사, 잔잔한 미소
-   - 뜨거운 사랑 (30°C ~ 40°C): 깊은 애정, 심장이 뛰는 설렘, 벅차오르는 행복
-4. comment: 편지의 정서를 시적으로 표현한 25자 이내의 한 줄 코멘트 (감정이 확실할 때만 작성)
-5. keywords: 감정 및 핵심 단어 해시태그 1~3개
-6. 반드시 순수 JSON 형태로만 응답하세요:
-   {"hasDistinctEmotion": true, "temperature": 32.5, "comment": "...", "keywords": ["#키워드1", "#키워드2"]}
-   또는 감정이 전혀 없는 사실 나열일 때:
-   {"hasDistinctEmotion": false, "temperature": null, "comment": null, "keywords": []}`;
+★ 매우 중요한 분석 규칙 (특정 단어가 아닌 '텍스트 전체의 분위기와 뉘앙스' 종합 평가):
+1. 특정 감정 단어(예: '사랑', '고마워', '슬퍼' 등)의 직접적인 등장 여부에만 얽매이지 마세요.
+2. 텍스트 전체의 서사, 시각적·감각적 묘사(날씨, 창밖 풍경, 커피 향, 노을빛, 빗소리 등), 연인을 향한 태도, 문장 뒤에 스며있는 여운, 하루를 조곤조곤 들려주는 다정함 등 '글 전체에서 풍겨 나오는 공기와 분위기(Vibe & Atmosphere)'를 종합적으로 파악하여 온도를 측정하세요.
+3. 예를 들어 감정 단어를 직접 쓰지 않고 담담하게 오늘 걸었던 골목길이나 마신 차 한 잔을 묘사했더라도, 연인에게 자신의 하루를 다정히 털어놓는 안락하고 평온한 분위기가 느껴진다면 충분히 따스한 온도(20°C~28°C)입니다.
+4. 온도 범위: 한국 날씨 기온 범위인 -20.0°C ~ 영상 40.0°C (소수점 1자리):
+   - 혹한기 (-20.0°C ~ -1.0°C): 마음이 시리고 쓸쓸하며 지친 날, 고단함, 고독, 위로가 필요한 무거운 분위기
+   - 차분/사색 (0.0°C ~ 14.9°C): 맑고 서늘한 공기, 담담하고 잔잔한 생각, 고요하고 차분한 일상
+   - 은은한 평온 (15.0°C ~ 25.9°C): 은은한 차 한 잔 같은 편안함, 햇살 같은 아늑함(Cozy), 서로를 생각하는 다정한 온기
+   - 뭉클한 다정함 (26.0°C ~ 33.9°C): 깊은 애틋함, 신뢰와 감사, 미소 짓게 만드는 소중한 순간, 포근한 위로
+   - 뜨거운 사랑 (34.0°C ~ 40.0°C): 깊은 설렘, 가슴 뛰는 애정, 벅차오르는 행복과 열정
+5. 감정 미측정(hasDistinctEmotion: false) 조건:
+   스팸, 무의미한 자음/알파벳 나열(예: 'ㄱㄴㄷㄹ', 'asdf'), 기계적인 일정 표기(예: '14시 미팅 15시 종료')처럼 사람의 감정이나 일상의 숨결이 전혀 느껴지지 않는 경우에만 예외적으로 {"hasDistinctEmotion": false, "temperature": null, "comment": null, "keywords": []} 로 응답하세요.
+6. comment: 글 전체의 공기와 분위기를 감성적이고 시적으로 포착한 25자 이내의 한 줄 코멘트 (감정이 느껴질 때 작성)
+7. keywords: 글의 전반적인 분위기와 정서를 대변하는 감성 해시태그 2~3개 (예: #차분한오후, #다정한여운, #따스한위로 등)
+8. 반드시 순수 JSON 형태(마크다운 블록 없이)로만 응답하세요:
+   {"hasDistinctEmotion": true, "temperature": 24.5, "comment": "창가에 스민 노을처럼 은은하고 다정한 온기", "keywords": ["#노을빛하루", "#잔잔한휴식", "#다정한여운"]}`;
 
       const res = await fetch(
         'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent',
@@ -516,44 +518,54 @@ export function generateFallbackWarmth(title: string, content: string): WarmthSc
     return null;
   }
 
-  const loveWords = ['사랑', '알라뷰', '애정', '심쿵', '설레', '뽀뽀', '키스', '좋아해', '내 사람'];
-  const warmWords = ['고마', '행복', '보고싶', '따뜻', '다정', '소중', '위로', '안아', '웃음', '감사', '좋아', '소소한', '예쁘', '귀여', '늘 함께'];
-  const coldWords = ['외로', '힘들', '지쳐', '시려', '춥', '서운', '속상', '눈물', '슬프', '우울', '아파', '피곤', '답답', '미안'];
-
-  let loveCount = 0;
-  for (const w of loveWords) {
-    if (full.includes(w)) loveCount++;
-  }
-
-  let warmCount = 0;
-  for (const w of warmWords) {
-    if (full.includes(w)) warmCount++;
-  }
-
-  let coldCount = 0;
-  for (const w of coldWords) {
-    if (full.includes(w)) coldCount++;
-  }
-
-  // 뚜렷한 감정 키워드가 없는 경우 온도를 매기지 않음
-  if (loveCount === 0 && warmCount === 0 && coldCount === 0) {
+  // 의미 없는 단순 자음/알파벳 나열(예: 'ㅋㅋㅋ', 'asdf') 필터링
+  if (/^[ㄱ-ㅎㅏ-ㅣ\s\d.,!~?]+$/.test(full) && full.length < 10) {
     return null;
   }
 
-  let score = 22.0;
+  // 감성 어휘 및 분위기 분류기
+  const loveWords = ['사랑', '알라뷰', '애정', '심쿵', '설레', '뽀뽀', '키스', '좋아해', '내 사람', '손잡', '두근', '영원히', '내편'];
+  const warmWords = ['고마', '행복', '보고싶', '따뜻', '다정', '소중', '위로', '안아', '웃음', '감사', '좋아', '소소한', '예쁘', '귀여', '함께', '포근', '햇살', '온기', '평온', '노을', '기억'];
+  const coldWords = ['외로', '힘들', '지쳐', '시려', '춥', '서운', '속상', '눈물', '슬프', '우울', '아파', '피곤', '답답', '미안', '한숨', '막막'];
+  const cozySensoryWords = ['차 한 잔', '커피', '빗소리', '바람', '산책', '골목', '하늘', '밤하늘', '달빛', '음악', '책', '이불', '방 안', '휴식', '창밖'];
+
+  let loveCount = 0;
+  for (const w of loveWords) if (full.includes(w)) loveCount++;
+
+  let warmCount = 0;
+  for (const w of warmWords) if (full.includes(w)) warmCount++;
+
+  let coldCount = 0;
+  for (const w of coldWords) if (full.includes(w)) coldCount++;
+
+  let cozyCount = 0;
+  for (const w of cozySensoryWords) if (full.includes(w)) cozyCount++;
+
+  // 교환일기의 기본 뉘앙스는 서로를 향한 포근한 안락함(Cozy Room Temperature: 22.5°C)에서 출발
+  let score = 22.5;
+
   if (loveCount > 0) {
-    score = 32.0 + Math.min(6.0, loveCount * 2.5);
+    score = 31.5 + Math.min(7.0, loveCount * 2.5);
+  } else if (warmCount > 0) {
+    score = 25.0 + Math.min(6.0, warmCount * 1.5);
   }
-  score += warmCount * 2.0;
-  score -= coldCount * 6.5;
+
+  score += cozyCount * 1.5;
+  score -= coldCount * 6.0;
+
+  // 글의 길이에 따른 정성 가산점 (글이 길고 정성스러울수록 따스한 온기 강화)
+  if (full.length >= 80) score += 1.5;
+  if (full.length >= 200) score += 1.5;
 
   const clamped = Math.max(-20, Math.min(40, Number(score.toFixed(1))));
 
   let comment = '하루를 포근하게 감싸주는 잔잔한 온기';
-  if (clamped >= 30) {
-    comment = loveCount > 0 ? '마음 깊은 곳까지 설레게 하는 뜨거운 사랑의 온기' : '마음 깊은 곳까지 스며드는 뜨겁고 다정한 온기';
+  if (clamped >= 33) {
+    comment = '마음 깊은 곳까지 설레게 하는 뜨거운 사랑의 온기';
+  } else if (clamped >= 26) {
+    comment = '마음 깊은 곳까지 스며드는 다정하고 뭉클한 온기';
   } else if (clamped >= 15) {
-    comment = '기분 좋은 햇살처럼 따사롭고 편안한 온기';
+    comment = '기분 좋은 오후의 햇살처럼 따사롭고 편안한 온기';
   } else if (clamped >= 0) {
     comment = '담담하고 차분하게 마음을 가라앉히는 서재의 공기';
   } else {
@@ -561,18 +573,18 @@ export function generateFallbackWarmth(title: string, content: string): WarmthSc
   }
 
   const keywords: string[] = [];
-  if (full.includes('사랑') || full.includes('좋아') || loveCount > 0) keywords.push('#다정한사랑');
+  if (loveCount > 0 || full.includes('사랑')) keywords.push('#다정한사랑');
   if (full.includes('보고싶')) keywords.push('#그리움');
-  if (full.includes('고마') || full.includes('감사')) keywords.push('#고마운마음');
-  if (full.includes('행복')) keywords.push('#소소한행복');
-  if (full.includes('힘들') || full.includes('지쳐') || full.includes('피곤')) keywords.push('#토닥토닥');
-  if (full.includes('커피') || full.includes('카페')) keywords.push('#은은한커피향');
-  if (full.includes('퇴근') || full.includes('하루')) keywords.push('#오늘의하루');
+  if (warmCount > 0) keywords.push('#다정한온기');
+  if (cozyCount > 0 || full.includes('산책')) keywords.push('#소소한하루');
+  if (coldCount > 0) keywords.push('#토닥토닥위로');
+  if (full.includes('커피') || full.includes('차')) keywords.push('#은은한휴식');
+  if (full.includes('퇴근') || full.includes('오늘')) keywords.push('#오늘의이야기');
 
   return {
     temperature: clamped,
     comment,
-    keywords: keywords.length > 0 ? keywords.slice(0, 3) : ['#마음', '#온기'],
+    keywords: keywords.length > 0 ? keywords.slice(0, 3) : ['#둘만의온기', '#소소한하루', '#마음'],
   };
 }
 
