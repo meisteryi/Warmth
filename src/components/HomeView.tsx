@@ -29,7 +29,7 @@ import {
   formatDiaryDateWithRelative,
 } from '@/lib/dateUtils';
 import { updateAnniversaryDateInFirestore, getRoomDiariesFromFirestore } from '@/lib/roomService';
-import { fetchDailyPrompt } from '@/lib/aiClient';
+import { fetchDailyPrompt, getCachedDailyPrompt } from '@/lib/aiClient';
 import { soundEngine } from '@/lib/audio';
 import { useLanguage } from '@/lib/i18n';
 
@@ -67,7 +67,9 @@ export default function HomeView({
 }: HomeViewProps) {
   const { language, t } = useLanguage();
   const [knockCooldown, setKnockCooldown] = useState(false);
-  const [dailyPrompt, setDailyPrompt] = useState<string>('오늘 하루 중 너에게 가장 먼저 말해주고 싶었던 사소한 순간은?');
+  const [dailyPrompt, setDailyPrompt] = useState<string>(() => {
+    return getCachedDailyPrompt() || '오늘 하루 중 너에게 가장 먼저 말해주고 싶었던 사소한 순간은?';
+  });
   const [isRefreshingPrompt, setIsRefreshingPrompt] = useState(false);
   const [isDateModalOpen, setIsDateModalOpen] = useState(false);
   const [customStartDate, setCustomStartDate] = useState('');
@@ -129,9 +131,9 @@ export default function HomeView({
   const effectiveStartDate = roomData?.anniversaryDate || roomData?.matchedAt || roomData?.createdAt || null;
   const daysInfo: DaysTogetherInfo = calculateDaysTogether(effectiveStartDate, language);
 
-  // 추천 글감 로드
+  // 추천 글감 로드: 최초 구동 시 1회만 호출, 이후 화면 재진입 시에는 캐시된 글감 사용 (API 소모 방지)
   useEffect(() => {
-    fetchDailyPrompt(partnerName).then((prompt) => {
+    fetchDailyPrompt(partnerName, false).then((prompt) => {
       if (prompt) setDailyPrompt(prompt);
     });
   }, [partnerName]);
@@ -149,7 +151,8 @@ export default function HomeView({
     setIsRefreshingPrompt(true);
     soundEngine.playTileSlideSound();
     try {
-      const next = await fetchDailyPrompt(partnerName);
+      // 새로고침 버튼을 누를 때만 API를 호출하여 새로운 글감 생성 (forceRefresh: true)
+      const next = await fetchDailyPrompt(partnerName, true);
       if (next) setDailyPrompt(next);
     } finally {
       setIsRefreshingPrompt(false);

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { WaxColor, WAX_COLORS, MissionData, DiaryData, WarmthScore, WEATHER_STAMPS, WeatherStamp, StampStyle } from '@/types/diary';
 import { soundEngine } from '@/lib/audio';
 import { compressImage, uploadPhotoIfPossible, CompressedImageResult } from '@/lib/imageUtils';
-import { fetchAiQuiz, fetchWarmthScore, fetchDailyPrompt } from '@/lib/aiClient';
+import { fetchAiQuiz, fetchWarmthScore, fetchDailyPrompt, getCachedDailyPrompt } from '@/lib/aiClient';
 import { generateFallbackWarmth } from '@/lib/gemini';
 import { getLatestReadDiaryForPartner } from '@/lib/roomService';
 import { 
@@ -89,20 +89,25 @@ export default function WriteDiaryModal({
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 모달이 열릴 때마다 오늘의 온기 글감 추천 로드
+  // 모달이 열릴 때 캐시된 글감 우선 적용 (API 추가 소모 없이 즉각 반영)
   useEffect(() => {
     if (isOpen) {
       if (typeof initialTitle === 'string' && initialTitle) {
         setTitle(initialTitle);
       }
-      const clean = partnerName && partnerName.trim() && partnerName !== '상대방' && partnerName !== '파트너'
-        ? `${partnerName.trim()}에게`
-        : '너에게';
-      setDailyPrompt(`오늘 하루 중 ${clean} 가장 먼저 말해주고 싶었던 사소한 순간은?`);
+      const cached = getCachedDailyPrompt();
+      if (cached) {
+        setDailyPrompt(cached);
+      } else {
+        const clean = partnerName && partnerName.trim() && partnerName !== '상대방' && partnerName !== '파트너'
+          ? `${partnerName.trim()}에게`
+          : '너에게';
+        setDailyPrompt(`오늘 하루 중 ${clean} 가장 먼저 말해주고 싶었던 사소한 순간은?`);
 
-      fetchDailyPrompt(partnerName).then((prompt) => {
-        if (prompt) setDailyPrompt(prompt);
-      });
+        fetchDailyPrompt(partnerName, false).then((prompt) => {
+          if (prompt) setDailyPrompt(prompt);
+        });
+      }
     }
   }, [isOpen, partnerName, initialTitle]);
 
@@ -224,13 +229,13 @@ export default function WriteDiaryModal({
     soundEngine.playTileSlideSound();
   };
 
-  // 다른 글감 뽑기 (Gemini AI 실시간 생성)
+  // 다른 글감 뽑기 (Gemini AI 실시간 생성 - 새로고침 클릭 시에만 API 호출)
   const handleRefreshPrompt = async () => {
     if (isRefreshingPrompt) return;
     setIsRefreshingPrompt(true);
     soundEngine.playTileSlideSound();
     try {
-      const nextPrompt = await fetchDailyPrompt(partnerName);
+      const nextPrompt = await fetchDailyPrompt(partnerName, true);
       if (nextPrompt) setDailyPrompt(nextPrompt);
     } catch (e) {
       console.warn('Failed to refresh prompt:', e);
