@@ -406,9 +406,9 @@ export default function WriteDiaryModal({
       let diaryCreatedAt = new Date().toISOString();
       if (diaryDate) {
         try {
-          const now = new Date();
           const [year, month, day] = diaryDate.split('-').map(Number);
-          const selectedDate = new Date(year, month - 1, day, now.getHours(), now.getMinutes(), now.getSeconds());
+          // 정오(12:00:00) 로컬 타임으로 생성하여 타임존(UTC) 변환 시 날짜 역전 방지
+          const selectedDate = new Date(year, month - 1, day, 12, 0, 0);
           if (!isNaN(selectedDate.getTime())) {
             diaryCreatedAt = selectedDate.toISOString();
           }

@@ -1,17 +1,21 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { DiaryData } from '@/types/diary';
 import { generateFallbackWarmth } from '@/lib/gemini';
-import { Feather, Calendar, Heart, MessageSquareQuote, PenLine, ThermometerSun, ThermometerSnowflake } from 'lucide-react';
+import { Feather, Calendar, Heart, MessageSquareQuote, PenLine, ThermometerSun, ThermometerSnowflake, Edit3, Check, X } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
+import { updateDiaryDateInFirestore } from '@/lib/roomService';
+import { soundEngine } from '@/lib/audio';
 
 interface OpenedLetterProps {
   diary: DiaryData;
   onWriteReply: () => void;
   onResetView?: () => void;
   userName?: string;
+  roomCode?: string;
+  onUpdateDiaryDate?: (diaryId: string, newIsoDate: string) => void;
 }
 
 export default function OpenedLetter({
@@ -19,9 +23,43 @@ export default function OpenedLetter({
   onWriteReply,
   onResetView,
   userName,
+  roomCode,
+  onUpdateDiaryDate,
 }: OpenedLetterProps) {
   const { language, t } = useLanguage();
   const isAuthor = Boolean(userName && diary.authorName === userName);
+  const [currentDiaryDate, setCurrentDiaryDate] = useState<string>(diary.createdAt);
+  const [isEditingDate, setIsEditingDate] = useState(false);
+  const [editDateValue, setEditDateValue] = useState<string>(() => {
+    try {
+      const d = new Date(diary.createdAt);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    } catch {
+      return '';
+    }
+  });
+  const [isSavingDate, setIsSavingDate] = useState(false);
+
+  const handleSaveDate = async () => {
+    if (!editDateValue || isSavingDate) return;
+    setIsSavingDate(true);
+    try {
+      if (roomCode) {
+        const res = await updateDiaryDateInFirestore(roomCode, diary.diaryId, editDateValue, diary.authorName);
+        if (res.success) {
+          setCurrentDiaryDate(res.newIsoDate);
+          onUpdateDiaryDate?.(diary.diaryId, res.newIsoDate);
+          soundEngine.playPaperRustle();
+          setIsEditingDate(false);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to update diary date:', e);
+    } finally {
+      setIsSavingDate(false);
+    }
+  };
+
   const warmth = (diary.warmthScore && typeof diary.warmthScore.temperature === 'number')
     ? diary.warmthScore
     : generateFallbackWarmth(diary.title, diary.content);
@@ -45,36 +83,118 @@ export default function OpenedLetter({
 
         <div className="pl-4 sm:pl-6">
           {/* 헤더: 날짜와 작성자 */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-[#EADCCB] text-stone-600 text-xs sm:text-sm font-serif-warm">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-amber-800" />
-              <span suppressHydrationWarning>{new Date(diary.createdAt).toLocaleDateString(language === 'en' ? 'en-US' : 'ko-KR', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                weekday: 'long',
-              })}</span>
-            </div>
-            <div className="flex items-center gap-3">
-              {diary.stamp && diary.stamp.style !== 'EMOJI_TITLE' && (
-                <div
-                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-dashed text-xs font-serif-warm select-none rotate-[-2deg] shadow-2xs"
-                  style={{
-                    borderColor: diary.stamp.color || '#A83232',
-                    color: diary.stamp.color || '#A83232',
-                    backgroundColor: `${diary.stamp.color || '#A83232'}10`,
-                  }}
-                  title={`오늘의 날씨·기분 도장: ${diary.stamp.name}`}
-                >
-                  <span className="text-xs">{diary.stamp.symbol}</span>
-                  <span className="font-semibold text-[10px] tracking-wide">{diary.stamp.name}</span>
+          <div className="pb-4 border-b border-[#EADCCB] text-stone-600 text-xs sm:text-sm font-serif-warm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 text-amber-800" />
+                  <span suppressHydrationWarning>{new Date(currentDiaryDate).toLocaleDateString(language === 'en' ? 'en-US' : 'ko-KR', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    weekday: 'long',
+                  })}</span>
                 </div>
-              )}
-              <div className="flex items-center gap-1.5 text-stone-500 font-sans-ui text-xs">
-                <Feather className="w-3.5 h-3.5 text-stone-600" />
-                <span>{language === 'en' ? 'By ' : '작성자 '}<strong>{diary.authorName}</strong></span>
+
+                {isAuthor && !isEditingDate && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditingDate(true);
+                      soundEngine.playTileSlideSound();
+                    }}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-stone-100 hover:bg-amber-100 text-stone-600 hover:text-amber-950 border border-stone-200 hover:border-amber-300 text-[11px] font-sans-ui font-medium transition-colors cursor-pointer active:scale-95 whitespace-nowrap"
+                    title={language === 'en' ? 'Edit Diary Date' : '작성 날짜 수정'}
+                  >
+                    <Edit3 className="w-3 h-3 text-[#6B1724]" />
+                    <span>{language === 'en' ? 'Edit Date' : '날짜 수정'}</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3">
+                {diary.stamp && diary.stamp.style !== 'EMOJI_TITLE' && (
+                  <div
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-dashed text-xs font-serif-warm select-none rotate-[-2deg] shadow-2xs"
+                    style={{
+                      borderColor: diary.stamp.color || '#A83232',
+                      color: diary.stamp.color || '#A83232',
+                      backgroundColor: `${diary.stamp.color || '#A83232'}10`,
+                    }}
+                    title={`오늘의 날씨·기분 도장: ${diary.stamp.name}`}
+                  >
+                    <span className="text-xs">{diary.stamp.symbol}</span>
+                    <span className="font-semibold text-[10px] tracking-wide">{diary.stamp.name}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-1.5 text-stone-500 font-sans-ui text-xs">
+                  <Feather className="w-3.5 h-3.5 text-stone-600" />
+                  <span>{language === 'en' ? 'By ' : '작성자 '}<strong>{diary.authorName}</strong></span>
+                </div>
               </div>
             </div>
+
+            {/* 작성자 날짜 사후 수정 에디터 */}
+            {isAuthor && isEditingDate && (
+              <div className="w-full mt-2.5 p-2.5 bg-amber-50/80 border border-amber-200/90 rounded-xl flex flex-wrap items-center gap-2 text-xs font-sans-ui">
+                <span className="font-semibold text-stone-700">{language === 'en' ? 'Change Date:' : '날짜 변경:'}</span>
+                <input
+                  type="date"
+                  value={editDateValue}
+                  onChange={(e) => setEditDateValue(e.target.value)}
+                  className="px-2.5 py-1 rounded-lg border border-stone-300 bg-white text-stone-900 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-[#6B1724] cursor-pointer"
+                />
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const now = new Date();
+                      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                      setEditDateValue(todayStr);
+                      soundEngine.playTileSlideSound();
+                    }}
+                    className="px-2 py-0.5 rounded-md bg-white border border-stone-200 text-stone-700 hover:bg-stone-100 text-[11px] font-medium cursor-pointer"
+                  >
+                    {language === 'en' ? 'Today' : '오늘'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const y = new Date();
+                      y.setDate(y.getDate() - 1);
+                      const yStr = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
+                      setEditDateValue(yStr);
+                      soundEngine.playTileSlideSound();
+                    }}
+                    className="px-2 py-0.5 rounded-md bg-white border border-stone-200 text-stone-700 hover:bg-stone-100 text-[11px] font-medium cursor-pointer"
+                  >
+                    {language === 'en' ? 'Yesterday' : '어제'}
+                  </button>
+                </div>
+                <div className="flex items-center gap-1.5 ml-auto">
+                  <button
+                    type="button"
+                    disabled={isSavingDate}
+                    onClick={handleSaveDate}
+                    className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-[#6B1724] hover:bg-[#851E2E] text-amber-50 font-bold text-xs cursor-pointer shadow-2xs active:scale-95 disabled:opacity-50"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>{isSavingDate ? (language === 'en' ? 'Saving...' : '저장 중') : (language === 'en' ? 'Save' : '저장')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditingDate(false);
+                      soundEngine.playTileSlideSound();
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-200/80 hover:bg-stone-300/80 text-stone-700 text-xs cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>{language === 'en' ? 'Cancel' : '취소'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 제목 및 스티커 */}

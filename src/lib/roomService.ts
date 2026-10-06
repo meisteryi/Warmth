@@ -573,32 +573,35 @@ export async function sendKnockInFirestore(
 }
 
 
-// 8. 둘만의 서재(아카이브) 일기 목록 가져오기 및 복호화 (최근 5건 기본 쿼리 & 5초 타임아웃으로 렉·무한로딩 원천 방지)
+// 8. 둘만의 서재(아카이브) 일기 목록 전체 가져오기 및 복호화 (limitCount 생략 시 전체 일기 모두 조회)
 export async function getRoomDiariesFromFirestore(
   roomCode: string,
-  limitCount = 5
+  limitCount?: number
 ): Promise<DiaryData[]> {
   try {
     const colRef = collection(db, 'rooms', roomCode, 'diaries');
     let snapshot;
     try {
-      const q = query(colRef, orderBy('createdAt', 'desc'), limit(limitCount));
+      const q = limitCount
+        ? query(colRef, orderBy('createdAt', 'desc'), limit(limitCount))
+        : query(colRef, orderBy('createdAt', 'desc'));
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Firestore getDocs timeout')), 5000)
+        setTimeout(() => reject(new Error('Firestore getDocs timeout')), 8000)
       );
       snapshot = await Promise.race([getDocs(q), timeoutPromise]);
     } catch (queryErr) {
       console.warn('Ordered query fallback or timeout:', queryErr);
       try {
         const fallbackTimeout = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Firestore fallback timeout')), 3000)
+          setTimeout(() => reject(new Error('Firestore fallback timeout')), 5000)
         );
         snapshot = await Promise.race([getDocs(colRef), fallbackTimeout]);
       } catch (fallbackErr) {
         console.warn('Firestore getDocs fallback also failed/timed out:', fallbackErr);
         // 네트워크 타임아웃 발생 시 기존 메모리 캐시가 있다면 즉시 반환하여 무한 로딩 차단
         if (roomDiariesCache.has(roomCode)) {
-          return roomDiariesCache.get(roomCode)!.slice(0, limitCount);
+          const cached = roomDiariesCache.get(roomCode)!;
+          return limitCount ? cached.slice(0, limitCount) : cached;
         }
         return [];
       }
@@ -613,22 +616,80 @@ export async function getRoomDiariesFromFirestore(
       list.push(decrypted);
     }
 
-    // 최신 날짜 순으로 정렬 후 상위 limitCount건 반환
-    const sorted = list
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, limitCount);
+    // 최신 날짜 순으로 정렬
+    const sorted = list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const result = limitCount ? sorted.slice(0, limitCount) : sorted;
 
-    if (sorted.length > 0) {
-      roomDiariesCache.set(roomCode, sorted);
+    if (!limitCount && result.length > 0) {
+      roomDiariesCache.set(roomCode, result);
     }
 
-    return sorted;
+    return result;
   } catch (error) {
     console.warn('Failed to fetch room diaries for archive:', error);
     if (roomDiariesCache.has(roomCode)) {
-      return roomDiariesCache.get(roomCode)!.slice(0, limitCount);
+      const cached = roomDiariesCache.get(roomCode)!;
+      return limitCount ? cached.slice(0, limitCount) : cached;
     }
     return [];
+  }
+}
+
+// 8-1. 내가 작성한 일기의 날짜 사후 수정 (Firestore 일기 및 방 메타데이터 실시간 갱신)
+export async function updateDiaryDateInFirestore(
+  roomCode: string,
+  diaryId: string,
+  newDateStr: string,
+  authorName?: string
+): Promise<{ success: boolean; newIsoDate: string }> {
+  try {
+    const diaryRef = doc(db, 'rooms', roomCode, 'diaries', diaryId);
+    const roomRef = doc(db, 'rooms', roomCode);
+
+    // 날짜를 YYYY-MM-DD 기반으로 정오(12:00:00) 로컬 타임으로 변환하여 타임존 왜곡 방지
+    let targetDate = new Date();
+    if (newDateStr.includes('-')) {
+      const parts = newDateStr.split('T')[0].split('-').map(Number);
+      if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+        targetDate = new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+      }
+    } else {
+      const parsed = new Date(newDateStr);
+      if (!isNaN(parsed.getTime())) targetDate = parsed;
+    }
+    const newIsoDate = targetDate.toISOString();
+
+    // 1) 일기 문서의 createdAt 갱신
+    await updateDoc(diaryRef, {
+      createdAt: newIsoDate,
+      updatedAt: serverTimestamp(),
+    });
+
+    // 2) 만약 이 일기가 방의 latestDiaryId인 경우, room 문서의 lastWrittenByUser도 함께 갱신
+    const roomSnap = await getDoc(roomRef);
+    if (roomSnap.exists()) {
+      const room = roomSnap.data() as RoomData;
+      if (room.latestDiaryId === diaryId) {
+        const myUid = getOrCreateUserId();
+        const existingLastWritten = room.lastWrittenByUser || {};
+        await updateDoc(roomRef, {
+          lastWrittenByUser: {
+            ...existingLastWritten,
+            ...(myUid ? { [myUid]: newIsoDate } : {}),
+            ...(authorName ? { [authorName]: newIsoDate } : {}),
+          },
+          updatedAt: serverTimestamp(),
+        }).catch(() => {});
+      }
+    }
+
+    // 3) 서재 메모리 캐시 무효화
+    roomDiariesCache.delete(roomCode);
+
+    return { success: true, newIsoDate };
+  } catch (e) {
+    console.warn('Failed to update diary date in Firestore:', e);
+    return { success: false, newIsoDate: new Date().toISOString() };
   }
 }
 

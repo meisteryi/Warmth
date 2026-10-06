@@ -87,30 +87,26 @@ export default function HomeView({
   const [lastDiaryDate, setLastDiaryDate] = useState<string | null>(null);
 
   useEffect(() => {
-    // 1) 현재 구독 중인 최신 diary가 있는 경우
+    // 1) 현재 구독 중인 최신 diary가 있는 경우 최우선 적용
     if (diary && diary.createdAt) {
       setLastDiaryDate(diary.createdAt);
       return;
     }
 
-    // 2) Firestore roomData.lastWrittenByUser에서 가장 최근 기록 확인
-    if (roomData?.lastWrittenByUser) {
-      const validTimes = Object.values(roomData.lastWrittenByUser)
-        .filter((t) => typeof t === 'string' && t !== 'user_ssr')
-        .map((t) => new Date(t).getTime())
-        .filter((t) => !isNaN(t));
-      if (validTimes.length > 0) {
-        setLastDiaryDate(new Date(Math.max(...validTimes)).toISOString());
-        return;
-      }
-    }
-
-    // 3) 보관함에서 가장 최근 일기 1건 탐색
+    // 2) 실제 보관함에서 가장 최신 일기 1건 탐색
     if (roomCode) {
       getRoomDiariesFromFirestore(roomCode, 1)
         .then((list) => {
           if (list.length > 0 && list[0].createdAt) {
             setLastDiaryDate(list[0].createdAt);
+          } else if (roomData?.lastWrittenByUser) {
+            const validTimes = Object.values(roomData.lastWrittenByUser)
+              .filter((t) => typeof t === 'string' && t !== 'user_ssr')
+              .map((t) => new Date(t).getTime())
+              .filter((t) => !isNaN(t));
+            if (validTimes.length > 0) {
+              setLastDiaryDate(new Date(Math.max(...validTimes)).toISOString());
+            }
           }
         })
         .catch(() => { });

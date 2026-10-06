@@ -859,6 +859,19 @@ export default function HomePage() {
     }
   };
 
+  // 3-1. 내가 작성한 일기의 날짜 사후 수정 처리 (로컬 상태 및 토스트 알림)
+  const handleUpdateDiaryDate = (diaryId: string, newIsoDate: string) => {
+    if (diary && diary.diaryId === diaryId) {
+      const updated = { ...diary, createdAt: newIsoDate };
+      setDiary(updated);
+      currentDiaryRef.current = updated;
+    }
+    if (selectedArchiveDiary && selectedArchiveDiary.diaryId === diaryId) {
+      setSelectedArchiveDiary((prev) => (prev ? { ...prev, createdAt: newIsoDate } : null));
+    }
+    showToast('📅 일기 날짜가 성공적으로 수정되었습니다.');
+  };
+
   // 4. 노크 보내기 처리 (Firestore에 기록하여 상대방에게 실시간 인앱 노크 전송)
   const handleSendKnock = async (message: string) => {
     try {
@@ -1139,6 +1152,8 @@ export default function HomePage() {
                 onWriteReply={handleOpenWriteModal}
                 onResetView={handleGoHome}
                 userName={userName}
+                roomCode={roomCode}
+                onUpdateDiaryDate={handleUpdateDiaryDate}
               />
             ) : (
               <EmptyDeskView

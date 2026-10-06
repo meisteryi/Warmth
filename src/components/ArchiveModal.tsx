@@ -84,10 +84,8 @@ export default function ArchiveModal({
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'LIST' | 'REPORT' | 'BOOKLET'>('LIST');
-  const [diaryLimit, setDiaryLimit] = useState(5);
-  const [hasMore, setHasMore] = useState(false);
 
-  const fetchDiaries = async (limitCount = 5) => {
+  const fetchDiaries = async () => {
     if (!roomCode) return;
     // 캐시된 데이터가 전혀 없을 때만 로딩 스피너 표시 (기존 데이터가 있으면 백그라운드 갱신)
     if (diaries.length === 0) {
@@ -107,10 +105,10 @@ export default function ArchiveModal({
     }, 6000);
 
     try {
-      const list = await getRoomDiariesFromFirestore(roomCode, limitCount);
+      // 서재에는 언제나 모든 일기가 표시되도록 limit 없이 전체 조회
+      const list = await getRoomDiariesFromFirestore(roomCode);
       isCompleted = true;
       clearTimeout(safetyTimer);
-      setHasMore(list.length >= limitCount);
       
       const sanitized = maskUnopenedDiaries(list, currentUserName);
       setDiaries(sanitized);
@@ -130,7 +128,6 @@ export default function ArchiveModal({
   useEffect(() => {
     if (isOpen && roomCode) {
       soundEngine.playPaperRustle();
-      setDiaryLimit(5);
       setLoadError(null);
 
       // 모달이 열릴 때 캐시가 있으면 즉시 화면에 주입하여 깜빡임 제거
@@ -141,15 +138,9 @@ export default function ArchiveModal({
         setDiaries([]);
       }
 
-      fetchDiaries(5);
+      fetchDiaries();
     }
   }, [isOpen, roomCode]);
-
-  const handleLoadMore = () => {
-    const nextLimit = diaryLimit + 10;
-    setDiaryLimit(nextLimit);
-    fetchDiaries(nextLimit);
-  };
 
   // [5번 요구사항] 월간 및 누적 온기 통계 & 키워드 분석
   const stats = useMemo<WarmthStats | null>(() => {
@@ -383,7 +374,7 @@ export default function ArchiveModal({
 
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => fetchDiaries(diaryLimit)}
+              onClick={() => fetchDiaries()}
               disabled={isLoading}
               title={language === 'en' ? 'Refresh' : '새로고침'}
               className="p-2 rounded-xl text-stone-600 hover:text-stone-900 hover:bg-stone-200/60 transition-colors disabled:opacity-50 cursor-pointer"
@@ -472,7 +463,7 @@ export default function ArchiveModal({
                 </p>
                 <button
                   type="button"
-                  onClick={() => fetchDiaries(diaryLimit)}
+                  onClick={() => fetchDiaries()}
                   className="px-4 py-2 bg-[#6B1724] text-white rounded-xl text-xs font-serif-warm font-semibold shadow hover:bg-[#851E2E] transition-all inline-flex items-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
@@ -646,19 +637,6 @@ export default function ArchiveModal({
                   </div>
                 );
               })
-            )}
-
-            {hasMore && (
-              <div className="pt-2 pb-4 text-center">
-                <button
-                  type="button"
-                  onClick={handleLoadMore}
-                  disabled={isLoading}
-                  className="px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100/70 border border-amber-300/80 text-amber-950 text-xs font-serif-warm font-semibold transition-all cursor-pointer shadow-xs active:scale-95 disabled:opacity-50 whitespace-nowrap"
-                >
-                  {isLoading ? (language === 'en' ? 'Loading...' : '불러오는 중...') : t('archive.loadMore')}
-                </button>
-              </div>
             )}
           </div>
         )}

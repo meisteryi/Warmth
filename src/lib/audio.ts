@@ -9,6 +9,10 @@ class SoundEngine {
   private meltFilter: BiquadFilterNode | null = null;
 
   constructor() {
+    this.syncVolumeFromStorage();
+  }
+
+  private syncVolumeFromStorage() {
     if (typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem('warmth_sound_volume');
@@ -22,19 +26,39 @@ class SoundEngine {
     }
   }
 
+  public resume() {
+    try {
+      this.initCtx();
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
+    } catch {}
+  }
+
   private initCtx() {
-    if (!this.ctx && typeof window !== 'undefined') {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (AudioCtx) {
-        this.ctx = new AudioCtx();
-        this.masterGain = this.ctx.createGain();
-        this.masterGain.gain.setValueAtTime(this.volume, this.ctx.currentTime);
-        this.masterGain.connect(this.ctx.destination);
+    this.syncVolumeFromStorage();
+
+    if (typeof window !== 'undefined') {
+      if (this.ctx && this.ctx.state === 'closed') {
+        this.ctx = null;
+        this.masterGain = null;
+      }
+
+      if (!this.ctx) {
+        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        if (AudioCtx) {
+          this.ctx = new AudioCtx();
+          this.masterGain = this.ctx.createGain();
+          this.masterGain.gain.setValueAtTime(this.volume, this.ctx.currentTime);
+          this.masterGain.connect(this.ctx.destination);
+        }
       }
     }
+
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume().catch(() => {});
     }
+
     if (this.masterGain && this.ctx) {
       try {
         this.masterGain.gain.setValueAtTime(this.volume, this.ctx.currentTime);
@@ -64,6 +88,7 @@ class SoundEngine {
   }
 
   public getVolume(): number {
+    this.syncVolumeFromStorage();
     return this.volume;
   }
 
@@ -391,4 +416,12 @@ class SoundEngine {
 }
 
 export const soundEngine = new SoundEngine();
+
+if (typeof window !== 'undefined') {
+  const unlockAudio = () => {
+    soundEngine.resume();
+  };
+  window.addEventListener('pointerdown', unlockAudio, { passive: true });
+  window.addEventListener('keydown', unlockAudio, { passive: true });
+}
 
