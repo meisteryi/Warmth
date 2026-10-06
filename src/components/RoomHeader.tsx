@@ -18,9 +18,11 @@ import {
   Home,
   Clock,
   User,
+  Globe,
 } from 'lucide-react';
 import { getNotificationStatus, requestNotificationPermission } from '@/lib/notifications';
 import { soundEngine } from '@/lib/audio';
+import { useLanguage } from '@/lib/i18n';
 
 import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
 
@@ -53,6 +55,7 @@ export default function RoomHeader({
   isTodayDiaryWritten,
   countdownFormatted,
 }: RoomHeaderProps) {
+  const { language, setLanguage, t } = useLanguage();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
@@ -141,9 +144,11 @@ export default function RoomHeader({
           <div className="shrink-0">
             <div className="flex items-center gap-1.5 sm:gap-2">
               <span className="font-serif-warm font-bold text-stone-900 text-lg sm:text-xl leading-none whitespace-nowrap shrink-0">
-                온기
+                {language === 'en' ? 'Warmth' : '온기'}
               </span>
-              <span className="text-xs font-serif-warm text-stone-400 hidden sm:inline whitespace-nowrap">· Warmth</span>
+              {language === 'ko' && (
+                <span className="text-xs font-serif-warm text-stone-400 hidden sm:inline whitespace-nowrap">· Warmth</span>
+              )}
               {isMatched && (
                 <button
                   type="button"
@@ -151,7 +156,7 @@ export default function RoomHeader({
                     e.stopPropagation();
                     handleCopyCode();
                   }}
-                  title="초대코드 복사하기"
+                  title={t('menu.copy')}
                   className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-100/90 hover:bg-amber-200/80 text-amber-950 text-[11px] sm:text-xs font-mono font-bold border border-amber-300/60 transition-colors cursor-pointer active:scale-95 shrink-0 whitespace-nowrap"
                 >
                   <span>#{roomCode}</span>
@@ -171,7 +176,9 @@ export default function RoomHeader({
                   <span className="text-stone-600 max-w-[55px] sm:max-w-[80px] truncate">{partnerName}</span>
                 </div>
               ) : (
-                <span className="text-amber-800 font-medium text-[11px] sm:text-xs whitespace-nowrap">일기장 연결 대기 중</span>
+                <span className="text-amber-800 font-medium text-[11px] sm:text-xs whitespace-nowrap">
+                  {language === 'en' ? 'Awaiting connection' : '일기장 연결 대기 중'}
+                </span>
               )}
             </div>
           </div>
@@ -184,7 +191,7 @@ export default function RoomHeader({
             {onGoHome && (
               <button
                 onClick={onGoHome}
-                title="홈 화면"
+                title={t('nav.home')}
                 className={`h-9 sm:h-10 px-2 sm:px-3 rounded-xl border text-xs font-serif-warm font-bold shadow-2xs flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap active:scale-95 transition-all cursor-pointer ${
                   currentState === 'VIEW_HOME'
                     ? 'bg-[#6B1724]/10 text-[#6B1724] border-[#6B1724]/30'
@@ -192,18 +199,18 @@ export default function RoomHeader({
                 }`}
               >
                 <Home className="w-4 h-4 text-[#6B1724] shrink-0" />
-                <span className="hidden sm:inline">홈</span>
+                <span className="hidden sm:inline">{t('nav.home')}</span>
               </button>
             )}
 
             {/* 둘만의 서재 버튼 */}
             <button
               onClick={onOpenArchive}
-              title="둘만의 서재 (지난 일기 보관함)"
+              title={t('nav.archive')}
               className="h-9 sm:h-10 px-2 sm:px-3 rounded-xl border border-stone-300/90 hover:border-[#6B1724]/40 bg-white hover:bg-stone-50 text-stone-800 text-xs font-serif-warm font-bold shadow-2xs flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap active:scale-95 transition-all cursor-pointer"
             >
               <BookOpen className="w-4 h-4 text-[#6B1724] shrink-0" />
-              <span className="hidden sm:inline">서재</span>
+              <span className="hidden sm:inline">{t('nav.archive')}</span>
             </button>
 
             {/* 일기 쓰기 버튼 (상대방 답장 대기 상태 우선 판별 & 동일 높이 고정) */}
@@ -211,10 +218,14 @@ export default function RoomHeader({
               onClick={() => onOpenWriteModal()}
               title={
                 isMyTurn === false
-                  ? `${partnerName} 님의 작성 차례입니다 (답장을 기다려주세요)`
+                  ? language === 'en'
+                    ? `It's ${partnerName}'s turn to write (Awaiting reply)`
+                    : `${partnerName} 님의 작성 차례입니다 (답장을 기다려주세요)`
                   : isTodayDiaryWritten
-                  ? `오늘의 일기는 이미 작성되었습니다. 내일 새벽 04:00에 리셋됩니다 (남은 시간: ${countdownFormatted || ''})`
-                  : '새 일기 쓰기'
+                  ? language === 'en'
+                    ? `Today's letter is already written. Resets at 04:00 AM (${countdownFormatted || ''})`
+                    : `오늘의 일기는 이미 작성되었습니다. 내일 새벽 04:00에 리셋됩니다 (남은 시간: ${countdownFormatted || ''})`
+                  : t('nav.write')
               }
               className={`h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-xs font-serif-warm font-bold shadow-xs flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap active:scale-95 transition-all cursor-pointer ${
                 isMyTurn === false
@@ -227,17 +238,17 @@ export default function RoomHeader({
               {isMyTurn === false ? (
                 <>
                   <PenLine className="w-3.5 h-3.5 text-stone-500 shrink-0" />
-                  <span className="whitespace-nowrap">답장 대기</span>
+                  <span className="whitespace-nowrap">{t('nav.waiting')}</span>
                 </>
               ) : isTodayDiaryWritten ? (
                 <>
                   <Clock className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-                  <span className="whitespace-nowrap">04시 리셋</span>
+                  <span className="whitespace-nowrap">{t('nav.reset')}</span>
                 </>
               ) : (
                 <>
                   <PenLine className="w-3.5 h-3.5 text-amber-200 shrink-0" />
-                  <span className="whitespace-nowrap">일기 쓰기</span>
+                  <span className="whitespace-nowrap">{t('nav.write')}</span>
                 </>
               )}
             </button>
@@ -247,8 +258,8 @@ export default function RoomHeader({
               ref={buttonRef}
               type="button"
               onClick={() => setIsMenuOpen((prev) => !prev)}
-              title="더보기 설정"
-              aria-label="더보기 설정"
+              title={t('nav.more')}
+              aria-label={t('nav.more')}
               aria-expanded={isMenuOpen}
               className={`h-9 w-9 sm:h-10 sm:w-10 rounded-xl border text-sm flex items-center justify-center shrink-0 active:scale-95 cursor-pointer shadow-2xs transition-colors ${
                 isMenuOpen
@@ -285,7 +296,7 @@ export default function RoomHeader({
               >
                 <span className="flex items-center gap-2">
                   <User className="w-3.5 h-3.5 text-[#6B1724]" />
-                  <span className="font-semibold text-stone-800">내 프로필 편집</span>
+                  <span className="font-semibold text-stone-800">{t('menu.profile')}</span>
                 </span>
                 <span className="text-[11px] text-stone-500 font-sans-ui flex items-center gap-1">
                   <span className="font-medium text-stone-700 max-w-[80px] truncate">{userName}</span>
@@ -297,16 +308,16 @@ export default function RoomHeader({
             {/* 1. 방 정보 및 코드 복사 */}
             <div className="px-3.5 py-2 border-b border-[#E8DFD3]/80 flex items-center justify-between">
               <div>
-                <div className="text-[10px] text-stone-500 font-medium">연결된 일기장 방 코드</div>
+                <div className="text-[10px] text-stone-500 font-medium">{t('menu.roomCode')}</div>
                 <div className="text-sm font-mono font-bold text-amber-950">#{roomCode}</div>
               </div>
               <button
                 onClick={handleCopyCode}
                 className="px-2 py-1 rounded-lg bg-stone-100 hover:bg-amber-100/70 border border-stone-200 text-xs font-semibold text-stone-700 flex items-center gap-1 transition-colors cursor-pointer"
-                title="방 코드 복사"
+                title={t('menu.copy')}
               >
                 {copiedCode ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3 text-stone-500" />}
-                <span>{copiedCode ? '복사됨' : '복사'}</span>
+                <span>{copiedCode ? t('menu.copied') : t('menu.copy')}</span>
               </button>
             </div>
 
@@ -317,7 +328,7 @@ export default function RoomHeader({
             >
               <span className="flex items-center gap-2">
                 <Bell className="w-3.5 h-3.5 text-[#6B1724]" />
-                <span className="font-medium text-stone-800">새 일기/노크 알림</span>
+                <span className="font-medium text-stone-800">{t('menu.pushNotification')}</span>
               </span>
               <span
                 className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${
@@ -326,7 +337,7 @@ export default function RoomHeader({
                     : 'bg-stone-200 text-stone-600'
                 }`}
               >
-                {notifPermission === 'granted' ? '켜짐' : '알림 켜기'}
+                {notifPermission === 'granted' ? t('menu.notificationOn') : t('menu.notificationEnable')}
               </span>
             </button>
 
@@ -341,7 +352,7 @@ export default function RoomHeader({
                   ) : (
                     <Volume2 className="w-3.5 h-3.5 text-[#6B1724]" />
                   )}
-                  <span>효과음 볼륨</span>
+                  <span>{t('menu.volume')}</span>
                 </span>
                 <span className="font-mono text-[11px] font-semibold text-stone-600">
                   {Math.round(volume * 100)}%
@@ -370,12 +381,50 @@ export default function RoomHeader({
               </div>
             </div>
 
-            {/* 3. 사파리 7일 보관 안내 */}
-            <div className="px-3.5 py-2 text-[10.5px] text-stone-500 leading-snug border-t border-[#E8DFD3]/60 bg-amber-50/40">
-              💡 Safari 7일 미접속 초기화 방지를 위해 <strong>‘홈 화면에 추가’</strong>를 권장합니다.
+            {/* 4. 한국어 / 영어 언어 전환 */}
+            <div className="px-3.5 py-2.5 border-t border-[#E8DFD3]/80 flex items-center justify-between">
+              <span className="flex items-center gap-2 text-xs font-medium text-stone-800">
+                <Globe className="w-3.5 h-3.5 text-[#6B1724]" />
+                <span>{t('menu.language')}</span>
+              </span>
+              <div className="inline-flex rounded-lg border border-stone-200 bg-stone-100 p-0.5 text-[11px] font-sans-ui">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLanguage('ko');
+                    soundEngine.playTileSlideSound();
+                  }}
+                  className={`px-2 py-0.5 rounded-md font-semibold cursor-pointer transition-all ${
+                    language === 'ko'
+                      ? 'bg-white text-[#6B1724] shadow-xs'
+                      : 'text-stone-500 hover:text-stone-800'
+                  }`}
+                >
+                  한국어
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLanguage('en');
+                    soundEngine.playTileSlideSound();
+                  }}
+                  className={`px-2 py-0.5 rounded-md font-semibold cursor-pointer transition-all ${
+                    language === 'en'
+                      ? 'bg-white text-[#6B1724] shadow-xs'
+                      : 'text-stone-500 hover:text-stone-800'
+                  }`}
+                >
+                  English
+                </button>
+              </div>
             </div>
 
-            {/* 4. 방 나가기 */}
+            {/* 5. 사파리 7일 보관 안내 */}
+            <div className="px-3.5 py-2 text-[10.5px] text-stone-500 leading-snug border-t border-[#E8DFD3]/60 bg-amber-50/40">
+              💡 {t('menu.safariNotice')}
+            </div>
+
+            {/* 6. 방 나가기 */}
             {onLeaveRoom && (
               <div className="border-t border-[#E8DFD3]/80 pt-1 mt-1">
                 <button
@@ -386,7 +435,7 @@ export default function RoomHeader({
                   className="w-full px-3.5 py-2 text-left flex items-center gap-2 text-stone-400 hover:text-rose-600 hover:bg-rose-50/60 transition-colors text-xs cursor-pointer font-sans-ui"
                 >
                   <LogOut className="w-3.5 h-3.5" />
-                  <span>일기장 연결 해제 (방 나가기)</span>
+                  <span>{t('menu.leaveRoom')}</span>
                 </button>
               </div>
             )}

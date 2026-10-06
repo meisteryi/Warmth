@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { DiaryData } from '@/types/diary';
 import { generateFallbackWarmth } from '@/lib/gemini';
 import { Feather, Calendar, Heart, MessageSquareQuote, PenLine, ThermometerSun, ThermometerSnowflake } from 'lucide-react';
+import { useLanguage } from '@/lib/i18n';
 
 interface OpenedLetterProps {
   diary: DiaryData;
@@ -19,6 +20,7 @@ export default function OpenedLetter({
   onResetView,
   userName,
 }: OpenedLetterProps) {
+  const { language, t } = useLanguage();
   const isAuthor = Boolean(userName && diary.authorName === userName);
   const warmth = (diary.warmthScore && typeof diary.warmthScore.temperature === 'number')
     ? diary.warmthScore
@@ -46,7 +48,7 @@ export default function OpenedLetter({
           <div className="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-[#EADCCB] text-stone-600 text-xs sm:text-sm font-serif-warm">
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-amber-800" />
-              <span suppressHydrationWarning>{new Date(diary.createdAt).toLocaleDateString('ko-KR', {
+              <span suppressHydrationWarning>{new Date(diary.createdAt).toLocaleDateString(language === 'en' ? 'en-US' : 'ko-KR', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',
@@ -70,7 +72,7 @@ export default function OpenedLetter({
               )}
               <div className="flex items-center gap-1.5 text-stone-500 font-sans-ui text-xs">
                 <Feather className="w-3.5 h-3.5 text-stone-600" />
-                <span>작성자 <strong>{diary.authorName}</strong></span>
+                <span>{language === 'en' ? 'By ' : '작성자 '}<strong>{diary.authorName}</strong></span>
               </div>
             </div>
           </div>
@@ -153,7 +155,7 @@ export default function OpenedLetter({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-sans-ui text-stone-500 font-semibold tracking-wider">
-                        오늘의 온기 온도
+                        {language === 'en' ? 'Warmth Index' : '오늘의 온기 온도'}
                       </span>
                       <span
                         className={`text-xs font-serif-warm font-bold px-2.5 py-0.5 rounded-full border shadow-2xs ${warmth.temperature <= 0
@@ -174,7 +176,7 @@ export default function OpenedLetter({
               </div>
               {warmth.keywords && warmth.keywords.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
-                  <span className="text-[10px] font-sans-ui text-stone-400">마음 키워드:</span>
+                  <span className="text-[10px] font-sans-ui text-stone-400">{language === 'en' ? 'Keywords:' : '마음 키워드:'}</span>
                   {warmth.keywords.map((kw, idx) => (
                     <span
                       key={idx}
@@ -193,7 +195,7 @@ export default function OpenedLetter({
             <div className="mt-10 p-5 rounded-xl bg-[#F8F3EA] border border-[#E5DAC8] text-stone-800 font-serif-warm">
               <div className="flex items-center gap-2 mb-2 text-amber-900 text-xs font-sans-ui font-semibold">
                 <MessageSquareQuote className="w-4 h-4" />
-                <span>오늘의 미션 & 함께 나눈 온기</span>
+                <span>{language === 'en' ? 'Mission & Shared Thoughts' : '오늘의 미션 & 함께 나눈 온기'}</span>
               </div>
               <p className="text-xs sm:text-sm text-stone-600 mb-2 italic">
                 Q. {diary.mission.prompt}
@@ -202,7 +204,7 @@ export default function OpenedLetter({
                 <div className="p-3 bg-white/80 rounded-lg border border-[#E0D3BF] text-xs sm:text-sm text-stone-800 font-medium">
                   &ldquo;{diary.mission.submission.text}&rdquo;
                   <span className="block text-right text-[10px] text-stone-400 mt-1">
-                    — {diary.recipientName} 작성
+                    {language === 'en' ? `— By ${diary.recipientName}` : `— ${diary.recipientName} 작성`}
                   </span>
                 </div>
               )}
@@ -213,7 +215,7 @@ export default function OpenedLetter({
           <div className="mt-8 pt-4 border-t border-[#EADCCB] flex items-center justify-between text-xs text-stone-500 font-serif-warm">
             <span className="flex items-center gap-1 text-rose-800/80">
               <Heart className="w-3.5 h-3.5 fill-current" />
-              <span>우리의 온기가 이어진 날</span>
+              <span>{language === 'en' ? 'A Day Connected in Warmth' : '우리의 온기가 이어진 날'}</span>
             </span>
             <span>溫氣 No. 42</span>
           </div>
@@ -225,22 +227,22 @@ export default function OpenedLetter({
         {onResetView && (
           <button
             onClick={onResetView}
-            className="w-full sm:w-auto px-6 py-3.5 rounded-full bg-white hover:bg-stone-50 active:scale-95 text-stone-700 font-serif-warm text-sm font-semibold border border-stone-300 shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full sm:w-auto px-6 py-3.5 rounded-full bg-white hover:bg-stone-50 active:scale-95 text-stone-700 font-serif-warm text-sm font-semibold border border-stone-300 shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
           >
-            <span>← 홈 화면으로</span>
+            <span>{t('opened.backHome')}</span>
           </button>
         )}
         {isAuthor ? (
           <div className="w-full sm:w-auto px-6 py-3.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200 font-serif-warm text-sm font-medium flex items-center justify-center gap-2 select-none shadow-xs whitespace-nowrap">
-            <span className="truncate">⏳ {diary.recipientName} 님의 답장을 기다리는 중입니다</span>
+            <span className="truncate">{t('opened.waitingReply', { name: diary.recipientName })}</span>
           </div>
         ) : (
           <button
             onClick={onWriteReply}
-            className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-[#6B1724] hover:bg-[#831D2D] active:scale-95 text-amber-50 font-serif-warm text-base font-semibold shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-[#6B1724] hover:bg-[#831D2D] active:scale-95 text-amber-50 font-serif-warm text-base font-semibold shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
           >
             <PenLine className="w-5 h-5 text-amber-200" />
-            <span>답장 쓰기</span>
+            <span>{t('opened.replyBtn')}</span>
           </button>
         )}
       </div>

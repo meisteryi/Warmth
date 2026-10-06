@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Cake, X, Check } from 'lucide-react';
 import { soundEngine } from '@/lib/audio';
+import { useLanguage } from '@/lib/i18n';
 
 interface ProfileEditModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export default function ProfileEditModal({
   currentBirthDate,
   onSave,
 }: ProfileEditModalProps) {
+  const { language, t } = useLanguage();
   const [name, setName] = useState(currentName);
   const [birthDate, setBirthDate] = useState(currentBirthDate || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -63,11 +65,11 @@ export default function ProfileEditModal({
     e.preventDefault();
     const trimmedName = name.trim();
     if (!trimmedName) {
-      setErrorMessage('이름(닉네임)을 1자 이상 입력해주세요.');
+      setErrorMessage(language === 'en' ? 'Please enter a name with at least 1 character.' : '이름(닉네임)을 1자 이상 입력해주세요.');
       return;
     }
     if (trimmedName.length > 12) {
-      setErrorMessage('이름은 12자 이내로 입력해주세요.');
+      setErrorMessage(language === 'en' ? 'Name must be 12 characters or less.' : '이름은 12자 이내로 입력해주세요.');
       return;
     }
 
@@ -81,7 +83,7 @@ export default function ProfileEditModal({
       onClose();
     } catch (err) {
       console.warn('Profile save failed:', err);
-      setErrorMessage('프로필 저장 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      setErrorMessage(language === 'en' ? 'Failed to save profile. Please try again.' : '프로필 저장 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setIsSubmitting(false);
     }
@@ -112,10 +114,10 @@ export default function ProfileEditModal({
                 </div>
                 <div>
                   <h3 className="font-serif-warm font-bold text-stone-900 text-base">
-                    내 프로필 편집
+                    {t('profile.title')}
                   </h3>
                   <p className="text-[10.5px] text-stone-500 font-sans-ui">
-                    일기장과 편지 봉투에 표시될 정보입니다
+                    {language === 'en' ? 'Displayed on letters and envelopes' : '일기장과 편지 봉투에 표시될 정보입니다'}
                   </p>
                 </div>
               </div>
@@ -123,7 +125,7 @@ export default function ProfileEditModal({
                 type="button"
                 onClick={onClose}
                 className="p-1 rounded-full hover:bg-stone-200 text-stone-400 hover:text-stone-700 transition-colors cursor-pointer"
-                aria-label="닫기"
+                aria-label={t('common.close')}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -136,10 +138,10 @@ export default function ProfileEditModal({
                 <label className="flex items-center justify-between text-xs font-semibold text-stone-800 font-serif-warm">
                   <span className="flex items-center gap-1.5">
                     <User className="w-3.5 h-3.5 text-[#6B1724]" />
-                    <span>나의 이름 (닉네임)</span>
+                    <span>{t('profile.nameLabel')}</span>
                   </span>
                   <span className="text-[10px] text-stone-400 font-sans-ui font-normal">
-                    {name.trim().length}/12자
+                    {name.trim().length}/12
                   </span>
                 </label>
                 <input
@@ -147,12 +149,12 @@ export default function ProfileEditModal({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   maxLength={12}
-                  placeholder="예: 지우, 민준이, 곰돌이"
+                  placeholder={language === 'en' ? 'e.g., Sarah, Alex, Honey' : '예: 지우, 민준이, 곰돌이'}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white text-stone-800 text-sm font-sans-ui focus:outline-none focus:border-[#6B1724] shadow-2xs"
                   required
                 />
                 <p className="text-[10.5px] text-stone-500 font-sans-ui leading-tight">
-                  편지 발송인과 홈 화면 커플 뱃지에 표시됩니다.
+                  {language === 'en' ? 'Shown on your letters and the home screen badge.' : '편지 발송인과 홈 화면 커플 뱃지에 표시됩니다.'}
                 </p>
               </div>
 
@@ -161,11 +163,11 @@ export default function ProfileEditModal({
                 <label className="flex items-center justify-between text-xs font-semibold text-stone-800 font-serif-warm">
                   <span className="flex items-center gap-1.5">
                     <Cake className="w-3.5 h-3.5 text-amber-700" />
-                    <span>생년월일 (선택)</span>
+                    <span>{t('profile.birthLabel')}</span>
                   </span>
                   {birthdayDDay !== null && (
                     <span className="text-[10px] font-sans-ui font-semibold text-amber-900 bg-amber-100/90 px-1.5 py-0.5 rounded border border-amber-300">
-                      {birthdayDDay === 0 ? '🎉 오늘 생일!' : `생일까지 D-${birthdayDDay}`}
+                      {birthdayDDay === 0 ? (language === 'en' ? '🎉 Birthday today!' : '🎉 오늘 생일!') : (language === 'en' ? `D-${birthdayDDay} to birthday` : `생일까지 D-${birthdayDDay}`)}
                     </span>
                   )}
                 </label>
@@ -179,7 +181,7 @@ export default function ProfileEditModal({
                   />
                 </div>
                 <p className="text-[10.5px] text-stone-500 font-sans-ui leading-tight">
-                  생일 및 둘만의 기념일 계산에 활용됩니다.
+                  {language === 'en' ? 'Used for calculating birthdays and milestones.' : '생일 및 둘만의 기념일 계산에 활용됩니다.'}
                 </p>
               </div>
 
@@ -198,7 +200,7 @@ export default function ProfileEditModal({
                   disabled={isSubmitting}
                   className="flex-1 py-2.5 rounded-xl border border-stone-300 hover:bg-stone-100 text-stone-700 text-xs font-semibold font-sans-ui cursor-pointer transition-all active:scale-95 disabled:opacity-50"
                 >
-                  취소
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -206,11 +208,11 @@ export default function ProfileEditModal({
                   className="flex-1 py-2.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-xs font-bold font-sans-ui shadow-xs cursor-pointer transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
                 >
                   {isSubmitting ? (
-                    <span>저장 중...</span>
+                    <span>{t('profile.saving')}</span>
                   ) : (
                     <>
                       <Check className="w-3.5 h-3.5" />
-                      <span>프로필 저장</span>
+                      <span>{t('profile.saveBtn')}</span>
                     </>
                   )}
                 </button>

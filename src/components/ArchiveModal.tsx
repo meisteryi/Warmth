@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { soundEngine } from '@/lib/audio';
 import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
+import { useLanguage } from '@/lib/i18n';
 
 interface WarmthStats {
   totalDiaries: number;
@@ -69,6 +70,7 @@ export default function ArchiveModal({
   onSelectDiary,
   onOpenSealedLetter,
 }: ArchiveModalProps) {
+  const { language, t } = useLanguage();
   // SWR(Stale-While-Revalidate): 메모리 캐시가 있으면 즉시 초기값으로 렌더링
   const [diaries, setDiaries] = useState<DiaryData[]>(() => {
     if (typeof window !== 'undefined' && roomCode) {
@@ -371,7 +373,7 @@ export default function ArchiveModal({
             </div>
             <div>
               <h2 className="text-lg sm:text-xl font-serif-warm font-bold text-stone-900">
-                둘만의 서재
+                {t('archive.title')}
               </h2>
               <p className="text-xs text-stone-500 font-sans-ui mt-0.5">
                 #{roomCode} · {currentUserName} & {partnerName}
@@ -383,7 +385,7 @@ export default function ArchiveModal({
             <button
               onClick={() => fetchDiaries(diaryLimit)}
               disabled={isLoading}
-              title="새로고침"
+              title={language === 'en' ? 'Refresh' : '새로고침'}
               className="p-2 rounded-xl text-stone-600 hover:text-stone-900 hover:bg-stone-200/60 transition-colors disabled:opacity-50 cursor-pointer"
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
@@ -391,6 +393,7 @@ export default function ArchiveModal({
             <button
               onClick={onClose}
               className="p-2 rounded-xl text-stone-600 hover:text-stone-900 hover:bg-stone-200/60 transition-colors cursor-pointer"
+              aria-label={t('common.close')}
             >
               <X className="w-5 h-5" />
             </button>
@@ -405,14 +408,14 @@ export default function ArchiveModal({
               setActiveTab('LIST');
               soundEngine.playTileSlideSound();
             }}
-            className={`py-3 px-3 border-b-2 font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`py-3 px-3 border-b-2 font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'LIST'
                 ? 'border-[#6B1724] text-[#6B1724]'
                 : 'border-transparent text-stone-500 hover:text-stone-800'
             }`}
           >
             <BookOpen className="w-3.5 h-3.5" />
-            <span>일기 보관함 ({diaries.length})</span>
+            <span>{language === 'en' ? `Letters (${diaries.length})` : `일기 보관함 (${diaries.length})`}</span>
           </button>
 
           <button
@@ -421,14 +424,14 @@ export default function ArchiveModal({
               setActiveTab('REPORT');
               soundEngine.playTileSlideSound();
             }}
-            className={`py-3 px-3 border-b-2 font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`py-3 px-3 border-b-2 font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'REPORT'
                 ? 'border-[#6B1724] text-[#6B1724]'
                 : 'border-transparent text-stone-500 hover:text-stone-800'
             }`}
           >
             <BarChart3 className="w-3.5 h-3.5 text-amber-800" />
-            <span>월간 온기 리포트</span>
+            <span>{t('archive.tab.report')}</span>
           </button>
 
           <button
@@ -437,14 +440,14 @@ export default function ArchiveModal({
               setActiveTab('BOOKLET');
               soundEngine.playTileSlideSound();
             }}
-            className={`py-3 px-3 border-b-2 font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`py-3 px-3 border-b-2 font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'BOOKLET'
                 ? 'border-[#6B1724] text-[#6B1724]'
                 : 'border-transparent text-stone-500 hover:text-stone-800'
             }`}
           >
             <Printer className="w-3.5 h-3.5 text-stone-700" />
-            <span>소책자 PDF / 인쇄</span>
+            <span>{t('archive.tab.booklet')}</span>
           </button>
         </div>
 
@@ -454,7 +457,7 @@ export default function ArchiveModal({
             {isLoading && diaries.length === 0 ? (
               <div className="py-16 text-center text-stone-500 font-serif-warm">
                 <RefreshCw className="w-6 h-6 animate-spin mx-auto text-[#6B1724] mb-2" />
-                <p className="text-sm">보관된 일기를 불러오는 중입니다...</p>
+                <p className="text-sm">{t('archive.loading')}</p>
               </div>
             ) : loadError && diaries.length === 0 ? (
               <div className="py-16 px-4 text-center">
@@ -462,7 +465,7 @@ export default function ArchiveModal({
                   <AlertCircle className="w-6 h-6" />
                 </div>
                 <h3 className="font-serif-warm font-bold text-stone-800 text-base mb-1">
-                  일기를 불러오지 못했습니다
+                  {t('archive.loadFailed')}
                 </h3>
                 <p className="text-xs text-stone-500 max-w-sm mx-auto leading-relaxed mb-4">
                   {loadError}
@@ -470,10 +473,10 @@ export default function ArchiveModal({
                 <button
                   type="button"
                   onClick={() => fetchDiaries(diaryLimit)}
-                  className="px-4 py-2 bg-[#6B1724] text-white rounded-xl text-xs font-serif-warm font-semibold shadow hover:bg-[#851E2E] transition-all inline-flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  className="px-4 py-2 bg-[#6B1724] text-white rounded-xl text-xs font-serif-warm font-semibold shadow hover:bg-[#851E2E] transition-all inline-flex items-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
-                  <span>다시 시도하기</span>
+                  <span>{t('archive.retry')}</span>
                 </button>
               </div>
             ) : diaries.length === 0 ? (
@@ -482,10 +485,10 @@ export default function ArchiveModal({
                   <BookOpen className="w-8 h-8 opacity-80" />
                 </div>
                 <h3 className="font-serif-warm font-bold text-stone-800 text-base mb-1">
-                  아직 보관된 일기가 없습니다
+                  {t('archive.empty')}
                 </h3>
                 <p className="text-xs text-stone-500 max-w-sm mx-auto leading-relaxed">
-                  서로 주고받은 일기가 이곳에 소중히 보관됩니다.
+                  {t('archive.emptySub')}
                 </p>
               </div>
             ) : (
@@ -516,17 +519,17 @@ export default function ArchiveModal({
                             <Calendar className="w-3.5 h-3.5 text-stone-400" />
                             {formattedDate}
                           </span>
-                          <span className="text-[11px] px-2.5 py-0.5 rounded-full font-serif-warm font-bold border bg-rose-100/90 text-rose-950 border-rose-300 animate-pulse flex items-center gap-1">
+                          <span className="text-[11px] px-2.5 py-0.5 rounded-full font-serif-warm font-bold border bg-rose-100/90 text-rose-950 border-rose-300 animate-pulse flex items-center gap-1 whitespace-nowrap">
                             <Lock className="w-3 h-3 text-rose-800" />
-                            <span>미개봉 비밀 편지</span>
+                            <span>{t('archive.unopenedByMe')}</span>
                           </span>
-                          <span className="text-[11px] px-2 py-0.5 rounded-full font-serif-warm font-bold border bg-rose-50 text-rose-900 border-rose-200">
-                            {item.authorName}의 온기
+                          <span className="text-[11px] px-2 py-0.5 rounded-full font-serif-warm font-bold border bg-rose-50 text-rose-900 border-rose-200 whitespace-nowrap">
+                            {language === 'en' ? `${item.authorName}'s Letter` : `${item.authorName}의 온기`}
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-1 text-xs font-serif-warm font-bold text-rose-900 group-hover:translate-x-0.5 transition-transform shrink-0">
-                          <span>메인에서 개봉하기</span>
+                        <div className="flex items-center gap-1 text-xs font-serif-warm font-bold text-rose-900 group-hover:translate-x-0.5 transition-transform shrink-0 whitespace-nowrap">
+                          <span>{t('archive.openOnMain')}</span>
                           <ChevronRight className="w-4 h-4" />
                         </div>
                       </div>
@@ -535,12 +538,12 @@ export default function ArchiveModal({
                         <div className="w-6 h-6 rounded-lg bg-[#6B1724] text-amber-100 flex items-center justify-center shrink-0 shadow-2xs">
                           <Lock className="w-3.5 h-3.5 text-amber-200" />
                         </div>
-                        <span>{item.authorName} 님이 보낸 비밀 편지</span>
+                        <span>{t('archive.secretLetter', { name: item.authorName })}</span>
                       </h3>
 
                       <p className="text-xs text-stone-600 leading-relaxed font-serif-warm bg-white/80 p-3 rounded-xl border border-rose-100/80 flex items-center gap-2">
                         <span className="text-sm shrink-0">💌</span>
-                        <span>실링 왁스로 봉인되어 있습니다. 메인 화면에서 관문을 풀고 왁스를 녹여 소중한 온기를 확인해 보세요.</span>
+                        <span>{t('archive.secretMasked')}</span>
                       </p>
                     </div>
                   );
@@ -567,25 +570,25 @@ export default function ArchiveModal({
                           {formattedDate}
                         </span>
                         <span
-                          className={`text-[11px] px-2 py-0.5 rounded-full font-serif-warm font-bold border ${
+                          className={`text-[11px] px-2 py-0.5 rounded-full font-serif-warm font-bold border whitespace-nowrap ${
                             isMine
                               ? 'bg-amber-100/80 text-amber-900 border-amber-200'
                               : 'bg-rose-50 text-rose-900 border-rose-200'
                           }`}
                         >
-                          {item.authorName}의 기록
+                          {language === 'en' ? `${item.authorName}'s Journal` : `${item.authorName}의 기록`}
                         </span>
 
                         {isMyUnopenedLetter && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full font-serif-warm font-bold border bg-amber-50 text-amber-950 border-amber-200">
-                            상대방 미개봉 ✉️
+                          <span className="text-[10px] px-2 py-0.5 rounded-full font-serif-warm font-bold border bg-amber-50 text-amber-950 border-amber-200 whitespace-nowrap">
+                            {t('badge.unopened')}
                           </span>
                         )}
 
                         {/* [3번 요구사항] 저장된 날씨·기분 잉크 도장 표시 */}
                         {item.stamp && item.stamp.style !== 'EMOJI_TITLE' && (
                           <span 
-                            className="text-[10px] px-2 py-0.5 rounded-full border border-dashed font-serif-warm inline-flex items-center gap-1"
+                            className="text-[10px] px-2 py-0.5 rounded-full border border-dashed font-serif-warm inline-flex items-center gap-1 whitespace-nowrap"
                             style={{
                               borderColor: item.stamp.color || '#A83232',
                               color: item.stamp.color || '#A83232',
@@ -598,7 +601,7 @@ export default function ArchiveModal({
                         )}
 
                         {itemWarmth && typeof itemWarmth.temperature === 'number' && (
-                          <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-bold inline-flex items-center gap-1 ${
+                          <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-bold inline-flex items-center gap-1 whitespace-nowrap ${
                             itemWarmth.temperature <= 0
                               ? 'bg-sky-50 text-sky-900 border border-sky-200'
                               : 'bg-amber-50 text-amber-900 border border-amber-200/60'
@@ -609,8 +612,8 @@ export default function ArchiveModal({
                         )}
                       </div>
 
-                      <div className="flex items-center gap-1 text-xs font-serif-warm text-[#6B1724] group-hover:translate-x-0.5 transition-transform shrink-0">
-                        <span>열람하기</span>
+                      <div className="flex items-center gap-1 text-xs font-serif-warm text-[#6B1724] group-hover:translate-x-0.5 transition-transform shrink-0 whitespace-nowrap">
+                        <span>{t('archive.readDiary')}</span>
                         <ChevronRight className="w-4 h-4" />
                       </div>
                     </div>
@@ -621,7 +624,7 @@ export default function ArchiveModal({
                           {item.stamp.symbol}
                         </span>
                       )}
-                      <span>{item.title || '(제목 없음)'}</span>
+                      <span>{item.title || (language === 'en' ? '(Untitled)' : '(제목 없음)')}</span>
                     </h3>
 
                     <p className="text-xs text-stone-600 line-clamp-2 leading-relaxed font-serif-warm">
@@ -633,7 +636,7 @@ export default function ArchiveModal({
                         {itemWarmth.keywords.map((kw, i) => (
                           <span
                             key={i}
-                            className="text-[10px] px-1.5 py-0.5 rounded bg-stone-100 text-stone-600 font-serif-warm"
+                            className="text-[10px] px-1.5 py-0.5 rounded bg-stone-100 text-stone-600 font-serif-warm whitespace-nowrap"
                           >
                             {kw}
                           </span>
@@ -651,9 +654,9 @@ export default function ArchiveModal({
                   type="button"
                   onClick={handleLoadMore}
                   disabled={isLoading}
-                  className="px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100/70 border border-amber-300/80 text-amber-950 text-xs font-serif-warm font-semibold transition-all cursor-pointer shadow-xs active:scale-95 disabled:opacity-50"
+                  className="px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100/70 border border-amber-300/80 text-amber-950 text-xs font-serif-warm font-semibold transition-all cursor-pointer shadow-xs active:scale-95 disabled:opacity-50 whitespace-nowrap"
                 >
-                  {isLoading ? '불러오는 중...' : '📜 더 많은 지난 편지 불러오기 (+10건)'}
+                  {isLoading ? (language === 'en' ? 'Loading...' : '불러오는 중...') : t('archive.loadMore')}
                 </button>
               </div>
             )}

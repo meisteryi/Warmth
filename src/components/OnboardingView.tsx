@@ -14,9 +14,11 @@ import {
   BookHeart,
   HeartHandshake,
   Clock,
-  Loader2
+  Loader2,
+  Globe,
 } from 'lucide-react';
 import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
+import { useLanguage } from '@/lib/i18n';
 
 const PENDING_ROOM_KEY = 'warmth_pending_created_room';
 
@@ -25,6 +27,7 @@ interface OnboardingViewProps {
 }
 
 export default function OnboardingView({ onMatched }: OnboardingViewProps) {
+  const { language, setLanguage, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'CREATE' | 'JOIN'>('CREATE');
   const [myName, setMyName] = useState('');
 
@@ -223,6 +226,36 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
       transition={{ duration: 0.5, ease: 'easeOut' }}
       className="w-full max-w-lg mx-auto px-3 sm:px-4 py-2 sm:py-6 flex flex-col items-center my-auto"
     >
+      {/* 우측 상단 언어 전환 토글 */}
+      <div className="w-full flex justify-end mb-2">
+        <div className="inline-flex rounded-lg border border-stone-200 bg-white/90 p-0.5 text-[11px] font-sans-ui shadow-2xs backdrop-blur-xs">
+          <button
+            type="button"
+            onClick={() => {
+              setLanguage('ko');
+              soundEngine.playTileSlideSound();
+            }}
+            className={`px-2 py-0.5 rounded-md font-semibold cursor-pointer transition-all ${
+              language === 'ko' ? 'bg-[#6B1724] text-amber-50 shadow-xs' : 'text-stone-500 hover:text-stone-800'
+            }`}
+          >
+            한국어
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setLanguage('en');
+              soundEngine.playTileSlideSound();
+            }}
+            className={`px-2 py-0.5 rounded-md font-semibold cursor-pointer transition-all ${
+              language === 'en' ? 'bg-[#6B1724] text-amber-50 shadow-xs' : 'text-stone-500 hover:text-stone-800'
+            }`}
+          >
+            English
+          </button>
+        </div>
+      </div>
+
       {/* 헤더 타이틀 */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -233,10 +266,10 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
           <WarmthHanjaIcon className="w-6 h-6 sm:w-7 sm:h-7 text-amber-100" />
         </div>
         <h1 className="font-serif-warm text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight leading-tight">
-          온기
+          {language === 'en' ? 'Warmth' : '온기'}
         </h1>
         <p className="mt-1 text-stone-600 font-serif-warm text-sm font-medium">
-          둘만의 비밀 교환일기
+          {t('onboarding.subtitle')}
         </p>
       </motion.div>
 
@@ -260,7 +293,7 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
               }`}
           >
             <BookHeart className="w-4 h-4 text-[#6B1724]" />
-            <span>새 일기장 만들기</span>
+            <span>{t('onboarding.createRoom')}</span>
           </button>
           <button
             type="button"
@@ -274,14 +307,14 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
               }`}
           >
             <KeyRound className="w-4 h-4 text-amber-800" />
-            <span>초대코드 입력하기</span>
+            <span>{t('onboarding.joinRoom')}</span>
           </button>
         </div>
 
         {/* 사용자 이름 입력 필드 (공통) */}
         <div className="mb-4 sm:mb-5">
           <label className="block text-xs sm:text-sm font-semibold text-stone-700 mb-1.5 font-sans-ui">
-            내 이름 / 애칭
+            {language === 'en' ? 'My Name / Nickname' : '내 이름 / 애칭'}
           </label>
           <input
             type="text"

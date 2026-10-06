@@ -24,6 +24,7 @@ import {
   Save,
   Calendar,
 } from 'lucide-react';
+import { useLanguage } from '@/lib/i18n';
 
 interface WriteDiaryModalProps {
   isOpen: boolean;
@@ -46,6 +47,7 @@ export default function WriteDiaryModal({
   fallbackPreviousDiary,
   initialTitle,
 }: WriteDiaryModalProps) {
+  const { language, t } = useLanguage();
   const getTodayDateString = () => {
     const now = new Date();
     const y = now.getFullYear();
@@ -492,7 +494,7 @@ export default function WriteDiaryModal({
             <div className="flex items-center gap-2 mb-5 pr-8">
               <Feather className="w-5 h-5 text-[#6B1724] shrink-0" />
               <h2 className="font-serif-warm text-lg sm:text-xl font-bold text-stone-900">
-                새 교환일기 쓰기
+                {t('write.title')}
               </h2>
               <span className="text-xs text-stone-500 font-sans-ui ml-auto">
                 To. {partnerName}
@@ -700,12 +702,12 @@ export default function WriteDiaryModal({
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-xs font-sans-ui text-stone-600">
-                    일기 제목
+                    {language === 'en' ? 'Letter Title' : '일기 제목'}
                   </label>
                   {stampStyle === 'EMOJI_TITLE' && (
                     <span className="text-[11px] font-serif-warm text-[#6B1724] flex items-center gap-1">
                       <span>{selectedStamp.symbol}</span>
-                      <span>스티커가 제목 왼쪽 위에 크게 표시됩니다</span>
+                      <span>{language === 'en' ? 'Sticker will appear above title' : '스티커가 제목 왼쪽 위에 크게 표시됩니다'}</span>
                     </span>
                   )}
                 </div>
@@ -713,7 +715,7 @@ export default function WriteDiaryModal({
                   {stampStyle === 'EMOJI_TITLE' && (
                     <div 
                       className="absolute -top-3.5 left-2 sm:-top-4 sm:left-2.5 z-10 text-2xl sm:text-3xl filter drop-shadow-sm pointer-events-none select-none -rotate-12 transition-transform duration-200"
-                      title="제목 위 스티커 미리보기"
+                      title={language === 'en' ? 'Preview sticker above title' : '제목 위 스티커 미리보기'}
                     >
                       {selectedStamp.symbol}
                     </div>
@@ -724,7 +726,7 @@ export default function WriteDiaryModal({
                     maxLength={60}
                     value={title}
                     onChange={(e) => setTitle(e.target.value.slice(0, 60))}
-                    placeholder="오늘의 제목을 적어주세요"
+                    placeholder={t('write.titlePlaceholder')}
                     className={`w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-base sm:text-sm text-stone-900 ${
                       stampStyle === 'EMOJI_TITLE' ? 'pl-11 sm:pl-12' : ''
                     }`}
@@ -736,13 +738,13 @@ export default function WriteDiaryModal({
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-xs font-sans-ui text-stone-600">
-                    일기 내용
+                    {language === 'en' ? 'Letter Content' : '일기 내용'}
                   </label>
                   <span className="text-[11px] font-sans-ui text-stone-400">
                     <span className={content.length >= 1000 ? 'text-rose-600 font-bold' : 'text-stone-600'}>
                       {content.length}
                     </span>
-                    /1000자
+                    /1000
                   </span>
                 </div>
                 <textarea
@@ -751,7 +753,7 @@ export default function WriteDiaryModal({
                   maxLength={1000}
                   value={content}
                   onChange={(e) => setContent(e.target.value.slice(0, 1000))}
-                  placeholder="오늘 하루 나누고 싶었던 둘만의 소소하고 따뜻한 이야기를 적어보세요..."
+                  placeholder={t('write.contentPlaceholder')}
                   className="w-full p-3.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-base sm:text-sm leading-relaxed text-stone-900 placeholder:text-stone-400 resize-none"
                 />
               </div>
@@ -1054,24 +1056,24 @@ export default function WriteDiaryModal({
                 <button
                   type="submit"
                   disabled={isSubmitting || isCompressing}
-                  className="w-full py-3.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] active:scale-[0.99] disabled:opacity-50 text-amber-50 font-serif-warm font-semibold text-sm shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-3.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] active:scale-[0.99] disabled:opacity-50 text-amber-50 font-serif-warm font-semibold text-sm shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
                 >
                   {isSubmitting ? (
                     <>
                       <Loader2 className="w-4 h-4 text-amber-200 animate-spin" />
-                      <span>일기 봉인 중...</span>
+                      <span>{language === 'en' ? 'Sealing Letter...' : '일기 봉인 중...'}</span>
                     </>
                   ) : (
                     <>
                       <Send className="w-4 h-4 text-amber-200" />
-                      <span>일기 봉인하여 보내기</span>
+                      <span>{t('write.btn.save')}</span>
                     </>
                   )}
                 </button>
                 {lastSavedDraftTime && (
                   <div className="text-center text-[11px] text-stone-400 font-sans-ui flex items-center justify-center gap-1">
                     <Save className="w-3 h-3 text-stone-400" />
-                    <span>작성 중인 내용이 {lastSavedDraftTime}에 안전하게 임시 저장되었습니다</span>
+                    <span>{language === 'en' ? `Draft safely saved at ${lastSavedDraftTime}` : `작성 중인 내용이 ${lastSavedDraftTime}에 안전하게 임시 저장되었습니다`}</span>
                   </div>
                 )}
               </div>

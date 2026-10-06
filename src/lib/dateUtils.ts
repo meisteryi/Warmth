@@ -12,7 +12,7 @@ export interface DaysTogetherInfo {
 /**
  * 시작일(또는 방 연결일)로부터 오늘까지 며칠째인지 계산 (당일 = 1일 차)
  */
-export function calculateDaysTogether(startDateStr?: string | null): DaysTogetherInfo {
+export function calculateDaysTogether(startDateStr?: string | null, lang: 'ko' | 'en' = 'ko'): DaysTogetherInfo {
   const now = new Date();
   let start = new Date();
 
@@ -30,7 +30,10 @@ export function calculateDaysTogether(startDateStr?: string | null): DaysTogethe
   const diffDays = Math.floor((nowMidnight - startMidnight) / (1000 * 60 * 60 * 24));
   const days = Math.max(1, diffDays + 1);
 
-  const formattedStartDate = `${start.getFullYear()}년 ${start.getMonth() + 1}월 ${start.getDate()}일`;
+  const monthsEn = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const formattedStartDate = lang === 'en'
+    ? `${monthsEn[start.getMonth()]} ${start.getDate()}, ${start.getFullYear()}`
+    : `${start.getFullYear()}년 ${start.getMonth() + 1}월 ${start.getDate()}일`;
   const startDateIso = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
 
   return {
@@ -76,7 +79,7 @@ export interface ResetCountdownInfo {
   nextResetTime: Date;
 }
 
-export function getTimeUntilNextReset(now: Date = new Date()): ResetCountdownInfo {
+export function getTimeUntilNextReset(now: Date = new Date(), lang: 'ko' | 'en' = 'ko'): ResetCountdownInfo {
   const nextReset = new Date(now);
   // 만약 현재 시각이 04:00 이전이면 오늘 04:00이 리셋 시각
   // 현재 시각이 04:00 이후이면 내일 04:00이 리셋 시각
@@ -94,7 +97,9 @@ export function getTimeUntilNextReset(now: Date = new Date()): ResetCountdownInf
   const seconds = totalSeconds % 60;
 
   const formatted = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  const formattedKorean = hours > 0 ? `${hours}시간 ${minutes}분` : `${minutes}분 ${seconds}초`;
+  const formattedKorean = lang === 'en'
+    ? (hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m ${seconds}s`)
+    : (hours > 0 ? `${hours}시간 ${minutes}분` : `${minutes}분 ${seconds}초`);
 
   return {
     totalSeconds,
@@ -108,30 +113,40 @@ export function getTimeUntilNextReset(now: Date = new Date()): ResetCountdownInf
 }
 
 /**
- * 오늘 날짜를 한국어 감성 포맷으로 반환 (예: "10월 5일 (월)")
+ * 오늘 날짜를 감성 포맷으로 반환 (예: "10월 5일 (월)" 또는 "Oct 5 (Mon)")
  */
-export function formatTodayKorean(now: Date = new Date(), includeYear = false): string {
-  const days = ['일', '월', '화', '수', '목', '금', '토'];
+export function formatTodayKorean(now: Date = new Date(), includeYear = false, lang: 'ko' | 'en' = 'ko'): string {
+  const daysKo = ['일', '월', '화', '수', '목', '금', '토'];
+  const daysEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const monthsEn = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const y = now.getFullYear();
   const m = now.getMonth() + 1;
   const d = now.getDate();
-  const dayName = days[now.getDay()];
+  const dayName = lang === 'en' ? daysEn[now.getDay()] : daysKo[now.getDay()];
+
+  if (lang === 'en') {
+    return includeYear
+      ? `${monthsEn[now.getMonth()]} ${d}, ${y} (${dayName})`
+      : `${monthsEn[now.getMonth()]} ${d} (${dayName})`;
+  }
   return includeYear ? `${y}년 ${m}월 ${d}일 (${dayName})` : `${m}월 ${d}일 (${dayName})`;
 }
 
 /**
- * 일기 작성 일시를 "M월 D일 (요일)" 및 상대 시간("오늘", "어제", "N일 전")으로 포맷
+ * 일기 작성 일시를 날짜 및 상대 시간("오늘", "어제", "N일 전" / "Today", "Yesterday", "N days ago")으로 포맷
  */
-export function formatDiaryDateWithRelative(dateStr?: string | null): { dateText: string; relativeText: string } | null {
+export function formatDiaryDateWithRelative(dateStr?: string | null, lang: 'ko' | 'en' = 'ko'): { dateText: string; relativeText: string } | null {
   if (!dateStr) return null;
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return null;
 
-  const days = ['일', '월', '화', '수', '목', '금', '토'];
+  const daysKo = ['일', '월', '화', '수', '목', '금', '토'];
+  const daysEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const monthsEn = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const m = d.getMonth() + 1;
   const date = d.getDate();
-  const dayName = days[d.getDay()];
-  const dateText = `${m}월 ${date}일 (${dayName})`;
+  const dayName = lang === 'en' ? daysEn[d.getDay()] : daysKo[d.getDay()];
+  const dateText = lang === 'en' ? `${monthsEn[d.getMonth()]} ${date} (${dayName})` : `${m}월 ${date}일 (${dayName})`;
 
   const now = new Date();
   const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -139,14 +154,26 @@ export function formatDiaryDateWithRelative(dateStr?: string | null): { dateText
   const diffDays = Math.round((todayMidnight - targetMidnight) / (1000 * 60 * 60 * 24));
 
   let relativeText = '';
-  if (diffDays <= 0) {
-    relativeText = '오늘';
-  } else if (diffDays === 1) {
-    relativeText = '어제';
-  } else if (diffDays === 2) {
-    relativeText = '그저께';
+  if (lang === 'en') {
+    if (diffDays <= 0) {
+      relativeText = 'Today';
+    } else if (diffDays === 1) {
+      relativeText = 'Yesterday';
+    } else if (diffDays === 2) {
+      relativeText = '2 days ago';
+    } else {
+      relativeText = `${diffDays} days ago`;
+    }
   } else {
-    relativeText = `${diffDays}일 전`;
+    if (diffDays <= 0) {
+      relativeText = '오늘';
+    } else if (diffDays === 1) {
+      relativeText = '어제';
+    } else if (diffDays === 2) {
+      relativeText = '그저께';
+    } else {
+      relativeText = `${diffDays}일 전`;
+    }
   }
 
   return { dateText, relativeText };
