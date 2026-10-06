@@ -391,15 +391,15 @@ export default function ArchiveModal({
           </div>
         </div>
 
-        {/* 상단 탭 전환 네비게이션 */}
-        <div className="flex border-b border-[#E8DFD3] bg-[#FAF6EE] px-4 sm:px-6 gap-2 text-xs font-sans-ui no-print">
+        {/* 상단 탭 전환 네비게이션 (모바일 화면 좌우 터치 스크롤 지원) */}
+        <div className="flex overflow-x-auto shrink-0 border-b border-[#E8DFD3] bg-[#FAF6EE] px-3 sm:px-6 gap-1.5 sm:gap-2 text-xs font-sans-ui no-print touch-pan-x">
           <button
             type="button"
             onClick={() => {
               setActiveTab('LIST');
               soundEngine.playTileSlideSound();
             }}
-            className={`py-3 px-3 border-b-2 font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+            className={`py-3 px-3 border-b-2 font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
               activeTab === 'LIST'
                 ? 'border-[#6B1724] text-[#6B1724]'
                 : 'border-transparent text-stone-500 hover:text-stone-800'
@@ -415,7 +415,7 @@ export default function ArchiveModal({
               setActiveTab('REPORT');
               soundEngine.playTileSlideSound();
             }}
-            className={`py-3 px-3 border-b-2 font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+            className={`py-3 px-3 border-b-2 font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
               activeTab === 'REPORT'
                 ? 'border-[#6B1724] text-[#6B1724]'
                 : 'border-transparent text-stone-500 hover:text-stone-800'
@@ -431,7 +431,7 @@ export default function ArchiveModal({
               setActiveTab('BOOKLET');
               soundEngine.playTileSlideSound();
             }}
-            className={`py-3 px-3 border-b-2 font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+            className={`py-3 px-3 border-b-2 font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
               activeTab === 'BOOKLET'
                 ? 'border-[#6B1724] text-[#6B1724]'
                 : 'border-transparent text-stone-500 hover:text-stone-800'
