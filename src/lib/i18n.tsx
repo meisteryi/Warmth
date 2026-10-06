@@ -313,12 +313,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
           document.documentElement.lang = saved;
         }
       } else {
-        const navLang = typeof navigator !== 'undefined' ? navigator.language : 'ko';
-        if (navLang && !navLang.startsWith('ko')) {
-          setLanguageState('en');
-          if (typeof document !== 'undefined') {
-            document.documentElement.lang = 'en';
-          }
+        // 기본 언어는 항상 한국어('ko')로 시작
+        setLanguageState('ko');
+        if (typeof document !== 'undefined') {
+          document.documentElement.lang = 'ko';
         }
       }
     } catch {}
