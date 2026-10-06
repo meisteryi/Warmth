@@ -347,19 +347,29 @@ export default function HomeView({
           </span>
         </div>
 
-        {/* 우리의 마지막 일기 안내 바 (가운데 정렬: 오늘 / 어제 / 그저께 / N일 전) */}
-        <div className="py-2.5 px-4 rounded-2xl bg-[#FAF6EE] border border-[#E8DFC8] flex items-center justify-center gap-2 text-xs font-serif-warm shadow-2xs">
-          <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-white border border-[#DECDBB] text-[#6B1724] shadow-2xs shrink-0">
-            <PenLine className="w-3.5 h-3.5" />
+        {/* 우리의 마지막 일기 안내 바 (가운데 정렬: 오늘 / 어제 / 그저께 / N일 전 강조) */}
+        <div className="py-2.5 sm:py-3 px-4 rounded-2xl bg-gradient-to-r from-[#FAF6EE] via-[#FDFBF7] to-[#FAF6EE] border border-[#E8DFC8] flex items-center justify-center gap-2 sm:gap-2.5 text-xs sm:text-sm font-serif-warm shadow-2xs">
+          <span className="flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-xl bg-white border border-[#DECDBB] text-[#6B1724] shadow-2xs shrink-0">
+            <PenLine className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </span>
-          <div className="flex items-center gap-1.5">
-            <span className="text-stone-600 font-medium">우리의 마지막 일기 :</span>
+          <div className="flex items-center gap-2 font-serif-warm">
+            <span className="text-stone-600 font-medium text-xs sm:text-sm">우리의 마지막 일기 :</span>
             {lastDiaryInfo ? (
-              <span className="font-bold text-[#6B1724] text-xs sm:text-sm">
+              <span
+                className={`inline-flex items-center px-3 py-0.5 rounded-full text-sm sm:text-base font-black tracking-tight shadow-xs border transition-all ${
+                  lastDiaryInfo.relativeText === '오늘'
+                    ? 'bg-rose-50 text-[#6B1724] border-rose-300 ring-2 ring-rose-200/50'
+                    : lastDiaryInfo.relativeText === '어제'
+                    ? 'bg-amber-50 text-amber-950 border-amber-300'
+                    : lastDiaryInfo.relativeText === '그저께'
+                    ? 'bg-stone-50 text-stone-900 border-stone-300'
+                    : 'bg-white text-stone-800 border-stone-300'
+                }`}
+              >
                 {lastDiaryInfo.relativeText}
               </span>
             ) : (
-              <span className="text-stone-400 italic font-normal">
+              <span className="text-stone-400 italic font-normal text-xs sm:text-sm">
                 아직 없음 ✉️
               </span>
             )}
