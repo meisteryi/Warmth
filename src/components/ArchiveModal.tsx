@@ -11,6 +11,7 @@ import {
   Sparkles, 
   X, 
   RefreshCw, 
+  ChevronLeft,
   ChevronRight, 
   BarChart3, 
   Printer, 
@@ -84,6 +85,14 @@ export default function ArchiveModal({
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'LIST' | 'REPORT' | 'BOOKLET'>('LIST');
+
+  // [요구사항] 10개씩 페이지네이션 및 달력 인터페이스 상태
+  const PAGE_SIZE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedDateFilter, setSelectedDateFilter] = useState<string | null>(null);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [calendarYear, setCalendarYear] = useState<number>(() => new Date().getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState<number>(() => new Date().getMonth());
 
   const fetchDiaries = async () => {
     if (!roomCode) return;
@@ -338,6 +347,105 @@ export default function ArchiveModal({
     }
   };
 
+  // 일기 작성 일시(ISO)로부터 'YYYY-MM-DD' 로컬 날짜 키 반환
+  const getDiaryLocalDateKey = (isoString?: string): string => {
+    if (!isoString) return '';
+    try {
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) return '';
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    } catch {
+      return '';
+    }
+  };
+
+  // 날짜별 일기 목록 맵 (달력 표시용)
+  const diariesByDateMap = useMemo(() => {
+    const map: Record<string, DiaryData[]> = {};
+    diaries.forEach((d) => {
+      const key = getDiaryLocalDateKey(d.createdAt);
+      if (key) {
+        if (!map[key]) map[key] = [];
+        map[key].push(d);
+      }
+    });
+    return map;
+  }, [diaries]);
+
+  // 날짜 필터가 적용된 일기 목록
+  const filteredDiaries = useMemo(() => {
+    if (!selectedDateFilter) return diaries;
+    return diaries.filter((d) => getDiaryLocalDateKey(d.createdAt) === selectedDateFilter);
+  }, [diaries, selectedDateFilter]);
+
+  // 총 페이지 수 (10개씩)
+  const totalPages = Math.max(1, Math.ceil(filteredDiaries.length / PAGE_SIZE));
+
+  // 현재 페이지에 노출할 10개 일기
+  const paginatedDiaries = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredDiaries.slice(start, start + PAGE_SIZE);
+  }, [filteredDiaries, currentPage]);
+
+  // 페이지 보정
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+
+  // 블로그 스타일 페이지 번호 리스트 (예: 1 2 3...)
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    if (currentPage <= 4) {
+      return [1, 2, 3, 4, 5, '...', totalPages];
+    }
+    if (currentPage >= totalPages - 3) {
+      return [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+    return [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages];
+  }, [totalPages, currentPage]);
+
+  // 달력 그리드 계산 (해당 월의 1일 요일 및 날짜 목록)
+  const calendarGridDays = useMemo(() => {
+    const firstDayOfWeek = new Date(calendarYear, calendarMonth, 1).getDay();
+    const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+
+    const days: { day: number; dateKey: string; hasDiary: boolean; diaryCount: number }[] = [];
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateKey = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const diariesOnDay = diariesByDateMap[dateKey] || [];
+      days.push({
+        day,
+        dateKey,
+        hasDiary: diariesOnDay.length > 0,
+        diaryCount: diariesOnDay.length,
+      });
+    }
+
+    return { firstDayOfWeek, days };
+  }, [calendarYear, calendarMonth, diariesByDateMap]);
+
+  const handlePrevMonth = () => {
+    if (calendarMonth === 0) {
+      setCalendarYear((prev) => prev - 1);
+      setCalendarMonth(11);
+    } else {
+      setCalendarMonth((prev) => prev - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (calendarMonth === 11) {
+      setCalendarYear((prev) => prev + 1);
+      setCalendarMonth(0);
+    } else {
+      setCalendarMonth((prev) => prev + 1);
+    }
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -445,6 +553,29 @@ export default function ArchiveModal({
         {/* 탭 1: 일기 목록 영역 */}
         {activeTab === 'LIST' && (
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3">
+            {/* 날짜 필터 활성화 시 안내 배너 */}
+            {selectedDateFilter && (
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-amber-100/90 border border-amber-300 text-stone-800 text-xs font-serif-warm shadow-2xs no-print">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-[#6B1724]" />
+                  <span>
+                    <strong>{selectedDateFilter}</strong>에 작성된 일기 ({filteredDiaries.length}편)
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedDateFilter(null);
+                    setCurrentPage(1);
+                    soundEngine.playTileSlideSound();
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-stone-100 border border-stone-200 text-stone-700 font-semibold cursor-pointer text-[11px] transition-colors"
+                >
+                  전체 일기 보기 ✕
+                </button>
+              </div>
+            )}
+
             {isLoading && diaries.length === 0 ? (
               <div className="py-16 text-center text-stone-500 font-serif-warm">
                 <RefreshCw className="w-6 h-6 animate-spin mx-auto text-[#6B1724] mb-2" />
@@ -482,8 +613,31 @@ export default function ArchiveModal({
                   {t('archive.emptySub')}
                 </p>
               </div>
+            ) : selectedDateFilter && filteredDiaries.length === 0 ? (
+              <div className="py-16 px-4 text-center">
+                <div className="w-16 h-16 rounded-full bg-amber-100/70 text-[#6B1724] flex items-center justify-center mx-auto mb-3 shadow-inner">
+                  <Calendar className="w-8 h-8 opacity-80" />
+                </div>
+                <h3 className="font-serif-warm font-bold text-stone-800 text-base mb-1">
+                  선택하신 날짜에 작성된 일기가 없습니다
+                </h3>
+                <p className="text-xs text-stone-500 max-w-sm mx-auto leading-relaxed mb-4">
+                  달력에서 표시(●)가 있는 날짜를 선택하시거나 전체 목록을 확인해보세요.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedDateFilter(null);
+                    setCurrentPage(1);
+                    soundEngine.playTileSlideSound();
+                  }}
+                  className="px-4 py-2 bg-[#6B1724] text-white rounded-xl text-xs font-serif-warm font-semibold shadow hover:bg-[#851E2E] transition-all cursor-pointer"
+                >
+                  모든 일기 보기
+                </button>
+              </div>
             ) : (
-              diaries.map((item) => {
+              paginatedDiaries.map((item) => {
                 const isMine = item.authorName === currentUserName;
                 const isUnopenedByMe = !isMine && !item.isWaxBroken;
                 const isMyUnopenedLetter = isMine && !item.isWaxBroken;
@@ -637,6 +791,72 @@ export default function ArchiveModal({
                   </div>
                 );
               })
+            )}
+
+            {/* 블로그 스타일 페이지네이션 (1, 2, 3...) */}
+            {totalPages > 1 && (
+              <div className="pt-4 pb-2 flex items-center justify-center gap-1 font-serif-warm text-xs select-none no-print">
+                <button
+                  type="button"
+                  disabled={currentPage === 1}
+                  onClick={() => {
+                    if (currentPage > 1) {
+                      setCurrentPage((prev) => prev - 1);
+                      soundEngine.playTileSlideSound();
+                    }
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 text-stone-600 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer flex items-center gap-0.5"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  <span>{language === 'en' ? 'Prev' : '이전'}</span>
+                </button>
+
+                <div className="flex items-center gap-1 mx-1">
+                  {pageNumbers.map((num, idx) => {
+                    if (num === '...') {
+                      return (
+                        <span key={`dots-${idx}`} className="px-1 text-stone-400 font-bold">
+                          …
+                        </span>
+                      );
+                    }
+                    const page = num as number;
+                    const isActive = page === currentPage;
+                    return (
+                      <button
+                        key={page}
+                        type="button"
+                        onClick={() => {
+                          setCurrentPage(page);
+                          soundEngine.playTileSlideSound();
+                        }}
+                        className={`min-w-7 h-7 px-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center ${
+                          isActive
+                            ? 'bg-[#6B1724] text-amber-50 shadow-xs scale-105'
+                            : 'border border-stone-200 bg-white hover:bg-stone-100 text-stone-700'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  type="button"
+                  disabled={currentPage === totalPages}
+                  onClick={() => {
+                    if (currentPage < totalPages) {
+                      setCurrentPage((prev) => prev + 1);
+                      soundEngine.playTileSlideSound();
+                    }
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 text-stone-600 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer flex items-center gap-0.5"
+                >
+                  <span>{language === 'en' ? 'Next' : '다음'}</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -912,13 +1132,181 @@ export default function ArchiveModal({
           </div>
         )}
 
-        {/* 하단 닫기 바 (iOS 홈 제스처 바 여백 확보) */}
-        <div className="px-5 py-3 pb-[max(env(safe-area-inset-bottom,0px),0.75rem)] border-t border-[#E8DFD3] bg-[#FAF7F2] flex justify-end shrink-0 no-print">
+        {/* 하단 닫기 바 & 달력 인터페이스 (iOS 홈 제스처 바 여백 확보) */}
+        <div className="px-4 sm:px-5 py-3 pb-[max(env(safe-area-inset-bottom,0px),0.75rem)] border-t border-[#E8DFD3] bg-[#FAF7F2] flex items-center justify-between gap-2 shrink-0 no-print relative">
+          {/* 맨 왼쪽: 달력 인터페이스 */}
+          <div className="relative">
+            {isCalendarOpen && (
+              <div 
+                className="fixed inset-0 z-20" 
+                onClick={() => setIsCalendarOpen(false)} 
+              />
+            )}
+
+            {isCalendarOpen && (
+              <div className="absolute bottom-full left-0 mb-3 w-[290px] sm:w-[320px] bg-[#FFFDF9] rounded-2xl p-3.5 border border-[#E8DFC8] shadow-2xl z-30 font-sans-ui paper-texture">
+                {/* 달력 헤더: 년/월 및 이전/다음 버튼 */}
+                <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-[#EFE7DC]">
+                  <button
+                    type="button"
+                    onClick={handlePrevMonth}
+                    className="p-1 rounded-lg hover:bg-stone-100 text-stone-600 transition-colors cursor-pointer"
+                    title="이전 달"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  <div className="font-serif-warm font-bold text-stone-900 text-sm flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4 text-[#6B1724]" />
+                    <span>{calendarYear}년 {calendarMonth + 1}월</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleNextMonth}
+                    className="p-1 rounded-lg hover:bg-stone-100 text-stone-600 transition-colors cursor-pointer"
+                    title="다음 달"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* 요일 헤더 */}
+                <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-stone-400 mb-1">
+                  <span className="text-rose-500">일</span>
+                  <span>월</span>
+                  <span>화</span>
+                  <span>수</span>
+                  <span>목</span>
+                  <span>금</span>
+                  <span className="text-sky-600">토</span>
+                </div>
+
+                {/* 날짜 그리드 */}
+                <div className="grid grid-cols-7 gap-1 text-center">
+                  {Array.from({ length: calendarGridDays.firstDayOfWeek }).map((_, i) => (
+                    <div key={`empty-${i}`} className="h-8" />
+                  ))}
+
+                  {calendarGridDays.days.map(({ day, dateKey, hasDiary, diaryCount }) => {
+                    const isSelected = selectedDateFilter === dateKey;
+                    const isToday = dateKey === getDiaryLocalDateKey(new Date().toISOString());
+
+                    return (
+                      <button
+                        key={dateKey}
+                        type="button"
+                        onClick={() => {
+                          setSelectedDateFilter(dateKey);
+                          setActiveTab('LIST');
+                          setCurrentPage(1);
+                          setIsCalendarOpen(false);
+                          soundEngine.playPaperRustle();
+                        }}
+                        className={`h-8 rounded-lg text-xs font-serif-warm relative flex flex-col items-center justify-center transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#6B1724] text-amber-50 font-bold shadow-xs'
+                            : hasDiary
+                            ? 'bg-amber-100/90 hover:bg-amber-200/90 text-amber-950 font-bold border border-amber-300/80 shadow-2xs'
+                            : isToday
+                            ? 'bg-stone-100 text-stone-800 font-semibold'
+                            : 'text-stone-400 hover:bg-stone-100'
+                        }`}
+                        title={hasDiary ? `${dateKey} (${diaryCount}편의 일기)` : dateKey}
+                      >
+                        <span className="leading-none">{day}</span>
+                        {hasDiary && (
+                          <span
+                            className={`w-1 h-1 rounded-full mt-0.5 ${
+                              isSelected ? 'bg-amber-200' : 'bg-[#6B1724]'
+                            }`}
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* 하단 범례 및 이번 달/필터 해제 바로가기 */}
+                <div className="mt-3 pt-2 border-t border-[#EFE7DC] flex items-center justify-between text-[11px] text-stone-500">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#6B1724]" />
+                    <span>일기 작성된 날</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {selectedDateFilter && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedDateFilter(null);
+                          setCurrentPage(1);
+                          setIsCalendarOpen(false);
+                          soundEngine.playTileSlideSound();
+                        }}
+                        className="text-[#6B1724] font-bold hover:underline cursor-pointer"
+                      >
+                        전체 보기
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = new Date();
+                        setCalendarYear(now.getFullYear());
+                        setCalendarMonth(now.getMonth());
+                      }}
+                      className="text-stone-600 hover:text-stone-900 cursor-pointer"
+                    >
+                      이번 달
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 달력 열기 버튼 */}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCalendarOpen(!isCalendarOpen);
+                  soundEngine.playTileSlideSound();
+                }}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-serif-warm font-semibold transition-all cursor-pointer active:scale-95 shadow-2xs ${
+                  selectedDateFilter
+                    ? 'bg-[#6B1724] text-amber-50 border-[#6B1724]'
+                    : 'bg-amber-50/90 hover:bg-amber-100/80 text-stone-700 border-amber-200/90'
+                }`}
+                title={language === 'en' ? 'Select Date' : '날짜별 달력'}
+              >
+                <Calendar className={`w-3.5 h-3.5 ${selectedDateFilter ? 'text-amber-200' : 'text-[#6B1724]'}`} />
+                <span>{selectedDateFilter ? `${selectedDateFilter}` : (language === 'en' ? 'Calendar' : '날짜별 달력')}</span>
+              </button>
+
+              {selectedDateFilter && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedDateFilter(null);
+                    setCurrentPage(1);
+                    soundEngine.playTileSlideSound();
+                  }}
+                  className="p-1 rounded-lg text-stone-500 hover:text-stone-800 hover:bg-stone-200/60 transition-colors cursor-pointer"
+                  title="날짜 필터 해제"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* 맨 오른쪽: 닫기 버튼 */}
           <button
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-serif-warm font-bold transition-all cursor-pointer"
+            className="px-5 py-2 rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-800 text-xs font-serif-warm font-bold transition-all cursor-pointer shrink-0"
           >
-            닫기
+            {language === 'en' ? 'Close' : '닫기'}
           </button>
         </div>
           </motion.div>
