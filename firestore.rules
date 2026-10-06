@@ -33,7 +33,7 @@ service cloud.firestore {
     //   - content: string (required, encrypted string <= 50000)
     //   - photos: list (optional, encrypted image chunks, size <= 10)
     //   - waxColor: string (required, hex color)
-    //   - createdAt: string (required, immutable)
+    //   - createdAt: string (required, ISO 8601 string, size <= 100)
     //   - mission: map (required, type, prompt, quizAnswer, submission, isPassed)
     //   - isWaxBroken: bool (required)
     //   - openedAt: string (optional)
@@ -83,7 +83,8 @@ service cloud.firestore {
     function isValidDiaryUpdate(diaryId, data, current) {
       return data.diaryId == current.diaryId &&
              data.authorId == current.authorId &&
-             data.createdAt == current.createdAt;
+             data.createdAt is string &&
+             data.createdAt.size() <= 100;
     }
 
     // 1. 방 (rooms) 컬렉션 규칙

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { DiaryData } from '@/types/diary';
 import { generateFallbackWarmth } from '@/lib/gemini';
@@ -40,6 +40,14 @@ export default function OpenedLetter({
   });
   const [isSavingDate, setIsSavingDate] = useState(false);
 
+  useEffect(() => {
+    setCurrentDiaryDate(diary.createdAt);
+    try {
+      const d = new Date(diary.createdAt);
+      setEditDateValue(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+    } catch {}
+  }, [diary.createdAt]);
+
   const handleSaveDate = async () => {
     if (!editDateValue || isSavingDate) return;
     setIsSavingDate(true);
@@ -51,10 +59,23 @@ export default function OpenedLetter({
           onUpdateDiaryDate?.(diary.diaryId, res.newIsoDate);
           soundEngine.playPaperRustle();
           setIsEditingDate(false);
+        } else {
+          soundEngine.playTileSlideSound();
+          alert(language === 'en' ? 'Failed to update date. Please try again.' : '날짜 수정에 실패했습니다. 다시 시도해 주세요.');
         }
+      } else {
+        const parts = editDateValue.split('-').map(Number);
+        const targetDate = new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+        const iso = targetDate.toISOString();
+        setCurrentDiaryDate(iso);
+        onUpdateDiaryDate?.(diary.diaryId, iso);
+        soundEngine.playPaperRustle();
+        setIsEditingDate(false);
       }
     } catch (e) {
       console.warn('Failed to update diary date:', e);
+      soundEngine.playTileSlideSound();
+      alert(language === 'en' ? 'Failed to update date. Please try again.' : '날짜 수정에 실패했습니다. 다시 시도해 주세요.');
     } finally {
       setIsSavingDate(false);
     }
