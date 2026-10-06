@@ -139,16 +139,14 @@ export function formatDiaryDateWithRelative(dateStr?: string | null): { dateText
   const diffDays = Math.round((todayMidnight - targetMidnight) / (1000 * 60 * 60 * 24));
 
   let relativeText = '';
-  if (diffDays === 0) {
+  if (diffDays <= 0) {
     relativeText = '오늘';
   } else if (diffDays === 1) {
     relativeText = '어제';
   } else if (diffDays === 2) {
     relativeText = '그저께';
-  } else if (diffDays > 0) {
-    relativeText = `${diffDays}일 전`;
   } else {
-    relativeText = '방금';
+    relativeText = `${diffDays}일 전`;
   }
 
   return { dateText, relativeText };

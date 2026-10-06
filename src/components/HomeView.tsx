@@ -26,7 +26,6 @@ import {
   DaysTogetherInfo,
   getTimeUntilNextReset,
   ResetCountdownInfo,
-  formatTodayKorean,
   formatDiaryDateWithRelative,
 } from '@/lib/dateUtils';
 import { updateAnniversaryDateInFirestore, getRoomDiariesFromFirestore } from '@/lib/roomService';
@@ -82,48 +81,42 @@ export default function HomeView({
     return () => clearInterval(timer);
   }, []);
 
-  // 상대방의 마지막 일기 작성 일시 추적 (하루 하나의 일기 콘셉트)
-  const [partnerLastDiaryDate, setPartnerLastDiaryDate] = useState<string | null>(null);
+  // 둘만의 교환일기 중 가장 최근 일기 작성 일시 추적 ("우리의 마지막 일기")
+  const [lastDiaryDate, setLastDiaryDate] = useState<string | null>(null);
 
   useEffect(() => {
-    // 1) 
-    // 현재 구독 중인 최신 diary가 상대방 작성 일기인 경우
-    if (diary && diary.authorName === partnerName && diary.createdAt) {
-      setPartnerLastDiaryDate(diary.createdAt);
+    // 1) 현재 구독 중인 최신 diary가 있는 경우
+    if (diary && diary.createdAt) {
+      setLastDiaryDate(diary.createdAt);
       return;
     }
 
-    // 2) Firestore roomData.lastWrittenByUser에서 상대방 기록 확인
+    // 2) Firestore roomData.lastWrittenByUser에서 가장 최근 기록 확인
     if (roomData?.lastWrittenByUser) {
-      if (roomData.lastWrittenByUser[partnerName]) {
-        setPartnerLastDiaryDate(roomData.lastWrittenByUser[partnerName]);
-        return;
-      }
-      const partnerEntry = Object.entries(roomData.lastWrittenByUser).find(
-        ([key]) => key !== userName && key !== 'user_ssr'
-      );
-      if (partnerEntry && partnerEntry[1]) {
-        setPartnerLastDiaryDate(partnerEntry[1]);
+      const validTimes = Object.values(roomData.lastWrittenByUser)
+        .filter((t) => typeof t === 'string' && t !== 'user_ssr')
+        .map((t) => new Date(t).getTime())
+        .filter((t) => !isNaN(t));
+      if (validTimes.length > 0) {
+        setLastDiaryDate(new Date(Math.max(...validTimes)).toISOString());
         return;
       }
     }
 
-    // 3) 보관함에서 상대방이 작성한 가장 최근 일기 1건 탐색
+    // 3) 보관함에서 가장 최근 일기 1건 탐색
     if (roomCode) {
-      getRoomDiariesFromFirestore(roomCode)
+      getRoomDiariesFromFirestore(roomCode, 1)
         .then((list) => {
-          const partnerDiaries = list.filter((d) => d.authorName === partnerName);
-          if (partnerDiaries.length > 0) {
-            setPartnerLastDiaryDate(partnerDiaries[0].createdAt);
+          if (list.length > 0 && list[0].createdAt) {
+            setLastDiaryDate(list[0].createdAt);
           }
         })
         .catch(() => { });
     }
-  }, [diary, partnerName, roomData, roomCode, userName]);
+  }, [diary, roomData, roomCode]);
 
-  // 오늘 날짜 및 상대방 마지막 일기 감성 포맷팅
-  const todayFormatted = useMemo(() => formatTodayKorean(new Date(), true), []);
-  const partnerLastInfo = useMemo(() => formatDiaryDateWithRelative(partnerLastDiaryDate), [partnerLastDiaryDate]);
+  // 우리의 마지막 일기 감성 상대 날짜 포맷팅 (오늘 / 어제 / 그저께 / N일 전)
+  const lastDiaryInfo = useMemo(() => formatDiaryDateWithRelative(lastDiaryDate), [lastDiaryDate]);
 
   // 상대방의 생년월일 추출
   const partnerBirthDate = useMemo(() => {
@@ -354,45 +347,22 @@ export default function HomeView({
           </span>
         </div>
 
-        {/* 하루 하나의 일기 콘셉트: 오늘 날짜 및 상대방 마지막 일기 날짜 안내 바 */}
-        <div className="p-3 sm:p-3.5 rounded-2xl bg-[#FAF6EE] border border-[#E8DFC8] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs font-serif-warm shadow-2xs">
-          {/* 오늘 날짜 */}
-          <div className="flex items-center gap-2 text-stone-700">
-            <span className="flex items-center justify-center w-7 h-7 rounded-xl bg-white border border-[#DECDBB] text-amber-800 shadow-2xs shrink-0">
-              <Calendar className="w-3.5 h-3.5" />
-            </span>
-            <div className="flex items-baseline gap-1.5 flex-wrap">
-              <span className="text-[11px] text-stone-400 font-sans-ui">오늘 날짜</span>
-              <strong className="text-stone-900 font-bold text-xs sm:text-sm">
-                {todayFormatted}
-              </strong>
-            </div>
-          </div>
-
-          <div className="hidden sm:block w-px h-6 bg-[#E3DACB]" />
-
-          {/* 상대방의 마지막 일기 */}
-          <div className="flex items-center gap-2 text-stone-700">
-            <span className="flex items-center justify-center w-7 h-7 rounded-xl bg-white border border-[#DECDBB] text-[#6B1724] shadow-2xs shrink-0">
-              <PenLine className="w-3.5 h-3.5" />
-            </span>
-            <div className="flex items-baseline gap-1.5 flex-wrap">
-              <span className="text-[11px] text-stone-400 font-sans-ui">
-                우리의 마지막 일기
+        {/* 우리의 마지막 일기 안내 바 (가운데 정렬: 오늘 / 어제 / 그저께 / N일 전) */}
+        <div className="py-2.5 px-4 rounded-2xl bg-[#FAF6EE] border border-[#E8DFC8] flex items-center justify-center gap-2 text-xs font-serif-warm shadow-2xs">
+          <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-white border border-[#DECDBB] text-[#6B1724] shadow-2xs shrink-0">
+            <PenLine className="w-3.5 h-3.5" />
+          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-stone-600 font-medium">우리의 마지막 일기 :</span>
+            {lastDiaryInfo ? (
+              <span className="font-bold text-[#6B1724] text-xs sm:text-sm">
+                {lastDiaryInfo.relativeText}
               </span>
-              {partnerLastInfo ? (
-                <span className="text-stone-900 font-bold text-xs sm:text-sm">
-                  {partnerLastInfo.dateText}
-                  <span className="text-[10.5px] font-sans-ui font-semibold text-amber-950 bg-amber-100/90 px-1.5 py-0.5 rounded-md border border-amber-300/80 ml-1.5 align-middle">
-                    {partnerLastInfo.relativeText}
-                  </span>
-                </span>
-              ) : (
-                <span className="text-stone-400 font-normal italic text-xs">
-                  아직 도착한 일기가 없어요 ✉️
-                </span>
-              )}
-            </div>
+            ) : (
+              <span className="text-stone-400 italic font-normal">
+                아직 없음 ✉️
+              </span>
+            )}
           </div>
         </div>
 
