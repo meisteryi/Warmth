@@ -81,6 +81,12 @@ export const WEATHER_STAMPS: WeatherStamp[] = [
   { id: 'tired', name: '수고한 지친 하루', symbol: '☕', color: '#684530' },
 ];
 
+export interface DiaryReaction {
+  emoji: string;
+  reactorName: string;
+  reactedAt: string;
+}
+
 export interface DiaryData {
   diaryId: string;
   authorId: string;
@@ -97,6 +103,7 @@ export interface DiaryData {
   openedAt?: string | null;
   warmthScore?: WarmthScore | null;
   stamp?: WeatherStamp | null;
+  reaction?: DiaryReaction | null;
 }
 
 export interface KnockData {

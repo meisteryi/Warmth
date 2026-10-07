@@ -745,6 +745,17 @@ export default function ArchiveModal({
                           </span>
                         )}
 
+                        {/* 상대방 또는 내가 남긴 이모티콘 마음 반응 표시 */}
+                        {item.reaction && item.reaction.emoji && (
+                          <span
+                            className="text-[10px] px-2 py-0.5 rounded-full border border-rose-200 bg-rose-50/80 text-stone-700 font-serif-warm inline-flex items-center gap-1 shadow-2xs whitespace-nowrap"
+                            title={`${item.reaction.reactorName}님의 마음 반응: ${item.reaction.emoji}`}
+                          >
+                            <span className="text-xs">{item.reaction.emoji}</span>
+                            <span>{item.reaction.reactorName}</span>
+                          </span>
+                        )}
+
                         {itemWarmth && typeof itemWarmth.temperature === 'number' && (
                           <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-bold inline-flex items-center gap-1 whitespace-nowrap ${
                             itemWarmth.temperature <= 0

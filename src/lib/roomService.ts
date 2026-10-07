@@ -14,7 +14,7 @@ import {
   Unsubscribe 
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { DiaryData, RoomData } from '@/types/diary';
+import { DiaryData, DiaryReaction, RoomData } from '@/types/diary';
 import { 
   encryptDiaryData, 
   decryptDiaryData, 
@@ -690,6 +690,29 @@ export async function updateDiaryDateInFirestore(
   } catch (e) {
     console.warn('Failed to update diary date in Firestore:', e);
     return { success: false, newIsoDate: new Date().toISOString() };
+  }
+}
+
+// 8-2. 상대방이 작성한 일기에 유니코드 이모티콘 반응 등록 / 수정 / 삭제
+export async function updateDiaryReactionInFirestore(
+  roomCode: string,
+  diaryId: string,
+  reaction: DiaryReaction | null
+): Promise<{ success: boolean }> {
+  try {
+    const diaryRef = doc(db, 'rooms', roomCode, 'diaries', diaryId);
+    await updateDoc(diaryRef, {
+      reaction: reaction || null,
+      updatedAt: serverTimestamp(),
+    });
+
+    // 서재 메모리 캐시 무효화
+    roomDiariesCache.delete(roomCode);
+
+    return { success: true };
+  } catch (e) {
+    console.warn('Failed to update diary reaction in Firestore:', e);
+    return { success: false };
   }
 }
 

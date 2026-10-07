@@ -13,7 +13,7 @@ import KnockNotificationModal from '@/components/KnockNotificationModal';
 import ArchiveModal from '@/components/ArchiveModal';
 import HomeView from '@/components/HomeView';
 import ProfileEditModal from '@/components/ProfileEditModal';
-import { DiaryData, KnockData, UIState, WaxColor, RoomData } from '@/types/diary';
+import { DiaryData, DiaryReaction, KnockData, UIState, WaxColor, RoomData } from '@/types/diary';
 import { isDiaryWrittenInCurrentCycle, getTimeUntilNextReset, ResetCountdownInfo } from '@/lib/dateUtils';
 import { soundEngine } from '@/lib/audio';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -523,6 +523,18 @@ export default function HomePage() {
               setUiState((p) => (p === 'VIEW_WAITING' || p === 'VIEW_EMPTY' ? 'VIEW_HOME' : p));
             }
 
+            // 3) 내가 쓴 일기에 상대방이 이모티콘 마음 반응을 남겼거나 변경했을 때 실시간 감지
+            if (
+              prev &&
+              prev.diaryId === latestDiary.diaryId &&
+              latestDiary.reaction &&
+              prev.reaction?.emoji !== latestDiary.reaction.emoji &&
+              latestDiary.authorName === userName
+            ) {
+              soundEngine.playMissionPassChime();
+              showToast(`💌 ${latestDiary.reaction.reactorName || partnerName} 님이 일기에 ${latestDiary.reaction.emoji} 반응을 남겼습니다! ✨`);
+            }
+
             currentDiaryRef.current = latestDiary;
             setDiary(latestDiary);
           });
@@ -872,6 +884,23 @@ export default function HomePage() {
     showToast('📅 일기 날짜가 성공적으로 수정되었습니다.');
   };
 
+  // 3-2. 상대방의 일기에 이모티콘 마음 반응 등록 / 수정 / 삭제 처리
+  const handleUpdateDiaryReaction = (diaryId: string, reaction: DiaryReaction | null) => {
+    if (diary && diary.diaryId === diaryId) {
+      const updated = { ...diary, reaction };
+      setDiary(updated);
+      currentDiaryRef.current = updated;
+    }
+    if (selectedArchiveDiary && selectedArchiveDiary.diaryId === diaryId) {
+      setSelectedArchiveDiary((prev) => (prev ? { ...prev, reaction } : null));
+    }
+    if (reaction) {
+      showToast(`💌 일기에 ${reaction.emoji} 이모티콘으로 마음을 남겼습니다.`);
+    } else {
+      showToast('이모티콘 마음 반응이 삭제되었습니다.');
+    }
+  };
+
   // 4. 노크 보내기 처리 (Firestore에 기록하여 상대방에게 실시간 인앱 노크 전송)
   const handleSendKnock = async (message: string) => {
     try {
@@ -1154,6 +1183,7 @@ export default function HomePage() {
                 userName={userName}
                 roomCode={roomCode}
                 onUpdateDiaryDate={handleUpdateDiaryDate}
+                onUpdateDiaryReaction={handleUpdateDiaryReaction}
               />
             ) : (
               <EmptyDeskView
