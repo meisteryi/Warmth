@@ -83,6 +83,7 @@ export const WEATHER_STAMPS: WeatherStamp[] = [
 
 export interface DiaryReaction {
   emoji: string;
+  comment?: string; // 20자 이내 한 줄 코멘트
   reactorName: string;
   reactedAt: string;
 }

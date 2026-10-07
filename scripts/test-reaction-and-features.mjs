@@ -112,39 +112,44 @@ async function main() {
     const openedPageText = await page.evaluate(() => document.body.innerText);
     console.log(`🔍 OpenedLetter 일기 본문 노출 확인: ${openedPageText.includes('오늘 하루도 정말 고생 많았어') ? '✅ 성공!' : '❌ 실패'}`);
 
-    // --- 5. 이모티콘 반응 남기기 버튼 확인 ---
-    console.log('\n--- [Step 5] 유니코드 이모티콘 반응 버튼 클릭 ---');
+    // --- 5. 온도 위 눈에 띄지 않는 '반응 추가하기+' 텍스트 버튼 확인 ---
+    console.log('\n--- [Step 5] 온도 위 조용한 텍스트 "반응 추가하기+" 버튼 클릭 ---');
     const buttons = await page.evaluate(() => Array.from(document.querySelectorAll('button')).map(b => b.innerText));
     console.log('All buttons on page:', buttons);
-    const reactBtn = await page.waitForSelector('xpath///button[contains(., "이모티콘 반응 남기기")]', { timeout: 8000 });
-    console.log('✅ "이모티콘 반응 남기기" 버튼 발견!');
+    const reactBtn = await page.waitForSelector('xpath///button[contains(., "반응 추가하기+")]', { timeout: 8000 });
+    console.log('✅ "반응 추가하기+" 텍스트 버튼 발견!');
     await reactBtn.click();
     await sleep(600);
 
-    // --- 6. 이모티콘 선택 모달 창 확인 ---
-    console.log('\n--- [Step 6] 유니코드 이모티콘 선택 모달 확인 ---');
-    await page.waitForSelector('xpath///h3[contains(., "마음 이모티콘 선택")]');
-    console.log('✅ 모달 헤더 "마음 이모티콘 선택" 노출 확인');
+    // --- 6. 포스트잇 작성 모달 창 확인 (이모티콘 하나 + 20자 이내 코멘트) ---
+    console.log('\n--- [Step 6] 포스트잇 작성 모달 확인 ---');
+    await page.waitForSelector('xpath///h3[contains(., "포스트잇 남기기")]');
+    console.log('✅ 모달 헤더 "포스트잇 남기기" 노출 확인');
 
-    // 카테고리 탭 전환: "위로 · 응원" 클릭
-    const cheerTab = await page.waitForSelector('xpath///button[contains(., "위로 · 응원")]');
-    await cheerTab.click();
-    await sleep(400);
-    console.log('✅ "위로 · 응원" 탭 클릭 완료');
+    // 이모티콘 칩 "💌" 클릭
+    const heartLetterEmojiBtn = await page.waitForSelector('xpath///button[contains(., "💌")]');
+    await heartLetterEmojiBtn.click();
+    console.log('✅ 이모티콘 "💌" 선택 완료');
 
-    // 이모티콘 "🌿" 클릭 (카테고리 탭이 아닌 그리드 내의 이모티콘 버튼 클릭)
-    const herbEmojiBtn = await page.waitForSelector('xpath///div[contains(@class, "grid-cols-6")]//button[contains(., "🌿")]');
-    await herbEmojiBtn.click();
-    console.log('✅ "🌿" 이모티콘 선택 클릭 완료! (모달 자동 닫힘 & 차임벨 발동)');
+    // 20자 이내 한 줄 코멘트 입력
+    const commentInput = await page.waitForSelector('input[placeholder*="고생 많았어"]');
+    await commentInput.click();
+    await commentInput.type('오늘도 수고했어 늘 응원해!');
+    console.log('✅ 코멘트 "오늘도 수고했어 늘 응원해!" 입력 완료');
+
+    // "포스트잇 붙이기" 버튼 클릭
+    const attachBtn = await page.waitForSelector('xpath///button[contains(., "포스트잇 붙이기")]');
+    await attachBtn.click();
+    console.log('✅ "포스트잇 붙이기" 버튼 클릭!');
     await sleep(2500);
 
-    // --- 7. 위치 요구사항 정밀 검증: 본문 글과 오늘의 온기 온도 사이에 반응이 위치하는가? ---
-    console.log('\n--- [Step 7] DOM 배치 순서 검증 (본문 -> 반응 -> 온기 온도) ---');
+    // --- 7. 위치 요구사항 정밀 검증: 본문 글과 오늘의 온기 온도 사이에 포스트잇이 위치하는가? ---
+    console.log('\n--- [Step 7] DOM 배치 순서 검증 (본문 -> 포스트잇 반응 -> 온기 온도) ---');
     const domOrder = await page.evaluate(() => {
       const allText = document.body.innerText;
       const contentIdx = allText.indexOf('오늘 하루도 정말 고생 많았어');
-      const reactionIdx = allText.indexOf('내가 남긴 마음 반응', contentIdx);
-      const tempIdx = allText.indexOf('오늘의 온기 온도', contentIdx);
+      const reactionIdx = allText.indexOf('오늘도 수고했어 늘 응원해!', contentIdx);
+      const tempIdx = allText.indexOf('오늘의 온도', contentIdx);
 
       return {
         contentIdx,
@@ -156,31 +161,39 @@ async function main() {
 
     console.log('DOM 인덱스 측정치:', domOrder);
     if (domOrder.isCorrect) {
-      console.log('🎉 [위치 검증 통과!] 일기 본문 글(idx: ' + domOrder.contentIdx + ') < 이모티콘 반응(idx: ' + domOrder.reactionIdx + ') < 오늘의 온도(idx: ' + domOrder.tempIdx + ')');
+      console.log('🎉 [위치 검증 통과!] 일기 본문 글(idx: ' + domOrder.contentIdx + ') < 포스트잇 코멘트(idx: ' + domOrder.reactionIdx + ') < 오늘의 온도(idx: ' + domOrder.tempIdx + ')');
     } else {
-      throw new Error('위치 요구사항 불일치: 본문 글과 온도 사이에 반응이 위치하지 않습니다.');
+      throw new Error('위치 요구사항 불일치: 본문 글과 온도 사이에 포스트잇 반응이 위치하지 않습니다.');
     }
 
-    // --- 8. 이모티콘 변경 기능 검증 ("변경" -> "❤️") ---
-    console.log('\n--- [Step 8] 이모티콘 변경 기능 검증 ---');
-    const changeBtn = await page.waitForSelector('xpath///button[contains(., "변경")]');
-    await changeBtn.click();
+    // --- 8. 포스트잇 수정 기능 검증 ("수정" -> 코멘트 수정 후 저장) ---
+    console.log('\n--- [Step 8] 포스트잇 수정 기능 검증 ---');
+    const editBtn = await page.waitForSelector('xpath///button[contains(., "수정")]');
+    await editBtn.click();
     await sleep(500);
 
-    const loveTab = await page.waitForSelector('xpath///button[contains(., "사랑 · 다정")]');
-    await loveTab.click();
-    await sleep(300);
-
-    const heartEmojiBtn = await page.waitForSelector('xpath///div[contains(@class, "grid-cols-6")]//button[contains(., "❤️")]');
-    await heartEmojiBtn.click();
-    console.log('✅ "❤️" 로 이모티콘 반응 변경 완료');
+    // 코멘트 내용 수정: React input value 초기화 후 새 문구 입력
+    await page.evaluate(() => {
+      const input = document.querySelector('input[placeholder*="고생 많았어"]');
+      if (input) {
+        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+        nativeInputValueSetter.call(input, '');
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    });
+    const commentInputEdit = await page.waitForSelector('input[placeholder*="고생 많았어"]');
+    await commentInputEdit.type('따뜻한 밤 보내 사랑해');
+    
+    const saveEditBtn = await page.waitForSelector('xpath///button[contains(., "포스트잇 붙이기")]');
+    await saveEditBtn.click();
+    console.log('✅ 포스트잇 수정 저장 완료');
     await sleep(2000);
 
     const updatedText = await page.evaluate(() => document.body.innerText);
-    console.log(`🔍 변경된 이모티콘(❤️) 반영 확인: ${updatedText.includes('❤️') ? '✅ 성공!' : '❌ 실패'}`);
+    console.log(`🔍 수정된 코멘트 반영 확인: ${updatedText.includes('따뜻한 밤 보내 사랑해') ? '✅ 성공!' : '❌ 실패'}`);
 
-    await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'test_emoji_reaction_success.png') });
-    console.log('📸 스크린샷 저장: recordings/test_emoji_reaction_success.png');
+    await page.screenshot({ path: path.join(SCREENSHOTS_DIR, 'test_postit_reaction_success.png') });
+    console.log('📸 스크린샷 저장: recordings/test_postit_reaction_success.png');
 
     // --- 9. 토스트 알림 페이드 인/아웃 애니메이션 검증 ---
     console.log('\n--- [Step 9] 토스트 페이드 인/아웃 검증 ---');
@@ -203,8 +216,8 @@ async function main() {
     await sleep(1200);
 
     const archiveModalText = await page.evaluate(() => document.body.innerText);
-    const hasHeartInArchive = archiveModalText.includes('❤️');
-    console.log(`🔍 서재 목록 내 이모티콘(❤️) 반응 배지 노출: ${hasHeartInArchive ? '✅ 확인!' : '❌ 실패'}`);
+    const hasEmojiInArchive = archiveModalText.includes('💌');
+    console.log(`🔍 서재 목록 내 이모티콘(💌) 반응 배지 노출: ${hasEmojiInArchive ? '✅ 확인!' : '❌ 실패'}`);
 
     // 서재 내 달력 버튼 확인
     const calendarBtn = await page.$('xpath///button[contains(., "달력") or contains(., "캘린더")]');

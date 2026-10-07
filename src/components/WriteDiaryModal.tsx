@@ -8,16 +8,16 @@ import { compressImage, uploadPhotoIfPossible, CompressedImageResult } from '@/l
 import { fetchAiQuiz, fetchWarmthScore, fetchDailyPrompt, getCachedDailyPrompt } from '@/lib/aiClient';
 import { generateFallbackWarmth } from '@/lib/gemini';
 import { getLatestReadDiaryForPartner } from '@/lib/roomService';
-import { 
-  X, 
-  Send, 
-  Image as ImageIcon, 
-  Sparkles, 
-  Feather, 
-  HelpCircle, 
-  Upload, 
-  Camera, 
-  Loader2, 
+import {
+  X,
+  Send,
+  Image as ImageIcon,
+  Sparkles,
+  Feather,
+  HelpCircle,
+  Upload,
+  Camera,
+  Loader2,
   Trash2,
   Dices,
   BookOpen,
@@ -139,7 +139,7 @@ export default function WriteDiaryModal({
             setLastSavedDraftTime(parsed.savedAt || '이전 저장본');
           }
         }
-      } catch {}
+      } catch { }
     } else {
       setHasDraftNotice(false);
     }
@@ -169,7 +169,7 @@ export default function WriteDiaryModal({
         };
         localStorage.setItem(draftKey, JSON.stringify(draftData));
         setLastSavedDraftTime(draftData.savedAt);
-      } catch {}
+      } catch { }
     }, 600);
 
     return () => clearTimeout(timer);
@@ -216,14 +216,14 @@ export default function WriteDiaryModal({
       }
       setHasDraftNotice(false);
       soundEngine.playPaperRustle();
-    } catch {}
+    } catch { }
   };
 
   // 임시 저장본 폐기하고 새로 작성
   const handleDiscardDraft = () => {
     try {
       localStorage.removeItem(draftKey);
-    } catch {}
+    } catch { }
     setDiaryDate(getTodayDateString());
     setHasDraftNotice(false);
     soundEngine.playTileSlideSound();
@@ -417,7 +417,7 @@ export default function WriteDiaryModal({
           if (!isNaN(selectedDate.getTime())) {
             diaryCreatedAt = selectedDate.toISOString();
           }
-        } catch {}
+        } catch { }
       }
 
       const diaryPayload: Partial<DiaryData> = {
@@ -440,7 +440,7 @@ export default function WriteDiaryModal({
       // 안전 비상 백업: 전송 도중 네트워크가 끊기더라도 글이 사라지지 않도록 아웃박스 보관
       try {
         localStorage.setItem(`warmth_last_outbox_${roomCode}`, JSON.stringify(diaryPayload));
-      } catch {}
+      } catch { }
 
       // 서버 저장 완료 대기
       const saveResult = await onSaveDiary(diaryPayload);
@@ -449,7 +449,7 @@ export default function WriteDiaryModal({
       if (saveResult !== false) {
         try {
           localStorage.removeItem(draftKey);
-        } catch {}
+        } catch { }
 
         setTitle('');
         setContent('');
@@ -594,11 +594,10 @@ export default function WriteDiaryModal({
                           setSelectedStamp(st);
                           soundEngine.playPaperRustle();
                         }}
-                        className={`shrink-0 px-2.5 py-1.5 rounded-xl border text-xs font-serif-warm flex items-center gap-1.5 transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-[#FAF4ED] border-[#6B1724] text-[#6B1724] font-bold shadow-xs scale-102 ring-1 ring-[#6B1724]/30'
-                            : 'bg-white border-stone-200 text-stone-600 hover:border-stone-400 hover:bg-stone-50'
-                        }`}
+                        className={`shrink-0 px-2.5 py-1.5 rounded-xl border text-xs font-serif-warm flex items-center gap-1.5 transition-all cursor-pointer ${isSelected
+                          ? 'bg-[#FAF4ED] border-[#6B1724] text-[#6B1724] font-bold shadow-xs scale-102 ring-1 ring-[#6B1724]/30'
+                          : 'bg-white border-stone-200 text-stone-600 hover:border-stone-400 hover:bg-stone-50'
+                          }`}
                       >
                         <span className="text-sm">{st.symbol}</span>
                         <span>{st.name}</span>
@@ -619,11 +618,10 @@ export default function WriteDiaryModal({
                         setStampStyle('BADGE');
                         soundEngine.playPaperRustle();
                       }}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-sans-ui transition-all cursor-pointer ${
-                        stampStyle === 'BADGE'
-                          ? 'bg-white text-[#6B1724] font-bold shadow-2xs'
-                          : 'text-stone-600 hover:text-stone-900'
-                      }`}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-sans-ui transition-all cursor-pointer ${stampStyle === 'BADGE'
+                        ? 'bg-white text-[#6B1724] font-bold shadow-2xs'
+                        : 'text-stone-600 hover:text-stone-900'
+                        }`}
                     >
                       🏷️ 날짜 옆 인장 도장
                     </button>
@@ -633,11 +631,10 @@ export default function WriteDiaryModal({
                         setStampStyle('EMOJI_TITLE');
                         soundEngine.playPaperRustle();
                       }}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-sans-ui transition-all cursor-pointer ${
-                        stampStyle === 'EMOJI_TITLE'
-                          ? 'bg-white text-[#6B1724] font-bold shadow-2xs'
-                          : 'text-stone-600 hover:text-stone-900'
-                      }`}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-sans-ui transition-all cursor-pointer ${stampStyle === 'EMOJI_TITLE'
+                        ? 'bg-white text-[#6B1724] font-bold shadow-2xs'
+                        : 'text-stone-600 hover:text-stone-900'
+                        }`}
                     >
                       ✨ 제목 위 대형 스티커
                     </button>
@@ -659,11 +656,10 @@ export default function WriteDiaryModal({
                         setDiaryDate(getTodayDateString());
                         soundEngine.playPaperRustle();
                       }}
-                      className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${
-                        diaryDate === getTodayDateString()
-                          ? 'bg-[#6B1724] text-amber-50 font-bold shadow-2xs'
-                          : 'bg-stone-100 hover:bg-stone-200/70 text-stone-600'
-                      }`}
+                      className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${diaryDate === getTodayDateString()
+                        ? 'bg-[#6B1724] text-amber-50 font-bold shadow-2xs'
+                        : 'bg-stone-100 hover:bg-stone-200/70 text-stone-600'
+                        }`}
                     >
                       오늘
                     </button>
@@ -676,16 +672,15 @@ export default function WriteDiaryModal({
                         setDiaryDate(yStr);
                         soundEngine.playPaperRustle();
                       }}
-                      className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${
-                        (() => {
-                          const y = new Date();
-                          y.setDate(y.getDate() - 1);
-                          const yStr = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
-                          return diaryDate === yStr
-                            ? 'bg-[#6B1724] text-amber-50 font-bold shadow-2xs'
-                            : 'bg-stone-100 hover:bg-stone-200/70 text-stone-600';
-                        })()
-                      }`}
+                      className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${(() => {
+                        const y = new Date();
+                        y.setDate(y.getDate() - 1);
+                        const yStr = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
+                        return diaryDate === yStr
+                          ? 'bg-[#6B1724] text-amber-50 font-bold shadow-2xs'
+                          : 'bg-stone-100 hover:bg-stone-200/70 text-stone-600';
+                      })()
+                        }`}
                     >
                       어제
                     </button>
@@ -718,7 +713,7 @@ export default function WriteDiaryModal({
                 </div>
                 <div className="relative">
                   {stampStyle === 'EMOJI_TITLE' && (
-                    <div 
+                    <div
                       className="absolute -top-3.5 left-2 sm:-top-4 sm:left-2.5 z-10 text-2xl sm:text-3xl filter drop-shadow-sm pointer-events-none select-none -rotate-12 transition-transform duration-200"
                       title={language === 'en' ? 'Preview sticker above title' : '제목 위 스티커 미리보기'}
                     >
@@ -732,9 +727,8 @@ export default function WriteDiaryModal({
                     value={title}
                     onChange={(e) => setTitle(e.target.value.slice(0, 60))}
                     placeholder={t('write.titlePlaceholder')}
-                    className={`w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-base sm:text-sm text-stone-900 ${
-                      stampStyle === 'EMOJI_TITLE' ? 'pl-11 sm:pl-12' : ''
-                    }`}
+                    className={`w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-base sm:text-sm text-stone-900 ${stampStyle === 'EMOJI_TITLE' ? 'pl-11 sm:pl-12' : ''
+                      }`}
                   />
                 </div>
               </div>
@@ -755,9 +749,9 @@ export default function WriteDiaryModal({
                 <textarea
                   required
                   rows={6}
-                  maxLength={1000}
+                  maxLength={1500}
                   value={content}
-                  onChange={(e) => setContent(e.target.value.slice(0, 1000))}
+                  onChange={(e) => setContent(e.target.value.slice(0, 1500))}
                   placeholder={t('write.contentPlaceholder')}
                   className="w-full p-3.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-base sm:text-sm leading-relaxed text-stone-900 placeholder:text-stone-400 resize-none"
                 />
@@ -877,11 +871,10 @@ export default function WriteDiaryModal({
                       key={wax.hex}
                       type="button"
                       onClick={() => setSelectedColor(wax.hex)}
-                      className={`py-2 px-1.5 sm:px-2 rounded-xl border text-[11px] sm:text-xs font-sans-ui flex items-center justify-center gap-1.5 transition-all ${
-                        selectedColor.toLowerCase() === wax.hex.toLowerCase()
-                          ? 'border-stone-800 bg-white shadow-sm ring-2 ring-stone-800/10 font-bold text-stone-900'
-                          : 'border-stone-200 bg-stone-50/70 text-stone-600 hover:border-stone-300'
-                      }`}
+                      className={`py-2 px-1.5 sm:px-2 rounded-xl border text-[11px] sm:text-xs font-sans-ui flex items-center justify-center gap-1.5 transition-all ${selectedColor.toLowerCase() === wax.hex.toLowerCase()
+                        ? 'border-stone-800 bg-white shadow-sm ring-2 ring-stone-800/10 font-bold text-stone-900'
+                        : 'border-stone-200 bg-stone-50/70 text-stone-600 hover:border-stone-300'
+                        }`}
                       title={wax.label}
                     >
                       <span
@@ -915,11 +908,10 @@ export default function WriteDiaryModal({
                       aria-label="실링 왁스 인장 색상 직접 선택"
                     />
                     <div
-                      className={`w-full h-full py-2 px-1.5 sm:px-2 rounded-xl border text-[11px] sm:text-xs font-sans-ui flex items-center justify-center gap-1.5 transition-all pointer-events-none ${
-                        isCustomColor
-                          ? 'border-stone-800 bg-white shadow-sm ring-2 ring-stone-800/10 font-bold text-stone-900'
-                          : 'border-stone-200 bg-stone-50/70 text-stone-600'
-                      }`}
+                      className={`w-full h-full py-2 px-1.5 sm:px-2 rounded-xl border text-[11px] sm:text-xs font-sans-ui flex items-center justify-center gap-1.5 transition-all pointer-events-none ${isCustomColor
+                        ? 'border-stone-800 bg-white shadow-sm ring-2 ring-stone-800/10 font-bold text-stone-900'
+                        : 'border-stone-200 bg-stone-50/70 text-stone-600'
+                        }`}
                     >
                       {/* 포토샵 컬러 원형 (Hue Ring) 스타일 아이콘 */}
                       <div
@@ -950,9 +942,8 @@ export default function WriteDiaryModal({
                   <button
                     type="button"
                     onClick={() => setMissionType('PUZZLE_PHOTO')}
-                    className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 ${
-                      missionType === 'PUZZLE_PHOTO' ? 'bg-white shadow-xs font-bold text-stone-900' : 'text-stone-500 hover:text-stone-800'
-                    }`}
+                    className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 ${missionType === 'PUZZLE_PHOTO' ? 'bg-white shadow-xs font-bold text-stone-900' : 'text-stone-500 hover:text-stone-800'
+                      }`}
                   >
                     <span>🧩 사진 퍼즐</span>
                   </button>
@@ -960,9 +951,8 @@ export default function WriteDiaryModal({
                   <button
                     type="button"
                     onClick={() => setMissionType('PUZZLE_STAMP')}
-                    className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 ${
-                      missionType === 'PUZZLE_STAMP' ? 'bg-white shadow-xs font-bold text-stone-900' : 'text-stone-500 hover:text-stone-800'
-                    }`}
+                    className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 ${missionType === 'PUZZLE_STAMP' ? 'bg-white shadow-xs font-bold text-stone-900' : 'text-stone-500 hover:text-stone-800'
+                      }`}
                   >
                     <span>📮 우표 맞추기</span>
                   </button>
@@ -970,9 +960,8 @@ export default function WriteDiaryModal({
                   <button
                     type="button"
                     onClick={() => setMissionType('CUSTOM')}
-                    className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 ${
-                      missionType === 'CUSTOM' ? 'bg-white shadow-xs font-bold text-stone-900' : 'text-stone-500 hover:text-stone-800'
-                    }`}
+                    className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 ${missionType === 'CUSTOM' ? 'bg-white shadow-xs font-bold text-stone-900' : 'text-stone-500 hover:text-stone-800'
+                      }`}
                   >
                     <span>❓ 깜짝 퀴즈</span>
                   </button>

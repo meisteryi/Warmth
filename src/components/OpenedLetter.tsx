@@ -19,39 +19,6 @@ interface OpenedLetterProps {
   onUpdateDiaryReaction?: (diaryId: string, reaction: DiaryReaction | null) => void;
 }
 
-const EMOJI_CATEGORIES = [
-  {
-    id: 'love',
-    name: '사랑 · 다정',
-    icon: '❤️',
-    emojis: ['❤️', '💖', '💌', '🥹', '🥰', '💕', '🤍', '🫶', '💓', '💘', '🫂', '🌷', '💐', '🍓', '🎁', '🍫', '✨', '🕊️'],
-  },
-  {
-    id: 'cheer',
-    name: '위로 · 응원',
-    icon: '🌿',
-    emojis: ['☕', '🍵', '🌿', '🌸', '🩹', '🌙', '🧸', '☁️', '🫧', '🕯️', '🌱', '🌼', '☔', '🪵', '💫', '☀️', '🌻', '🌾'],
-  },
-  {
-    id: 'joy',
-    name: '미소 · 기쁨',
-    icon: '😊',
-    emojis: ['😊', '😆', '🥳', '👏', '👍', '💛', '☺️', '😍', '😋', '🎉', '🍀', '😄', '🙌', '⭐', '🎈', '🤩', '😻', '🔥'],
-  },
-  {
-    id: 'empathy',
-    name: '공감 · 뭉클',
-    icon: '🥺',
-    emojis: ['🥺', '😭', '🥲', '💧', '💭', '🫥', '🌧️', '🌊', '🍂', '🌾', '💙', '🩹', '😞', '🫂', '🕊️', '🖤', '😿', '🌙'],
-  },
-  {
-    id: 'daily',
-    name: '일상 · 귀여움',
-    icon: '🐱',
-    emojis: ['🐱', '🐶', '🐾', '☘️', '🍰', '🥐', '🍙', '🎵', '🎨', '📖', '🌟', '🏠', '🍎', '🥞', '🐾', '🍩', '🥨', '☕'],
-  },
-];
-
 export default function OpenedLetter({
   diary,
   onWriteReply,
@@ -75,12 +42,12 @@ export default function OpenedLetter({
   });
   const [isSavingDate, setIsSavingDate] = useState(false);
 
-  // 이모티콘 마음 반응 상태
+  // 포스트잇 이모티콘 + 20자 한 줄 코멘트 반응 상태
   const [currentReaction, setCurrentReaction] = useState<DiaryReaction | null>(diary.reaction || null);
-  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const [isReactionModalOpen, setIsReactionModalOpen] = useState(false);
+  const [reactionEmoji, setReactionEmoji] = useState('❤️');
+  const [reactionComment, setReactionComment] = useState('');
   const [isSavingReaction, setIsSavingReaction] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<string>('love');
-  const [customEmojiInput, setCustomEmojiInput] = useState<string>('');
 
   useEffect(() => {
     setCurrentDiaryDate(diary.createdAt);
@@ -94,27 +61,28 @@ export default function OpenedLetter({
     setCurrentReaction(diary.reaction || null);
   }, [diary.reaction]);
 
-  const handleSelectEmoji = async (emoji: string) => {
-    if (!emoji || isSavingReaction) return;
+  const handleSaveReaction = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!reactionEmoji.trim() || isSavingReaction) return;
     setIsSavingReaction(true);
     const newReaction: DiaryReaction = {
-      emoji: emoji.trim(),
+      emoji: reactionEmoji.trim(),
+      comment: reactionComment.trim() ? reactionComment.trim().slice(0, 20) : undefined,
       reactorName: userName || (language === 'en' ? 'Partner' : '상대방'),
       reactedAt: new Date().toISOString(),
     };
 
     try {
       setCurrentReaction(newReaction);
-      setIsEmojiPickerOpen(false);
-      setCustomEmojiInput('');
+      setIsReactionModalOpen(false);
       soundEngine.playMissionPassChime();
 
       if (roomCode) {
         await updateDiaryReactionInFirestore(roomCode, diary.diaryId, newReaction);
       }
       onUpdateDiaryReaction?.(diary.diaryId, newReaction);
-    } catch (e) {
-      console.warn('Failed to update diary reaction:', e);
+    } catch (err) {
+      console.warn('Failed to update diary reaction:', err);
     } finally {
       setIsSavingReaction(false);
     }
@@ -125,24 +93,29 @@ export default function OpenedLetter({
     setIsSavingReaction(true);
     try {
       setCurrentReaction(null);
-      setIsEmojiPickerOpen(false);
+      setIsReactionModalOpen(false);
       soundEngine.playPaperRustle();
 
       if (roomCode) {
         await updateDiaryReactionInFirestore(roomCode, diary.diaryId, null);
       }
       onUpdateDiaryReaction?.(diary.diaryId, null);
-    } catch (e) {
-      console.warn('Failed to remove diary reaction:', e);
+    } catch (err) {
+      console.warn('Failed to remove diary reaction:', err);
     } finally {
       setIsSavingReaction(false);
     }
   };
 
-  const handleCustomEmojiSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!customEmojiInput.trim()) return;
-    handleSelectEmoji(customEmojiInput.trim());
+  const handleOpenReactionModal = () => {
+    if (currentReaction) {
+      setReactionEmoji(currentReaction.emoji || '❤️');
+      setReactionComment(currentReaction.comment || '');
+    } else {
+      setReactionEmoji('❤️');
+      setReactionComment('');
+    }
+    setIsReactionModalOpen(true);
   };
 
   const formatReactionTime = (iso?: string) => {
@@ -380,130 +353,71 @@ export default function OpenedLetter({
           </div>
 
           {/* =============================================================== */}
-          {/* 상대방이 쓴 일기에 이모티콘으로 반응 남기기 & 표시 (글 부분과 오늘의 온기 온도 사이) */}
+          {/* 포스트잇 반응 표시 (일기 본문과 온기 온도 사이) */}
           {/* =============================================================== */}
-          <div className="my-6">
-            {currentReaction ? (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="p-4 sm:p-4.5 rounded-2xl bg-gradient-to-r from-[#FFFDF9] via-[#FAF6F0] to-[#F5ECE1] border border-[#EADBCC] shadow-xs flex items-center justify-between gap-3"
-              >
-                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                  {/* 선택된 유니코드 이모티콘 큰 배지 */}
-                  <motion.div
-                    whileHover={{ scale: 1.1, rotate: [0, -5, 5, 0] }}
-                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white border border-[#E3D3C2] shadow-2xs flex items-center justify-center text-2xl sm:text-3xl shrink-0 select-none cursor-pointer"
-                    onClick={() => {
-                      if (!isAuthor || currentReaction.reactorName === userName) {
-                        setIsEmojiPickerOpen(true);
-                      }
-                    }}
-                    title={!isAuthor || currentReaction.reactorName === userName ? '이모티콘 변경하기' : undefined}
-                  >
-                    {currentReaction.emoji}
-                  </motion.div>
+          {currentReaction && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, rotate: -2 }}
+              animate={{ opacity: 1, scale: 1, rotate: -1 }}
+              className="relative my-6 max-w-sm ml-auto mr-1 sm:mr-3 p-4 sm:p-4.5 rounded-xs bg-gradient-to-br from-[#FFFDE6] via-[#FEF9C3] to-[#FEF08A]/90 border border-[#FDE68A] shadow-md shadow-amber-950/10 transition-transform hover:rotate-0"
+            >
+              {/* 포스트잇 상단 반투명 마스킹 테이프 효과 */}
+              <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-16 h-3.5 bg-white/75 border border-white/90 shadow-2xs backdrop-blur-2xs rotate-1 pointer-events-none" />
 
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-sans-ui font-semibold text-[#8A5A44] tracking-wide">
-                        {isAuthor
-                          ? (language === 'en' ? `${currentReaction.reactorName}'s Reaction` : `${currentReaction.reactorName}님의 마음 반응`)
-                          : (language === 'en' ? 'My Reaction' : '내가 남긴 마음 반응')}
-                      </span>
-                      {currentReaction.reactedAt && (
-                        <span className="text-[10px] text-stone-400 font-sans-ui">
-                          {formatReactionTime(currentReaction.reactedAt)}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs sm:text-sm font-serif-warm text-stone-700 mt-0.5 line-clamp-2">
-                      {isAuthor
-                        ? (language === 'en'
-                          ? `${currentReaction.reactorName} read this diary and left the ${currentReaction.emoji} reaction.`
-                          : `상대방이 이 글을 읽고 ${currentReaction.emoji} 반응으로 따뜻한 온기를 전했어요.`)
-                        : (language === 'en'
-                          ? `You sent the ${currentReaction.emoji} reaction for this letter.`
-                          : `상대방에게 ${currentReaction.emoji} 반응으로 다정한 마음을 전했어요.`)}
+              <div className="flex items-start gap-3">
+                {/* 이모티콘 */}
+                <span className="text-3xl sm:text-4xl shrink-0 select-none leading-none pt-0.5">
+                  {currentReaction.emoji}
+                </span>
+
+                {/* 코멘트 및 서명 */}
+                <div className="min-w-0 flex-1">
+                  {currentReaction.comment ? (
+                    <p className="text-sm font-serif-warm font-semibold text-stone-800 leading-snug break-keep select-text">
+                      {currentReaction.comment}
                     </p>
-                  </div>
-                </div>
-
-                {/* 반응 변경 및 삭제 버튼 (남긴 사람이거나 파트너) */}
-                {(!isAuthor || currentReaction.reactorName === userName) && (
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setIsEmojiPickerOpen(true)}
-                      className="px-2.5 py-1.5 text-xs font-serif-warm text-[#6B1724] hover:bg-stone-100/80 bg-white rounded-lg border border-[#EADBCC] shadow-2xs transition-all active:scale-95 cursor-pointer font-medium"
-                    >
-                      {language === 'en' ? 'Change' : '변경'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleRemoveReaction}
-                      disabled={isSavingReaction}
-                      className="p-1.5 text-stone-400 hover:text-rose-500 hover:bg-rose-50 bg-white rounded-lg border border-[#EADBCC] shadow-2xs transition-all active:scale-95 cursor-pointer"
-                      title={language === 'en' ? 'Remove reaction' : '반응 지우기'}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
-              </motion.div>
-            ) : (
-              /* 반응이 아직 없을 때 */
-              !isAuthor ? (
-                /* 내가 읽은 상대방의 일기: 이모티콘으로 반응 남기기 유도 */
-                <motion.div
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-[#FDFBF7] to-[#F7F2EB] border border-dashed border-[#DFCDBB] flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-[#FAF3EC] border border-[#E6D4C2] flex items-center justify-center text-base shrink-0">
-                      💌
-                    </div>
-                    <div>
-                      <p className="text-xs sm:text-sm font-serif-warm font-semibold text-stone-800">
-                        {language === 'en' ? 'Leave an emoji reaction for this letter' : '상대의 일기에 마음 이모티콘으로 반응해보세요'}
-                      </p>
-                      <p className="text-[11px] text-stone-500 font-sans-ui mt-0.5">
-                        {language === 'en' ? 'Pick an emoji to share your warmth.' : '하나의 이모티콘으로 다정한 공감과 온기를 전할 수 있어요.'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsEmojiPickerOpen(true)}
-                    className="w-full sm:w-auto px-4 py-2 rounded-full bg-gradient-to-r from-[#6B1724] to-[#8C1F32] hover:brightness-110 active:scale-95 text-amber-50 text-xs sm:text-sm font-serif-warm font-medium shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0"
-                  >
-                    <Smile className="w-4 h-4 text-amber-200" />
-                    <span>{language === 'en' ? 'React with Emoji' : '이모티콘 반응 남기기'}</span>
-                  </button>
-                </motion.div>
-              ) : (
-                /* 내가 쓴 일기를 내가 볼 때: 상대방 반응 대기 상태 표시 (단일 테스트 편의를 위해 반응 버튼도 제공) */
-                <div className="p-3 rounded-xl bg-stone-50/80 border border-stone-200/70 flex items-center justify-between text-xs text-stone-500 font-serif-warm">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">🫧</span>
-                    <span>
-                      {language === 'en'
-                        ? "Waiting for partner's emoji reaction..."
-                        : '상대방이 읽고 남길 다정한 이모티콘 반응을 기다리고 있어요'}
+                  ) : (
+                    <p className="text-xs font-serif-warm text-stone-600">
+                      {currentReaction.reactorName}님의 마음 반응
+                    </p>
+                  )}
+                  <div className="mt-2 flex items-center justify-between text-[11px] font-sans-ui text-stone-500">
+                    <span className="truncate">
+                      — {currentReaction.reactorName}
+                      {currentReaction.reactedAt && ` · ${formatReactionTime(currentReaction.reactedAt)}`}
                     </span>
+                    <div className="flex items-center gap-2 shrink-0 ml-2">
+                      <button
+                        type="button"
+                        onClick={handleOpenReactionModal}
+                        className="text-[11px] text-stone-400 hover:text-stone-700 underline cursor-pointer"
+                      >
+                        {language === 'en' ? 'Edit' : '수정'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRemoveReaction}
+                        disabled={isSavingReaction}
+                        className="text-[11px] text-stone-400 hover:text-rose-500 underline cursor-pointer"
+                      >
+                        {language === 'en' ? 'Remove' : '떼기'}
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsEmojiPickerOpen(true)}
-                    className="text-[11px] text-stone-400 hover:text-stone-700 underline font-sans-ui transition-colors cursor-pointer shrink-0 ml-2"
-                  >
-                    {language === 'en' ? 'Test Reaction' : '직접 반응 남겨보기'}
-                  </button>
                 </div>
-              )
-            )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* 온도 위에 눈에 띄지 않게 조용한 텍스트로 '반응 추가하기+' */}
+          <div className="flex justify-end items-center mb-1.5 -mt-2">
+            <button
+              type="button"
+              onClick={handleOpenReactionModal}
+              className="text-xs text-stone-400 hover:text-stone-600 transition-colors font-serif-warm cursor-pointer select-none py-0.5"
+            >
+              {currentReaction ? (language === 'en' ? 'Edit reaction' : '반응 수정하기') : (language === 'en' ? 'Add reaction +' : '반응 추가하기+')}
+            </button>
           </div>
 
           {/* AI 온기 온도계 & 감정 날씨 배지 (편지 내용 밑으로 이동) */}
@@ -627,144 +541,131 @@ export default function OpenedLetter({
       </div>
 
       {/* =============================================================== */}
-      {/* 유니코드 이모티콘 선택 팝업 창 (모달) */}
+      {/* 포스트잇 반응 입력 모달 (이모티콘 하나 + 20자 이내 한 줄 코멘트) */}
       {/* =============================================================== */}
       <AnimatePresence>
-        {isEmojiPickerOpen && (
+        {isReactionModalOpen && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-xs"
-            onClick={() => setIsEmojiPickerOpen(false)}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-2xs"
+            onClick={() => setIsReactionModalOpen(false)}
           >
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 15 }}
+              initial={{ opacity: 0, scale: 0.9, y: 12, rotate: -1.5 }}
+              animate={{ opacity: 1, scale: 1, y: 0, rotate: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 12 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="w-full max-w-md bg-[#FAF7F2] rounded-3xl border border-[#E5D7C7] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+              className="relative w-full max-w-sm bg-gradient-to-br from-[#FFFDE6] via-[#FEF9C3] to-[#FEF08A]/95 rounded-xs border border-[#FDE68A] shadow-2xl p-5 sm:p-6 overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* 모달 상단 헤더 */}
-              <div className="px-5 py-4 border-b border-[#EEDBCC] bg-gradient-to-r from-[#FAF4EC] to-[#F5ECE1] flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-2xs shrink-0">
-                    <Sparkles className="w-4 h-4 text-amber-200" />
+              {/* 포스트잇 상단 반투명 마스킹 테이프 장식 */}
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-24 h-4 bg-white/80 border border-white/90 shadow-2xs backdrop-blur-2xs rotate-0.5 pointer-events-none" />
+
+              {/* 헤더 */}
+              <div className="flex items-center justify-between mb-4 pb-2 border-b border-[#FDE68A]/80">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">📌</span>
+                  <h3 className="font-serif-warm font-bold text-stone-800 text-base">
+                    {language === 'en' ? 'Stick a Note' : '포스트잇 남기기'}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsReactionModalOpen(false)}
+                  className="p-1 rounded-full text-stone-400 hover:text-stone-700 hover:bg-black/5 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveReaction} className="space-y-4">
+                {/* 1. 이모티콘 입력 (직접 입력 가능 + 빠른 추천 칩) */}
+                <div>
+                  <label className="block text-xs font-serif-warm font-semibold text-stone-700 mb-1.5">
+                    {language === 'en' ? 'Emoji' : '이모티콘 하나'}
+                  </label>
+                  <div className="flex items-center gap-3">
+                    {/* 직접 이모티콘 입력 필드 */}
+                    <input
+                      type="text"
+                      value={reactionEmoji}
+                      onChange={(e) => setReactionEmoji(e.target.value.trim())}
+                      placeholder="❤️"
+                      className="w-14 h-14 text-3xl text-center bg-white/95 border border-[#FDE68A] rounded-xl shadow-inner focus:outline-none focus:ring-2 focus:ring-[#8A5A44]/40 text-stone-800 shrink-0 font-sans"
+                    />
+                    {/* 빠른 1-클릭 추천 이모지 칩 */}
+                    <div className="flex flex-wrap gap-1.5 flex-1">
+                      {['❤️', '🥰', '🥹', '😊', '🌿', '☕', '🍰', '💌'].map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => setReactionEmoji(emoji)}
+                          className={`w-8 h-8 rounded-lg text-lg flex items-center justify-center transition-all cursor-pointer ${
+                            reactionEmoji === emoji
+                              ? 'bg-amber-200 border border-amber-400 scale-110 shadow-xs'
+                              : 'bg-white/80 hover:bg-white border border-[#FDE68A]/80'
+                          }`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-serif-warm font-bold text-stone-900 text-base">
-                      {language === 'en' ? 'Choose Emoji Reaction' : '마음 이모티콘 선택'}
-                    </h3>
-                    <p className="text-[11px] text-stone-500 font-sans-ui">
-                      {language === 'en' ? 'Pick a single emoji to react to this diary' : '상대의 일기에 전하고 싶은 이모티콘을 골라주세요'}
-                    </p>
-                  </div>
+                  <p className="text-[11px] text-stone-500 font-sans-ui mt-1">
+                    {language === 'en' ? 'Type any emoji or pick one above' : '원하는 이모티콘을 직접 입력하거나 선택하세요'}
+                  </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setIsEmojiPickerOpen(false)}
-                  className="p-1.5 rounded-full hover:bg-stone-200/60 text-stone-400 hover:text-stone-700 transition-colors cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+                {/* 2. 20자 이내의 간단한 한 줄 코멘트 */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-serif-warm font-semibold text-stone-700">
+                      {language === 'en' ? 'Short Note (within 20 chars)' : '한 줄 코멘트 (20자 이내)'}
+                    </label>
+                    <span className={`text-[11px] font-sans-ui ${reactionComment.length >= 20 ? 'text-rose-500 font-bold' : 'text-stone-400'}`}>
+                      {reactionComment.length}/20자
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    value={reactionComment}
+                    maxLength={20}
+                    onChange={(e) => setReactionComment(e.target.value.slice(0, 20))}
+                    placeholder={language === 'en' ? 'e.g. Good job today!' : '예: 오늘도 고생 많았어 토닥토닥'}
+                    className="w-full px-3.5 py-2.5 bg-white/95 border border-[#FDE68A] rounded-xl text-stone-800 placeholder-stone-400 font-serif-warm text-sm focus:outline-none focus:ring-2 focus:ring-[#8A5A44]/40 shadow-inner"
+                  />
+                </div>
 
-              {/* 카테고리 탭 바 */}
-              <div className="px-4 py-2.5 bg-[#F4EDE3] border-b border-[#E8DFD3] flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-                {EMOJI_CATEGORIES.map((cat) => {
-                  const isActive = activeCategory === cat.id;
-                  return (
+                {/* 하단 액션 버튼 */}
+                <div className="pt-2 flex items-center justify-between">
+                  {currentReaction ? (
                     <button
-                      key={cat.id}
                       type="button"
-                      onClick={() => setActiveCategory(cat.id)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-serif-warm font-medium whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${isActive
-                        ? 'bg-[#6B1724] text-amber-100 shadow-2xs'
-                        : 'bg-white/70 text-stone-600 hover:bg-white border border-[#E2D5C5]'
-                        }`}
+                      onClick={handleRemoveReaction}
+                      disabled={isSavingReaction}
+                      className="text-xs text-rose-500 hover:text-rose-700 underline font-serif-warm cursor-pointer"
                     >
-                      <span>{cat.icon}</span>
-                      <span>{cat.name}</span>
+                      {language === 'en' ? 'Remove note' : '포스트잇 떼기'}
                     </button>
-                  );
-                })}
-              </div>
+                  ) : <div />}
 
-              {/* 이모티콘 그리드 영역 */}
-              <div className="p-4 overflow-y-auto max-h-[280px]">
-                {(() => {
-                  const currentCategoryObj = EMOJI_CATEGORIES.find((c) => c.id === activeCategory) || EMOJI_CATEGORIES[0];
-                  return (
-                    <div className="grid grid-cols-6 gap-2">
-                      {currentCategoryObj.emojis.map((emoji, idx) => {
-                        const isSelected = currentReaction?.emoji === emoji;
-                        return (
-                          <motion.button
-                            key={`${emoji}-${idx}`}
-                            type="button"
-                            whileHover={{ scale: 1.15 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => handleSelectEmoji(emoji)}
-                            className={`h-12 rounded-xl flex items-center justify-center text-2xl transition-all cursor-pointer border ${isSelected
-                              ? 'bg-amber-100/90 border-[#6B1724] ring-2 ring-[#6B1724]/40 shadow-xs'
-                              : 'bg-white/90 hover:bg-white border-[#E8DFD3] hover:border-[#D5C2AD] shadow-2xs'
-                              }`}
-                          >
-                            {emoji}
-                          </motion.button>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* 직접 유니코드 이모티콘 입력 영역 */}
-              <form
-                onSubmit={handleCustomEmojiSubmit}
-                className="px-4 py-3 bg-[#F6EFE6] border-t border-[#EEDBCC] flex items-center gap-2"
-              >
-                <input
-                  type="text"
-                  value={customEmojiInput}
-                  onChange={(e) => setCustomEmojiInput(e.target.value)}
-                  placeholder={language === 'en' ? 'Or enter any emoji directly (e.g. 🦄)' : '원하는 이모티콘 직접 입력 (예: 🐈, 🍓, 💌)'}
-                  className="flex-1 px-3 py-2 text-xs sm:text-sm bg-white border border-[#DECBB8] rounded-xl focus:outline-none focus:ring-1 focus:ring-[#6B1724] text-stone-800 placeholder-stone-400 font-sans-ui"
-                />
-                <button
-                  type="submit"
-                  disabled={!customEmojiInput.trim() || isSavingReaction}
-                  className="px-3.5 py-2 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] disabled:opacity-40 text-amber-100 text-xs font-serif-warm font-semibold transition-all shrink-0 cursor-pointer shadow-2xs"
-                >
-                  {language === 'en' ? 'Select' : '선택'}
-                </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsReactionModalOpen(false)}
+                      className="px-3.5 py-1.5 rounded-full text-xs font-serif-warm text-stone-600 hover:bg-black/5 border border-stone-300 transition-all cursor-pointer"
+                    >
+                      {language === 'en' ? 'Cancel' : '취소'}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!reactionEmoji.trim() || isSavingReaction}
+                      className="px-4 py-1.5 rounded-full bg-[#6B1724] hover:bg-[#831D2D] disabled:opacity-40 text-amber-50 font-serif-warm text-xs font-semibold shadow-xs transition-all cursor-pointer"
+                    >
+                      {language === 'en' ? 'Attach Note' : '포스트잇 붙이기'}
+                    </button>
+                  </div>
+                </div>
               </form>
-
-              {/* 모달 하단 액션 (반응 지우기 & 닫기) */}
-              <div className="px-5 py-3 border-t border-[#E5D7C7] bg-[#FAF7F2] flex items-center justify-between">
-                {currentReaction ? (
-                  <button
-                    type="button"
-                    onClick={handleRemoveReaction}
-                    disabled={isSavingReaction}
-                    className="text-xs text-stone-500 hover:text-rose-600 flex items-center gap-1 font-serif-warm transition-colors cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>{language === 'en' ? 'Remove current reaction' : '현재 반응 지우기'}</span>
-                  </button>
-                ) : (
-                  <span className="text-[11px] text-stone-400 font-sans-ui">
-                    {language === 'en' ? 'Tip: Tap any emoji to react.' : '원하는 이모티콘을 누르면 바로 반응이 남겨집니다.'}
-                  </span>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => setIsEmojiPickerOpen(false)}
-                  className="px-4 py-1.5 rounded-full border border-stone-300 text-xs text-stone-600 hover:bg-stone-100 font-serif-warm transition-all cursor-pointer ml-auto"
-                >
-                  {language === 'en' ? 'Close' : '닫기'}
-                </button>
-              </div>
             </motion.div>
           </div>
         )}

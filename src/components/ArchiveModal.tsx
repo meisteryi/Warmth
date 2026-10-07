@@ -745,14 +745,14 @@ export default function ArchiveModal({
                           </span>
                         )}
 
-                        {/* 상대방 또는 내가 남긴 이모티콘 마음 반응 표시 */}
+                        {/* 상대방 또는 내가 남긴 포스트잇 마음 반응 표시 */}
                         {item.reaction && item.reaction.emoji && (
                           <span
-                            className="text-[10px] px-2 py-0.5 rounded-full border border-rose-200 bg-rose-50/80 text-stone-700 font-serif-warm inline-flex items-center gap-1 shadow-2xs whitespace-nowrap"
-                            title={`${item.reaction.reactorName}님의 마음 반응: ${item.reaction.emoji}`}
+                            className="text-[10px] px-2 py-0.5 rounded-full border border-[#FDE68A] bg-[#FFFDE6] text-stone-700 font-serif-warm inline-flex items-center gap-1 shadow-2xs whitespace-nowrap max-w-[160px] truncate"
+                            title={`${item.reaction.reactorName}님의 포스트잇 반응: ${item.reaction.emoji}${item.reaction.comment ? ` "${item.reaction.comment}"` : ''}`}
                           >
-                            <span className="text-xs">{item.reaction.emoji}</span>
-                            <span>{item.reaction.reactorName}</span>
+                            <span className="text-xs shrink-0">{item.reaction.emoji}</span>
+                            <span className="truncate">{item.reaction.comment || item.reaction.reactorName}</span>
                           </span>
                         )}
 
