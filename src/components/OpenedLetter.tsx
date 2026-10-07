@@ -420,11 +420,11 @@ export default function OpenedLetter({
                     <p className="text-xs sm:text-sm font-serif-warm text-stone-700 mt-0.5 line-clamp-2">
                       {isAuthor
                         ? (language === 'en'
-                            ? `${currentReaction.reactorName} read this diary and left the ${currentReaction.emoji} reaction.`
-                            : `상대방이 이 글을 읽고 ${currentReaction.emoji} 반응으로 따뜻한 온기를 전했어요.`)
+                          ? `${currentReaction.reactorName} read this diary and left the ${currentReaction.emoji} reaction.`
+                          : `상대방이 이 글을 읽고 ${currentReaction.emoji} 반응으로 따뜻한 온기를 전했어요.`)
                         : (language === 'en'
-                            ? `You sent the ${currentReaction.emoji} reaction for this letter.`
-                            : `상대방에게 ${currentReaction.emoji} 반응으로 다정한 마음을 전했어요.`)}
+                          ? `You sent the ${currentReaction.emoji} reaction for this letter.`
+                          : `상대방에게 ${currentReaction.emoji} 반응으로 다정한 마음을 전했어요.`)}
                     </p>
                   </div>
                 </div>
@@ -677,11 +677,10 @@ export default function OpenedLetter({
                       key={cat.id}
                       type="button"
                       onClick={() => setActiveCategory(cat.id)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-serif-warm font-medium whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
-                        isActive
+                      className={`px-3 py-1.5 rounded-full text-xs font-serif-warm font-medium whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${isActive
                           ? 'bg-[#6B1724] text-amber-100 shadow-2xs'
                           : 'bg-white/70 text-stone-600 hover:bg-white border border-[#E2D5C5]'
-                      }`}
+                        }`}
                     >
                       <span>{cat.icon}</span>
                       <span>{cat.name}</span>
@@ -705,11 +704,10 @@ export default function OpenedLetter({
                             whileHover={{ scale: 1.15 }}
                             whileTap={{ scale: 0.9 }}
                             onClick={() => handleSelectEmoji(emoji)}
-                            className={`h-12 rounded-xl flex items-center justify-center text-2xl transition-all cursor-pointer border ${
-                              isSelected
+                            className={`h-12 rounded-xl flex items-center justify-center text-2xl transition-all cursor-pointer border ${isSelected
                                 ? 'bg-amber-100/90 border-[#6B1724] ring-2 ring-[#6B1724]/40 shadow-xs'
                                 : 'bg-white/90 hover:bg-white border-[#E8DFD3] hover:border-[#D5C2AD] shadow-2xs'
-                            }`}
+                              }`}
                           >
                             {emoji}
                           </motion.button>
