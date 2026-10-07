@@ -534,7 +534,7 @@ export default function OpenedLetter({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-sans-ui text-stone-500 font-semibold tracking-wider">
-                        {language === 'en' ? `Today\'s Temperature` : `오늘의 온도`}
+                        {language === 'en' ? "Today's Temperature" : '오늘의 온기 온도'}
                       </span>
                       <span
                         className={`text-xs font-serif-warm font-bold px-2.5 py-0.5 rounded-full border shadow-2xs ${warmth.temperature <= 0
