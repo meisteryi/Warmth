@@ -534,7 +534,7 @@ export default function OpenedLetter({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-sans-ui text-stone-500 font-semibold tracking-wider">
-                        {language === 'en' ? "Today's Temperature" : '오늘의 온기 온도'}
+                        {language === 'en' ? "Today's Temperature" : '오늘의 온도'}
                       </span>
                       <span
                         className={`text-xs font-serif-warm font-bold px-2.5 py-0.5 rounded-full border shadow-2xs ${warmth.temperature <= 0
@@ -678,8 +678,8 @@ export default function OpenedLetter({
                       type="button"
                       onClick={() => setActiveCategory(cat.id)}
                       className={`px-3 py-1.5 rounded-full text-xs font-serif-warm font-medium whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${isActive
-                          ? 'bg-[#6B1724] text-amber-100 shadow-2xs'
-                          : 'bg-white/70 text-stone-600 hover:bg-white border border-[#E2D5C5]'
+                        ? 'bg-[#6B1724] text-amber-100 shadow-2xs'
+                        : 'bg-white/70 text-stone-600 hover:bg-white border border-[#E2D5C5]'
                         }`}
                     >
                       <span>{cat.icon}</span>
@@ -705,8 +705,8 @@ export default function OpenedLetter({
                             whileTap={{ scale: 0.9 }}
                             onClick={() => handleSelectEmoji(emoji)}
                             className={`h-12 rounded-xl flex items-center justify-center text-2xl transition-all cursor-pointer border ${isSelected
-                                ? 'bg-amber-100/90 border-[#6B1724] ring-2 ring-[#6B1724]/40 shadow-xs'
-                                : 'bg-white/90 hover:bg-white border-[#E8DFD3] hover:border-[#D5C2AD] shadow-2xs'
+                              ? 'bg-amber-100/90 border-[#6B1724] ring-2 ring-[#6B1724]/40 shadow-xs'
+                              : 'bg-white/90 hover:bg-white border-[#E8DFD3] hover:border-[#D5C2AD] shadow-2xs'
                               }`}
                           >
                             {emoji}
