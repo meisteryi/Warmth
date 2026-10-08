@@ -10,6 +10,7 @@ interface StampJigsawPuzzleProps {
   onSolve: () => void;
   partnerName?: string;
   photoUrl?: string;
+  autoSolveTrigger?: number;
 }
 
 const STAMP_WIDTH = 154;
@@ -792,6 +793,7 @@ export default function StampJigsawPuzzle({
   onSolve,
   partnerName = '상대방',
   photoUrl,
+  autoSolveTrigger,
 }: StampJigsawPuzzleProps) {
   const [tornData, setTornData] = useState<TornData | null>(null);
   const [themeIdx, setThemeIdx] = useState<number>(() => Math.floor(Math.random() * STAMP_THEMES.length));
@@ -888,7 +890,7 @@ export default function StampJigsawPuzzle({
   };
 
   // 4조각 모두 결합 완료 시 소인 타격 및 봉인 해제
-  const triggerSuccess = () => {
+  const triggerSuccess = useCallback(() => {
     setIsCompleted(true);
 
     setTimeout(() => {
@@ -908,7 +910,16 @@ export default function StampJigsawPuzzle({
     setTimeout(() => {
       onSolve();
     }, 1800);
-  };
+  }, [currentTheme, onSolve]);
+
+  // 외부 '도와줘!' 트리거 수신 시 모든 조각 자동 결합 및 완성
+  useEffect(() => {
+    if (autoSolveTrigger && autoSolveTrigger > 0 && !isCompleted) {
+      setRotations([0, 0, 0, 0]);
+      setSnapped([true, true, true, true]);
+      triggerSuccess();
+    }
+  }, [autoSolveTrigger, isCompleted, triggerSuccess]);
 
   if (!tornData) return null;
 

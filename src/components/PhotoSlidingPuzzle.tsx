@@ -10,6 +10,7 @@ interface PhotoSlidingPuzzleProps {
   imageUrl?: string;
   onSolve: () => void;
   partnerName?: string;
+  autoSolveTrigger?: number;
 }
 
 const GRID_SIZE = 3; // 3x3 퍼즐
@@ -18,6 +19,7 @@ export default function PhotoSlidingPuzzle({
   imageUrl = 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=600&q=80',
   onSolve,
   partnerName = '상대방',
+  autoSolveTrigger,
 }: PhotoSlidingPuzzleProps) {
   // 타일 배열: 인덱스는 위치(0~8), 값은 원래 타일 번호 (0~7은 조각, 8은 빈 칸)
   const [tiles, setTiles] = useState<number[]>([0, 1, 2, 3, 4, 5, 6, 7, 8]);
@@ -182,7 +184,7 @@ export default function PhotoSlidingPuzzle({
   };
 
   // 자동 완성 (패스 기능)
-  const handleAutoSolve = () => {
+  const handleAutoSolve = useCallback(() => {
     setTiles([0, 1, 2, 3, 4, 5, 6, 7, 8]);
     setIsSolved(true);
     soundEngine.playMissionPassChime();
@@ -193,7 +195,14 @@ export default function PhotoSlidingPuzzle({
       colors: ['#6B1724', '#B8860B', '#FFFDF9'],
     });
     setTimeout(() => onSolve(), 1200);
-  };
+  }, [onSolve]);
+
+  // 외부 '도와줘!' 트리거 수신 시 자동 완성
+  useEffect(() => {
+    if (autoSolveTrigger && autoSolveTrigger > 0 && !isSolved) {
+      handleAutoSolve();
+    }
+  }, [autoSolveTrigger, isSolved, handleAutoSolve]);
 
   return (
     <div className="flex flex-col items-center select-none touch-none">

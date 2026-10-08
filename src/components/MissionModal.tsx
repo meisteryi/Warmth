@@ -41,6 +41,7 @@ export default function MissionModal({
   const [isSuccess, setIsSuccess] = useState(false);
   const [isCheckingAnswer, setIsCheckingAnswer] = useState(false);
   const [wrongCount, setWrongCount] = useState(0);
+  const [helpTrigger, setHelpTrigger] = useState(0);
 
   // 모달이 열릴 때 상태 초기화
   useEffect(() => {
@@ -51,6 +52,7 @@ export default function MissionModal({
       setIsSuccess(false);
       setIsCheckingAnswer(false);
       setWrongCount(0);
+      setHelpTrigger(0);
     }
   }, [isOpen, mission]);
 
@@ -95,6 +97,24 @@ export default function MissionModal({
       setIsSuccess(false);
       onClose();
     }, 1200);
+  };
+
+  // 하단 '도와줘!' 긴급 해제 버튼 핸들러
+  const handleHelpMe = () => {
+    if (isSuccess || isCheckingAnswer || helpTrigger > 0) return;
+
+    if (assignedMode === 'PHOTO_PUZZLE') {
+      soundEngine.playTileSlideSound();
+      setHelpTrigger((prev) => prev + 1);
+    } else if (assignedMode === 'STAMP_PUZZLE') {
+      soundEngine.playTileSlideSound();
+      setHelpTrigger((prev) => prev + 1);
+    } else if (assignedMode === 'SURPRISE_QUIZ') {
+      setQuizInput(quizAnswer);
+      setErrorMsg('');
+      setShowHint(true);
+      handlePassQuizSuccess(quizAnswer);
+    }
   };
 
   // 3. 깜짝 퀴즈 정답 검증 및 제출 (AI 기반 유연한 유사 정답 판정)
@@ -215,6 +235,7 @@ export default function MissionModal({
                 imageUrl={diaryPhoto}
                 partnerName={partnerName}
                 onSolve={handlePhotoPuzzleSolved}
+                autoSolveTrigger={helpTrigger}
               />
             )}
 
@@ -224,6 +245,7 @@ export default function MissionModal({
                 partnerName={partnerName}
                 photoUrl={diaryPhoto}
                 onSolve={handleStampPuzzleSolved}
+                autoSolveTrigger={helpTrigger}
               />
             )}
 
@@ -313,6 +335,24 @@ export default function MissionModal({
                 </form>
               </div>
             )}
+
+            {/* 하단 조그마한 '도와줘!' 긴급 해제 버튼 */}
+            <div className="mt-4 pt-3 border-t border-[#E8DFC8]/70 flex items-center justify-between text-xs font-serif-warm">
+              <span className="text-[11px] text-stone-400">
+                {assignedMode === 'PHOTO_PUZZLE' && '퍼즐 맞추기가 어렵다면?'}
+                {assignedMode === 'STAMP_PUZZLE' && '우표 맞추기가 번거롭다면?'}
+                {assignedMode === 'SURPRISE_QUIZ' && '퀴즈 정답이 기억나지 않는다면?'}
+              </span>
+              <button
+                type="button"
+                onClick={handleHelpMe}
+                disabled={isSuccess || isCheckingAnswer || helpTrigger > 0}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-serif-warm font-medium text-amber-900 bg-amber-100/80 hover:bg-amber-200 border border-amber-300/80 shadow-2xs transition-all active:scale-95 disabled:opacity-40 cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-700" />
+                <span>도와줘!</span>
+              </button>
+            </div>
           </motion.div>
         </motion.div>
       )}
