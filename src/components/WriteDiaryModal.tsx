@@ -507,7 +507,8 @@ export default function WriteDiaryModal({
             </div>
 
             {/* 오늘의 글감 추천 배너 (긴 글감도 잘림 없이 전체 표시) */}
-            <div className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-[#FAF4EC] via-[#F6ECE0] to-[#F2E5D6] border border-[#E4D5BF] shadow-xs">
+            {/* 오늘의 추천 글감 카드 */}
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-[#FAF4EC] via-[#F6ECE0] to-[#F2E5D6] border border-[#E4D5BF] shadow-xs mb-4 sm:mb-5">
               <div className="flex items-center justify-between gap-2 mb-1.5">
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm select-none">🕯️</span>
@@ -543,12 +544,12 @@ export default function WriteDiaryModal({
               <motion.div
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="p-3 rounded-2xl bg-amber-50/95 border border-amber-300 text-stone-800 flex flex-wrap items-center justify-between gap-2 shadow-xs"
+                className="my-3.5 sm:my-4 p-3.5 rounded-2xl bg-gradient-to-r from-[#FFFDF9] via-[#FAF6EE] to-[#FDFBF7] border border-[#E4D8C5] text-stone-800 flex flex-wrap items-center justify-between gap-2.5 shadow-2xs"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <span className="text-base select-none">✍️</span>
-                  <div className="text-xs font-sans-ui">
-                    <strong className="text-[#6B1724]">작성 중이던 임시 저장 편지</strong>가 있습니다.
+                  <div className="text-xs font-sans-ui leading-tight">
+                    <strong className="text-[#6B1724] font-semibold">작성 중이던 임시 저장 편지</strong>가 있습니다.
                     {lastSavedDraftTime && <span className="text-stone-500 ml-1.5 font-normal">({lastSavedDraftTime})</span>}
                   </div>
                 </div>
@@ -556,14 +557,14 @@ export default function WriteDiaryModal({
                   <button
                     type="button"
                     onClick={handleRestoreDraft}
-                    className="px-2.5 py-1 rounded-lg bg-[#6B1724] text-amber-50 text-xs font-serif-warm font-bold hover:bg-[#831D2D] active:scale-95 transition-all shadow-2xs cursor-pointer flex items-center gap-1"
+                    className="px-3 py-1.5 rounded-xl bg-[#6B1724] text-amber-50 text-xs font-serif-warm font-bold hover:bg-[#831D2D] active:scale-95 transition-all shadow-2xs cursor-pointer flex items-center gap-1"
                   >
                     <span>이어서 쓰기</span>
                   </button>
                   <button
                     type="button"
                     onClick={handleDiscardDraft}
-                    className="px-2 py-1 rounded-lg text-stone-500 hover:text-stone-800 text-xs font-sans-ui hover:bg-stone-200/50 transition-all cursor-pointer"
+                    className="px-2.5 py-1.5 rounded-xl text-stone-500 hover:text-stone-800 text-xs font-sans-ui hover:bg-stone-200/50 transition-all cursor-pointer"
                   >
                     새로 쓰기
                   </button>
@@ -573,9 +574,9 @@ export default function WriteDiaryModal({
 
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
               {/* [3번 요구사항] 오늘의 날씨 & 기분 빈티지 잉크 스탬프 선택 */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-stone-700 font-sans-ui flex items-center gap-1.5">
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-[#FCFAF7] border border-[#E8DEC8] shadow-2xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-stone-800 font-sans-ui flex items-center gap-1.5">
                     <span>🏷️</span>
                     <span>오늘의 날씨·기분 잉크 도장</span>
                   </label>
@@ -583,7 +584,7 @@ export default function WriteDiaryModal({
                     편지 귀퉁이에 빈티지 인장으로 찍힙니다
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-none">
+                <div className="flex items-center gap-2 overflow-x-auto py-1.5 px-0.5 scrollbar-none">
                   {WEATHER_STAMPS.map((st) => {
                     const isSelected = selectedStamp.id === st.id;
                     return (
@@ -594,9 +595,9 @@ export default function WriteDiaryModal({
                           setSelectedStamp(st);
                           soundEngine.playPaperRustle();
                         }}
-                        className={`shrink-0 px-2.5 py-1.5 rounded-xl border text-xs font-serif-warm flex items-center gap-1.5 transition-all cursor-pointer ${isSelected
-                          ? 'bg-[#FAF4ED] border-[#6B1724] text-[#6B1724] font-bold shadow-xs scale-102 ring-1 ring-[#6B1724]/30'
-                          : 'bg-white border-stone-200 text-stone-600 hover:border-stone-400 hover:bg-stone-50'
+                        className={`shrink-0 px-3 py-2 rounded-xl border text-xs font-serif-warm flex items-center gap-1.5 transition-all cursor-pointer select-none ${isSelected
+                          ? 'bg-[#FAF4ED] border-[#7A1E2D] text-[#7A1E2D] font-bold shadow-2xs'
+                          : 'bg-white border-[#E2D7C8] text-stone-600 hover:border-stone-400 hover:bg-white'
                           }`}
                       >
                         <span className="text-sm">{st.symbol}</span>
@@ -607,18 +608,18 @@ export default function WriteDiaryModal({
                 </div>
 
                 {/* 스티커 표기 방식 선택 (인장 도장 vs 제목 위 대형 스티커) */}
-                <div className="mt-2.5 pt-2 border-t border-stone-200/70 flex items-center justify-between gap-2">
+                <div className="pt-2.5 border-t border-[#E8DEC8]/80 flex items-center justify-between gap-2">
                   <span className="text-xs font-sans-ui text-stone-600 font-medium">
                     스티커 표기 위치
                   </span>
-                  <div className="inline-flex rounded-lg bg-stone-100/90 p-0.5 border border-stone-200 text-xs">
+                  <div className="inline-flex rounded-xl bg-stone-200/50 p-1 border border-stone-200/90 text-xs">
                     <button
                       type="button"
                       onClick={() => {
                         setStampStyle('BADGE');
                         soundEngine.playPaperRustle();
                       }}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-sans-ui transition-all cursor-pointer ${stampStyle === 'BADGE'
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-sans-ui transition-all cursor-pointer ${stampStyle === 'BADGE'
                         ? 'bg-white text-[#6B1724] font-bold shadow-2xs'
                         : 'text-stone-600 hover:text-stone-900'
                         }`}
@@ -631,7 +632,7 @@ export default function WriteDiaryModal({
                         setStampStyle('EMOJI_TITLE');
                         soundEngine.playPaperRustle();
                       }}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-sans-ui transition-all cursor-pointer ${stampStyle === 'EMOJI_TITLE'
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-sans-ui transition-all cursor-pointer ${stampStyle === 'EMOJI_TITLE'
                         ? 'bg-white text-[#6B1724] font-bold shadow-2xs'
                         : 'text-stone-600 hover:text-stone-900'
                         }`}
@@ -740,18 +741,18 @@ export default function WriteDiaryModal({
                     {language === 'en' ? 'Letter Content' : '일기 내용'}
                   </label>
                   <span className="text-[11px] font-sans-ui text-stone-400">
-                    <span className={content.length >= 1000 ? 'text-rose-600 font-bold' : 'text-stone-600'}>
+                    <span className={content.length >= 1300 ? 'text-rose-600 font-bold' : 'text-stone-600'}>
                       {content.length}
                     </span>
-                    /1000
+                    /1300
                   </span>
                 </div>
                 <textarea
                   required
                   rows={6}
-                  maxLength={1500}
+                  maxLength={1300}
                   value={content}
-                  onChange={(e) => setContent(e.target.value.slice(0, 1500))}
+                  onChange={(e) => setContent(e.target.value.slice(0, 1300))}
                   placeholder={t('write.contentPlaceholder')}
                   className="w-full p-3.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-base sm:text-sm leading-relaxed text-stone-900 placeholder:text-stone-400 resize-none"
                 />
