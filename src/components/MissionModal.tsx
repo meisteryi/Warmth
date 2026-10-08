@@ -218,10 +218,11 @@ export default function MissionModal({
               />
             )}
 
-            {/* 모드 2: 빈티지 우표 맞추기 */}
+            {/* 모드 2: 빈티지 우표 맞추기 (내 사진이 들어간 커스텀 우표) */}
             {assignedMode === 'STAMP_PUZZLE' && (
               <StampJigsawPuzzle
                 partnerName={partnerName}
+                photoUrl={diaryPhoto}
                 onSolve={handleStampPuzzleSolved}
               />
             )}

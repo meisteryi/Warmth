@@ -975,7 +975,7 @@ export default function WriteDiaryModal({
 
                 {missionType === 'PUZZLE_STAMP' && (
                   <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs font-serif-warm text-stone-700">
-                    📮 <strong>빈티지 우표 맞추기</strong>: 편지 봉투의 우표 조각 4개를 순서대로 맞춰 소인 도장을 찍으면 일기가 개봉됩니다.
+                    📮 <strong>나만의 우표 맞추기</strong>: 첨부한 사진이 들어간 빈티지 우표 조각 4개를 순서대로 맞춰 소인 도장을 찍으면 일기가 개봉됩니다.
                   </div>
                 )}
 

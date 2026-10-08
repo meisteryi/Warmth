@@ -9,6 +9,7 @@ import { RotateCcw, Stamp, Hand, Palette } from 'lucide-react';
 interface StampJigsawPuzzleProps {
   onSolve: () => void;
   partnerName?: string;
+  photoUrl?: string;
 }
 
 const STAMP_WIDTH = 154;
@@ -260,8 +261,16 @@ export const STAMP_THEMES: StampTheme[] = [
   },
 ];
 
-// 앤틱 대형 우표 원본 그래픽 SVG 컴포넌트 (선택된 테마 반영)
-function LargeStampArt({ partnerName, theme }: { partnerName: string; theme: StampTheme }) {
+// 앤틱 대형 우표 원본 그래픽 SVG 컴포넌트 (선택된 테마 및 커스텀 사진 반영)
+function LargeStampArt({
+  partnerName,
+  theme,
+  photoUrl,
+}: {
+  partnerName: string;
+  theme: StampTheme;
+  photoUrl?: string;
+}) {
   return (
     <svg
       width={STAMP_WIDTH}
@@ -280,6 +289,19 @@ function LargeStampArt({ partnerName, theme }: { partnerName: string; theme: Sta
           <stop offset="0%" stopColor={theme.primaryColor} />
           <stop offset="100%" stopColor={theme.secondaryColor} />
         </linearGradient>
+
+        {photoUrl && (
+          <clipPath id={`stampCustomPhotoClip-${theme.id}`}>
+            <rect
+              x={(STAMP_WIDTH - 104) / 2}
+              y="43"
+              width="104"
+              height="86"
+              rx="6"
+              ry="6"
+            />
+          </clipPath>
+        )}
       </defs>
 
       <rect x="0" y="0" width={STAMP_WIDTH} height={STAMP_HEIGHT} fill={`url(#stampPaperGrad-${theme.id})`} />
@@ -327,7 +349,7 @@ function LargeStampArt({ partnerName, theme }: { partnerName: string; theme: Sta
         fontWeight="bold"
         letterSpacing="2.5"
       >
-        {theme.topHeaderHanzi}
+        {photoUrl ? '大韓 溫氣 · 私設' : theme.topHeaderHanzi}
       </text>
       <text
         x={STAMP_WIDTH / 2}
@@ -339,48 +361,118 @@ function LargeStampArt({ partnerName, theme }: { partnerName: string; theme: Sta
         fontFamily="sans-serif"
         letterSpacing="1.8"
       >
-        {theme.topHeaderSub}
+        {photoUrl ? 'CUSTOM COMMEMORATIVE STAMP' : theme.topHeaderSub}
       </text>
 
-      {/* 중앙 타원형 앤틱 일러스트 프레임 */}
-      <ellipse
-        cx={STAMP_WIDTH / 2}
-        cy={STAMP_HEIGHT / 2 + 3}
-        rx="50"
-        ry="42"
-        fill={theme.innerBg}
-        stroke={theme.accentGold}
-        strokeWidth="1"
-        strokeDasharray="2 2"
-      />
+      {/* 중앙 콘텐츠: 커스텀 사진이 있으면 사진, 없으면 빈티지 심볼 */}
+      {photoUrl ? (
+        <g>
+          {/* 사진 배경 베이스 및 앤틱 금박 외곽선 */}
+          <rect
+            x={(STAMP_WIDTH - 108) / 2}
+            y="41"
+            width="108"
+            height="90"
+            rx="8"
+            ry="8"
+            fill={theme.innerBg}
+            stroke={theme.accentGold}
+            strokeWidth="1.2"
+          />
 
-      {/* 중앙 테마별 고유 일러스트 심볼 */}
-      {theme.renderSymbol(theme)}
+          {/* 내가 올린 사진 (종횡비 유지하며 꽉 채움) */}
+          <image
+            href={photoUrl}
+            x={(STAMP_WIDTH - 104) / 2}
+            y="43"
+            width="104"
+            height="86"
+            preserveAspectRatio="xMidYMid slice"
+            clipPath={`url(#stampCustomPhotoClip-${theme.id})`}
+          />
 
-      <text
-        x={STAMP_WIDTH / 2}
-        y={STAMP_HEIGHT / 2 + 28}
-        textAnchor="middle"
-        fill={theme.primaryColor}
-        fontSize="11"
-        fontFamily="serif"
-        fontWeight="bold"
-      >
-        {theme.centerTitle}
-      </text>
+          {/* 앤틱 우표 느낌을 더하는 얇은 오버레이 테두리 */}
+          <rect
+            x={(STAMP_WIDTH - 104) / 2}
+            y="43"
+            width="104"
+            height="86"
+            rx="6"
+            ry="6"
+            fill="none"
+            stroke={theme.primaryColor}
+            strokeWidth="1"
+            opacity="0.4"
+          />
 
-      <text
-        x={STAMP_WIDTH / 2}
-        y={STAMP_HEIGHT / 2 + 39}
-        textAnchor="middle"
-        fill={theme.secondaryColor}
-        opacity="0.85"
-        fontSize="8"
-        fontFamily="serif"
-        fontStyle="italic"
-      >
-        To. {partnerName}
-      </text>
+          <text
+            x={STAMP_WIDTH / 2}
+            y="145"
+            textAnchor="middle"
+            fill={theme.primaryColor}
+            fontSize="9.5"
+            fontFamily="serif"
+            fontWeight="bold"
+          >
+            {theme.centerTitle}
+          </text>
+
+          <text
+            x={STAMP_WIDTH / 2}
+            y="156"
+            textAnchor="middle"
+            fill={theme.secondaryColor}
+            opacity="0.85"
+            fontSize="7.5"
+            fontFamily="serif"
+            fontStyle="italic"
+          >
+            To. {partnerName}
+          </text>
+        </g>
+      ) : (
+        <>
+          {/* 중앙 타원형 앤틱 일러스트 프레임 */}
+          <ellipse
+            cx={STAMP_WIDTH / 2}
+            cy={STAMP_HEIGHT / 2 + 3}
+            rx="50"
+            ry="42"
+            fill={theme.innerBg}
+            stroke={theme.accentGold}
+            strokeWidth="1"
+            strokeDasharray="2 2"
+          />
+
+          {/* 중앙 테마별 고유 일러스트 심볼 */}
+          {theme.renderSymbol(theme)}
+
+          <text
+            x={STAMP_WIDTH / 2}
+            y={STAMP_HEIGHT / 2 + 28}
+            textAnchor="middle"
+            fill={theme.primaryColor}
+            fontSize="11"
+            fontFamily="serif"
+            fontWeight="bold"
+          >
+            {theme.centerTitle}
+          </text>
+
+          <text
+            x={STAMP_WIDTH / 2}
+            y={STAMP_HEIGHT / 2 + 39}
+            textAnchor="middle"
+            fill={theme.secondaryColor}
+            opacity="0.85"
+            fontSize="8"
+            fontFamily="serif"
+            fontStyle="italic"
+          >
+            To. {partnerName}
+          </text>
+        </>
+      )}
 
       {/* 좌우 하단 우표 액면가 */}
       <text x="16" y={STAMP_HEIGHT - 16} fill={theme.primaryColor} fontSize="13" fontFamily="serif" fontWeight="bold">
@@ -699,6 +791,7 @@ function generateTornPaths(stampWidth: number, stampHeight: number): TornData {
 export default function StampJigsawPuzzle({
   onSolve,
   partnerName = '상대방',
+  photoUrl,
 }: StampJigsawPuzzleProps) {
   const [tornData, setTornData] = useState<TornData | null>(null);
   const [themeIdx, setThemeIdx] = useState<number>(() => Math.floor(Math.random() * STAMP_THEMES.length));
@@ -868,7 +961,7 @@ export default function StampJigsawPuzzle({
         >
           {/* 밑바탕 가이드 실루엣 */}
           <div className="absolute inset-0 opacity-15 pointer-events-none filter grayscale">
-            <LargeStampArt partnerName={partnerName} theme={currentTheme} />
+            <LargeStampArt partnerName={partnerName} theme={currentTheme} photoUrl={photoUrl} />
           </div>
 
           <div className="absolute inset-0 flex items-center justify-center text-[9px] font-serif-warm text-[#8C2131]/30 font-bold uppercase tracking-widest pointer-events-none">
@@ -907,7 +1000,7 @@ export default function StampJigsawPuzzle({
                       clipPath: `path('${piece.path}')`,
                     }}
                   >
-                    <LargeStampArt partnerName={partnerName} theme={currentTheme} />
+                    <LargeStampArt partnerName={partnerName} theme={currentTheme} photoUrl={photoUrl} />
                     <svg className="absolute inset-0 w-full h-full pointer-events-none">
                       <path
                         d={piece.path}
@@ -931,7 +1024,7 @@ export default function StampJigsawPuzzle({
               transition={{ delay: 0.3, duration: 0.5 }}
               className="absolute inset-0 z-20 pointer-events-none"
             >
-              <LargeStampArt partnerName={partnerName} theme={currentTheme} />
+              <LargeStampArt partnerName={partnerName} theme={currentTheme} photoUrl={photoUrl} />
             </motion.div>
           )}
 
@@ -1024,7 +1117,7 @@ export default function StampJigsawPuzzle({
                     clipPath: `path('${piece.path}')`,
                   }}
                 >
-                  <LargeStampArt partnerName={partnerName} theme={currentTheme} />
+                  <LargeStampArt partnerName={partnerName} theme={currentTheme} photoUrl={photoUrl} />
                   {/* 찢긴 종이 흰색 섬유 질감 테두리 */}
                   <svg className="absolute inset-0 w-full h-full pointer-events-none">
                     <path
