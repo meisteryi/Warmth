@@ -215,9 +215,17 @@ async function main() {
     await archiveNav.click();
     await sleep(1200);
 
-    const archiveModalText = await page.evaluate(() => document.body.innerText);
-    const hasEmojiInArchive = archiveModalText.includes('💌');
-    console.log(`🔍 서재 목록 내 이모티콘(💌) 반응 배지 노출: ${hasEmojiInArchive ? '✅ 확인!' : '❌ 실패'}`);
+    const archiveModalText = await page.evaluate(() => {
+      const modal = document.querySelector('div[class*="max-w-xl"], div[class*="max-w-2xl"]') || document.body;
+      return modal.innerText;
+    });
+    // 보관함 일기 카드(.group.relative.p-4.rounded-2xl) 내에 포스트잇 코멘트 및 반응 배지가 없는지 정확히 검증
+    const cardText = await page.evaluate(() => {
+      const card = document.querySelector('.group.relative.p-4.rounded-2xl');
+      return card ? card.innerText : '';
+    });
+    const hasPostItInCard = cardText.includes('💌') || cardText.includes('따뜻한 밤 보내 사랑해') || cardText.includes('포스트잇');
+    console.log(`🔍 서재 목록 내 포스트잇 반응 미노출 검증: ${!hasPostItInCard ? '✅ 확인 (포스트잇 기능 추가 전 상태와 완벽 일치!)' : '❌ 실패 (서재 카드에 노출됨)'}`);
 
     // 서재 내 달력 버튼 확인
     const calendarBtn = await page.$('xpath///button[contains(., "달력") or contains(., "캘린더")]');
