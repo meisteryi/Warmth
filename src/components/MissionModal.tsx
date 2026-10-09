@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MissionData } from '@/types/diary';
 import { soundEngine } from '@/lib/audio';
@@ -43,9 +43,14 @@ export default function MissionModal({
   const [wrongCount, setWrongCount] = useState(0);
   const [helpTrigger, setHelpTrigger] = useState(0);
 
-  // 모달이 열릴 때 상태 초기화
+  const modalScrollRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+
+  // 모달이 열릴 때 상태 및 스크롤 상단 초기화
   useEffect(() => {
     if (isOpen) {
+      modalScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+      backdropRef.current?.scrollTo({ top: 0, behavior: 'instant' });
       setQuizInput('');
       setShowHint(false);
       setErrorMsg('');
@@ -174,9 +179,11 @@ export default function MissionModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
+          ref={backdropRef}
           className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] bg-stone-900/60 backdrop-blur-sm overflow-y-auto overscroll-contain"
         >
           <motion.div
+            ref={modalScrollRef}
             initial={{ opacity: 0, scale: 0.95, y: 30 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}

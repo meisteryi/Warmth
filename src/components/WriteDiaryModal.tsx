@@ -88,6 +88,16 @@ export default function WriteDiaryModal({
   const [isRefreshingPrompt, setIsRefreshingPrompt] = useState(false);
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const modalScrollRef = useRef<HTMLDivElement>(null);
+  const modalBackdropRef = useRef<HTMLDivElement>(null);
+
+  // 모달이 열릴 때 이전 스크롤 위치가 유지되지 않도록 상단 초기화
+  useEffect(() => {
+    if (isOpen) {
+      modalScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+      modalBackdropRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [isOpen]);
 
   // 모달이 열릴 때 캐시된 글감 우선 적용 (API 추가 소모 없이 즉각 반영)
   useEffect(() => {
@@ -478,9 +488,11 @@ export default function WriteDiaryModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
+          ref={modalBackdropRef}
           className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] bg-stone-900/60 backdrop-blur-sm overflow-y-auto overflow-x-hidden overscroll-contain"
         >
           <motion.div
+            ref={modalScrollRef}
             initial={{ opacity: 0, scale: 0.95, y: 30 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}

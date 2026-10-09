@@ -8,6 +8,7 @@ import { Feather, Calendar, Heart, MessageSquareQuote, PenLine, ThermometerSun, 
 import { useLanguage } from '@/lib/i18n';
 import { updateDiaryDateInFirestore, updateDiaryReactionInFirestore } from '@/lib/roomService';
 import { soundEngine } from '@/lib/audio';
+import { forceScrollToTop } from '@/lib/scrollUtils';
 
 interface OpenedLetterProps {
   diary: DiaryData;
@@ -50,6 +51,12 @@ export default function OpenedLetter({
   const [reactionEmoji, setReactionEmoji] = useState(() => diary.reaction?.emoji || '❤️');
   const [reactionComment, setReactionComment] = useState(() => diary.reaction?.comment || '');
   const [isSavingReaction, setIsSavingReaction] = useState(false);
+
+  // 일기(편지) 화면 열람 시 외부/이전 화면의 스크롤 위치가 승계되지 않도록 상단(0px)으로 초기화
+  useEffect(() => {
+    const cleanup = forceScrollToTop();
+    return cleanup;
+  }, [diary.diaryId]);
 
   useEffect(() => {
     setCurrentDiaryDate(diary.createdAt);

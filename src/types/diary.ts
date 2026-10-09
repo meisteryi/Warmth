@@ -5,7 +5,8 @@ export type UIState =
   | 'VIEW_WAITING'        // 상대방이 일기 작성 중 (답장 대기)
   | 'VIEW_SEALED_LETTER'  // 편지 도착 -> 편지 까는 메뉴 (봉인 해제 관문 열기)
   | 'VIEW_WAX_READY'      // 미션 완료, 실링 왁스 봉인 해제 대기 (3초 롱프레스 가능)
-  | 'VIEW_OPENED_DIARY';  // 왁스 개봉 완료, 일기 열람 가능
+  | 'VIEW_OPENED_DIARY'   // 왁스 개봉 완료, 일기 열람 가능
+  | 'VIEW_MEMORY_JAR';    // 3D 온기 유리병 & 실링 왁스 뷰
 
 export type WaxColor = string;
 

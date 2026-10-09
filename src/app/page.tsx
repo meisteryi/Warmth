@@ -13,12 +13,27 @@ import KnockNotificationModal from '@/components/KnockNotificationModal';
 import ArchiveModal from '@/components/ArchiveModal';
 import HomeView from '@/components/HomeView';
 import ProfileEditModal from '@/components/ProfileEditModal';
+import dynamic from 'next/dynamic';
+
+const MemoryJarView = dynamic(
+  () => import('@/features/memory-jar-3d').then((mod) => mod.MemoryJarView),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-[calc(100vh-4.5rem)] flex flex-col items-center justify-center gap-3 bg-[#FBF9F5] text-stone-500">
+        <div className="w-8 h-8 border-2 border-[#6B1724] border-t-transparent rounded-full animate-spin" />
+        <span className="text-xs font-serif-warm font-medium">3D 온기 유리병 불러오는 중...</span>
+      </div>
+    ),
+  }
+);
 import { DiaryData, DiaryReaction, KnockData, UIState, WaxColor, RoomData } from '@/types/diary';
 import { isDiaryWrittenInCurrentCycle, getTimeUntilNextReset, ResetCountdownInfo } from '@/lib/dateUtils';
 import { soundEngine } from '@/lib/audio';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LogOut } from 'lucide-react';
 import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
+import { forceScrollToTop } from '@/lib/scrollUtils';
 import {
   saveDiaryToFirestore,
   updateMissionInFirestore,
@@ -208,6 +223,43 @@ export default function HomePage() {
   const [isLastLeaverWarningOpen, setIsLastLeaverWarningOpen] = useState(false);
   const [hasCopiedLeaveCode, setHasCopiedLeaveCode] = useState(false);
   const isLeavingRef = useRef(false);
+  const mainRef = useRef<HTMLElement>(null);
+
+  // 화면 전환(홈 <-> 일기 열람, 서재에서 일기 선택 등) 시 이전 화면의 외부 스크롤 위치가 유지되는 문제 방지
+  useEffect(() => {
+    const cleanup = forceScrollToTop(mainRef.current);
+    return cleanup;
+  }, [uiState, selectedArchiveDiary?.diaryId]);
+
+  // 모달(서재, 일기 작성, 미션, 프로필 등)이 열려 있을 때 배경 스크롤 위치가 밀리거나 체이닝되는 현상 방지
+  useEffect(() => {
+    const isAnyModalOpen =
+      isArchiveOpen ||
+      isWriteModalOpen ||
+      isMissionModalOpen ||
+      isProfileModalOpen ||
+      isLeaveConfirmOpen ||
+      isKnockModalOpen ||
+      isPartnerDisconnectedModalOpen ||
+      isLastLeaverWarningOpen;
+
+    if (isAnyModalOpen) {
+      const prevBodyOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prevBodyOverflow;
+      };
+    }
+  }, [
+    isArchiveOpen,
+    isWriteModalOpen,
+    isMissionModalOpen,
+    isProfileModalOpen,
+    isLeaveConfirmOpen,
+    isKnockModalOpen,
+    isPartnerDisconnectedModalOpen,
+    isLastLeaverWarningOpen,
+  ]);
 
   // 앱 진입 시 온기 브랜드 스플래시 화면 (0.8초 동안 우아하게 유지 후 부드러운 페이드아웃)
   useEffect(() => {
@@ -786,6 +838,7 @@ export default function HomePage() {
     setDiary(unsealed);
     setSelectedArchiveDiary(null);
     setUiState('VIEW_OPENED_DIARY');
+    forceScrollToTop(mainRef.current);
     showToast('📬 편지 봉인이 해제되었습니다. 정성스레 적은 일기를 읽어보세요.');
 
     try {
@@ -1004,6 +1057,7 @@ export default function HomePage() {
   const handleGoHome = () => {
     setSelectedArchiveDiary(null);
     setUiState('VIEW_HOME');
+    forceScrollToTop(mainRef.current);
   };
 
   return (
@@ -1060,6 +1114,10 @@ export default function HomePage() {
         onOpenArchive={() => setIsArchiveOpen(true)}
         onLeaveRoom={handleLeaveRoom}
         onGoHome={handleGoHome}
+        onOpenMemoryJar={() => {
+          setUiState('VIEW_MEMORY_JAR');
+          forceScrollToTop(mainRef.current);
+        }}
         onOpenProfile={() => setIsProfileModalOpen(true)}
         roomCode={roomCode}
         userName={userName}
@@ -1070,7 +1128,12 @@ export default function HomePage() {
       />
 
       {/* 메인 뷰 컨테이너 (iOS 스크롤 및 키보드 오버플로우 방지) */}
-      <main className="flex-1 flex flex-col items-center justify-start sm:justify-center p-2 sm:p-4 pb-[max(env(safe-area-inset-bottom,0px),1rem)] relative overflow-y-auto sm:overflow-visible">
+      <main
+        ref={mainRef}
+        className={`flex-1 flex flex-col items-center justify-start sm:justify-center p-2 sm:p-4 pb-[max(env(safe-area-inset-bottom,0px),1rem)] relative overflow-y-auto sm:overflow-visible ${
+          uiState === 'VIEW_MEMORY_JAR' ? '!p-0 !pb-0 overflow-hidden w-full h-full' : ''
+        }`}
+      >
         {/* 토스트 알림 (iOS 홈 바 위로 안전 배치 및 부드러운 페이드 인/아웃 애니메이션) */}
         <AnimatePresence>
           {toastMessage && (
@@ -1112,11 +1175,13 @@ export default function HomePage() {
                 if (!diary) return;
                 setSelectedArchiveDiary(null);
                 setUiState(diary.mission?.isPassed ? 'VIEW_WAX_READY' : 'VIEW_SEALED_LETTER');
+                forceScrollToTop(mainRef.current);
               }}
               onOpenDiary={() => {
                 if (!diary) return;
                 setSelectedArchiveDiary(null);
                 setUiState('VIEW_OPENED_DIARY');
+                forceScrollToTop(mainRef.current);
               }}
             />
           )}
@@ -1221,6 +1286,23 @@ export default function HomePage() {
               />
             )
           )}
+
+          {/* 7. VIEW_MEMORY_JAR: 3D 온기 유리병 & 실링 왁스 뷰 */}
+          {uiState === 'VIEW_MEMORY_JAR' && (
+            <MemoryJarView
+              key="view-memory-jar"
+              roomCode={roomCode}
+              currentUserName={userName}
+              partnerName={partnerName}
+              onGoHome={handleGoHome}
+              onSelectDiary={(selectedDiary) => {
+                setSelectedArchiveDiary(selectedDiary);
+                setUiState('VIEW_OPENED_DIARY');
+                forceScrollToTop(mainRef.current);
+                showToast(`📖 ${selectedDiary.authorName} 님의 '${selectedDiary.title}' 일기를 펼쳤습니다.`);
+              }}
+            />
+          )}
         </AnimatePresence>
       </main>
 
@@ -1268,6 +1350,7 @@ export default function HomePage() {
           setSelectedArchiveDiary(selectedDiary);
           setUiState('VIEW_OPENED_DIARY');
           setIsArchiveOpen(false);
+          forceScrollToTop(mainRef.current);
           showToast(`📖 ${selectedDiary.authorName} 님의 '${selectedDiary.title}' 일기를 서재에서 펼쳤습니다.`);
         }}
         onOpenSealedLetter={() => {
@@ -1275,6 +1358,7 @@ export default function HomePage() {
           if (!diary) return;
           setSelectedArchiveDiary(null);
           setUiState(diary.mission?.isPassed ? 'VIEW_WAX_READY' : 'VIEW_SEALED_LETTER');
+          forceScrollToTop(mainRef.current);
         }}
       />
 

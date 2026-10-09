@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DiaryData, sanitizeDiaryReaction } from '@/types/diary';
 import { getRoomDiariesFromFirestore, getCachedRoomDiaries } from '@/lib/roomService';
@@ -95,6 +95,19 @@ export default function ArchiveModal({
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [calendarYear, setCalendarYear] = useState<number>(() => new Date().getFullYear());
   const [calendarMonth, setCalendarMonth] = useState<number>(() => new Date().getMonth());
+
+  // 서재 내부 탭 및 페이지 전환 시 상단 스크롤 초기화
+  const listContainerRef = useRef<HTMLDivElement>(null);
+  const reportContainerRef = useRef<HTMLDivElement>(null);
+  const bookletContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      listContainerRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+      reportContainerRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+      bookletContainerRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [isOpen, activeTab, currentPage]);
 
   const fetchDiaries = async () => {
     if (!roomCode) return;
@@ -456,7 +469,7 @@ export default function ArchiveModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] bg-stone-900/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] bg-stone-900/60 backdrop-blur-sm overscroll-contain"
         >
           <motion.div 
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
@@ -554,7 +567,7 @@ export default function ArchiveModal({
 
         {/* 탭 1: 일기 목록 영역 */}
         {activeTab === 'LIST' && (
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3">
+          <div ref={listContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3">
             {/* 날짜 필터 활성화 시 안내 배너 */}
             {selectedDateFilter && (
               <div className="flex items-center justify-between p-3 rounded-2xl bg-amber-100/90 border border-amber-300 text-stone-800 text-xs font-serif-warm shadow-2xs no-print">
@@ -866,7 +879,7 @@ export default function ArchiveModal({
 
         {/* 탭 2: [5번 요구사항] 월간 온기 리포트 & 키워드 분석 영역 */}
         {activeTab === 'REPORT' && (
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+          <div ref={reportContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
             {!stats || stats.totalDiaries === 0 ? (
               <div className="py-16 text-center text-stone-500 font-serif-warm">
                 <BarChart3 className="w-8 h-8 mx-auto text-stone-400 mb-2" />
@@ -978,7 +991,7 @@ export default function ArchiveModal({
 
         {/* 탭 3: [2번 요구사항] 소책자 PDF / 인쇄 미리보기 영역 */}
         {activeTab === 'BOOKLET' && (
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+          <div ref={bookletContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
             <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-300 text-stone-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs no-print">
               <div>
                 <h4 className="font-serif-warm font-bold text-sm sm:text-base text-stone-900 flex items-center gap-1.5">

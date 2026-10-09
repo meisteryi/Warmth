@@ -32,6 +32,7 @@ interface RoomHeaderProps {
   onOpenArchive?: () => void;
   onLeaveRoom?: () => void;
   onGoHome?: () => void;
+  onOpenMemoryJar?: () => void;
   onOpenProfile?: () => void;
   roomCode: string;
   userName: string;
@@ -41,12 +42,39 @@ interface RoomHeaderProps {
   countdownFormatted?: string;
 }
 
+/**
+ * 3D 온기 유리병 전용 아날로그 보틀 SVG 아이콘
+ */
+function GlassJarIcon({ className = 'w-4 h-4' }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {/* 코르크 마개 */}
+      <rect x="9" y="2" width="6" height="3" rx="1" fill="currentColor" fillOpacity="0.25" />
+      {/* 병목 림 */}
+      <path d="M7.5 5h9" />
+      {/* 유리병 본체 */}
+      <path d="M8 5v2.2a2.5 2.5 0 0 1-.7 1.8C6.5 9.8 6 11.2 6 12.8V19a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3v-6.2c0-1.6-.5-3-1.3-3.8a2.5 2.5 0 0 1-.7-1.8V5" />
+      {/* 내부 실링 왁스 인장 실루엣 */}
+      <circle cx="12" cy="15.5" r="2" fill="currentColor" fillOpacity="0.3" />
+    </svg>
+  );
+}
+
 export default function RoomHeader({
   currentState,
   onOpenWriteModal,
   onOpenArchive,
   onLeaveRoom,
   onGoHome,
+  onOpenMemoryJar,
   onOpenProfile,
   roomCode,
   userName,
@@ -187,19 +215,19 @@ export default function RoomHeader({
         {/* 우측: 정식 서비스 전용 액션 (홈, 둘만의 서재, 일기 쓰기, 더보기) */}
         {isMatched && (
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-            {/* 홈 바로가기 버튼 */}
-            {onGoHome && (
+            {/* 온기 유리병 바로가기 버튼 (상단 바 홈 버튼을 병 아이콘으로 변경) */}
+            {onOpenMemoryJar && (
               <button
-                onClick={onGoHome}
-                title={t('nav.home')}
+                onClick={onOpenMemoryJar}
+                title="온기 유리병 (기억의 병)"
                 className={`h-9 sm:h-10 px-2 sm:px-3 rounded-xl border text-xs font-serif-warm font-bold shadow-2xs flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap active:scale-95 transition-all cursor-pointer ${
-                  currentState === 'VIEW_HOME'
+                  currentState === 'VIEW_MEMORY_JAR'
                     ? 'bg-[#6B1724]/10 text-[#6B1724] border-[#6B1724]/30'
                     : 'border-stone-300/90 hover:border-[#6B1724]/40 bg-white hover:bg-stone-50 text-stone-800'
                 }`}
               >
-                <Home className="w-4 h-4 text-[#6B1724] shrink-0" />
-                <span className="hidden sm:inline">{t('nav.home')}</span>
+                <GlassJarIcon className="w-4 h-4 text-[#6B1724] shrink-0" />
+                <span className="hidden sm:inline">온기 병</span>
               </button>
             )}
 
