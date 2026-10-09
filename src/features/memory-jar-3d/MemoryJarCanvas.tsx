@@ -106,6 +106,7 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     const [selectedPiece, setSelectedPiece] = useState<WaxPieceData | null>(null);
+    const modalOpenedAtRef = useRef<number>(0);
     const [isInteracting, setIsInteracting] = useState(false);
     const [isHoveringWax, setIsHoveringWax] = useState(false);
     const [webglUnavailable, setWebglUnavailable] = useState(false);
@@ -545,6 +546,7 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
         const hitMesh = intersects[0].object as THREE.Mesh;
         if (hitMesh && hitMesh.userData && hitMesh.userData.title) {
           const pieceData = hitMesh.userData as WaxPieceData;
+          modalOpenedAtRef.current = Date.now();
           setSelectedPiece(pieceData);
           if (onSelectPiece) onSelectPiece(pieceData);
           try {
@@ -574,6 +576,7 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
             autoRotate={options.autoRotate ?? true}
             isInteracting={isInteracting}
             onSelectPiece={(piece) => {
+              modalOpenedAtRef.current = Date.now();
               setSelectedPiece(piece);
               if (onSelectPiece) onSelectPiece(piece);
             }}
@@ -633,6 +636,7 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
             onPointerUp={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
+              if (Date.now() - modalOpenedAtRef.current < 350) return;
               setSelectedPiece(null);
             }}
           >
@@ -647,23 +651,14 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
               }
             `}</style>
             <div
-              className={`w-full max-w-xs p-5 bg-[#FFFDF9] rounded-2xl shadow-2xl border border-[#E8DFC8] text-stone-800 space-y-3.5 transform transition-all paper-texture ${
-                onOpenDiaryPiece ? 'cursor-pointer hover:border-[#6B1724]/40 hover:shadow-3xl' : ''
-              }`}
+              className="w-full max-w-xs p-5 bg-[#FFFDF9] rounded-2xl shadow-2xl border border-[#E8DFC8] text-stone-800 space-y-3.5 transform transition-all paper-texture"
               style={{
                 animation: 'previewModalPop 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards',
               }}
               onPointerDown={(e) => e.stopPropagation()}
               onPointerMove={(e) => e.stopPropagation()}
               onPointerUp={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onOpenDiaryPiece && selectedPiece) {
-                  const pieceToOpen = selectedPiece;
-                  setSelectedPiece(null);
-                  onOpenDiaryPiece(pieceToOpen);
-                }
-              }}
+              onClick={(e) => e.stopPropagation()}
             >
               {/* 상단: 날짜만 단독 중앙 정렬 (왁스 색상 텍스트 표시 제거) */}
               <div className="flex items-center justify-center pb-0.5 border-b border-[#F0E8D8]">
@@ -717,6 +712,7 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
                     onPointerUp={(e) => e.stopPropagation()}
                     onClick={(e) => {
                       e.stopPropagation();
+                      if (Date.now() - modalOpenedAtRef.current < 350) return;
                       if (selectedPiece) {
                         const pieceToOpen = selectedPiece;
                         setSelectedPiece(null);

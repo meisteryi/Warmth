@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WaxColor, WAX_COLORS, MissionData, DiaryData, WarmthScore, WEATHER_STAMPS, WeatherStamp, StampStyle } from '@/types/diary';
 import { soundEngine } from '@/lib/audio';
@@ -79,6 +79,10 @@ export default function WriteDiaryModal({
   const [hasDraftNotice, setHasDraftNotice] = useState(false);
   const [lastSavedDraftTime, setLastSavedDraftTime] = useState<string | null>(null);
   const draftKey = `warmth_diary_draft_${roomCode}`;
+  // 상대방이 보낸 편지 식별자 기반 현재 내 턴 고유 ID (새 턴이 시작되면 이전 턴의 임시저장은 자동 무효화됨)
+  const currentTurnId = fallbackPreviousDiary
+    ? `${fallbackPreviousDiary.diaryId || fallbackPreviousDiary.createdAt || 'latest'}_to_${currentUserName}`
+    : `initial_turn_${roomCode}_${currentUserName}`;
   const [dailyPrompt, setDailyPrompt] = useState<string>(() => {
     const clean = partnerName && partnerName.trim() && partnerName !== '상대방' && partnerName !== '파트너'
       ? `${partnerName.trim()}에게`
@@ -91,20 +95,50 @@ export default function WriteDiaryModal({
   const modalScrollRef = useRef<HTMLDivElement>(null);
   const modalBackdropRef = useRef<HTMLDivElement>(null);
 
-  // 모달이 열릴 때 이전 스크롤 위치가 유지되지 않도록 상단 초기화
+  // 폼 필드 전체 초기화 함수
+  const resetForm = useCallback(() => {
+    const initTitle = typeof initialTitle === 'string' ? initialTitle : '';
+    setTitle(initTitle);
+    setContent('');
+    setDiaryDate(getTodayDateString());
+    setSelectedColor('#6B1724');
+    setCustomColor('#9E2A3C');
+    setSelectedPhoto(null);
+    setUploadedPhotoInfo(null);
+    setPhotoError('');
+    setMissionType('PUZZLE_PHOTO');
+    setCustomPrompt('');
+    setCustomQuizAnswer('');
+    setCustomQuizHint('');
+    setSelectedStamp(WEATHER_STAMPS[0]);
+    setStampStyle('BADGE');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, [initialTitle]);
+
+  // 모달 열림 상태 변경 감지용 ref
+  const prevIsOpenRef = useRef(isOpen);
+
+  // 모달이 열릴 때 이전 스크롤 및 잔여 폼 상태 초기화, 임시 저장본 확인
   useEffect(() => {
-    if (isOpen) {
+    const wasOpen = prevIsOpenRef.current;
+    prevIsOpenRef.current = isOpen;
+
+    if (!wasOpen && isOpen) {
+      // 1. 이전 잔여 폼 상태 완전 초기화
+      resetForm();
+
+      // 2. 스크롤 위치 상단 초기화
       modalScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
       modalBackdropRef.current?.scrollTo({ top: 0, behavior: 'instant' });
-    }
-  }, [isOpen]);
 
-  // 모달이 열릴 때 캐시된 글감 우선 적용 (API 추가 소모 없이 즉각 반영)
-  useEffect(() => {
-    if (isOpen) {
-      if (typeof initialTitle === 'string' && initialTitle) {
-        setTitle(initialTitle);
+      // 3. initialTitle이 전달되었을 때 반영
+      if (typeof initialTitle === 'string' && initialTitle.trim()) {
+        setTitle(initialTitle.trim());
       }
+
+      // 4. 캐시된 글감 우선 적용 (API 추가 소모 없이 즉각 반영)
       const cached = getCachedDailyPrompt();
       if (cached) {
         setDailyPrompt(cached);
@@ -118,44 +152,54 @@ export default function WriteDiaryModal({
           if (prompt) setDailyPrompt(prompt);
         });
       }
-    }
-  }, [isOpen, partnerName, initialTitle]);
 
-  // 모달이 열릴 때 작성 중이던 임시 저장본 및 비상 아웃박스 잔여 데이터 확인
-  useEffect(() => {
-    if (isOpen) {
+      // 5. 과거 버그로 남았을 수 있는 아웃박스 잔여물 정리
+      if (roomCode) {
+        try {
+          localStorage.removeItem(`warmth_last_outbox_${roomCode}`);
+        } catch { }
+      }
+
+      // 6. 현재 방 및 이번 턴(currentTurnId)의 임시 저장본(draftKey) 확인
       try {
-        let raw = localStorage.getItem(draftKey);
-        if (!raw && roomCode) {
-          raw = localStorage.getItem(`warmth_last_outbox_${roomCode}`);
-        }
-        if (!raw) {
-          for (let i = 0; i < localStorage.length; i++) {
-            const k = localStorage.key(i) || '';
-            if (k.startsWith('warmth_') && (k.includes('draft') || k.includes('outbox'))) {
-              const candidate = localStorage.getItem(k);
-              if (candidate && (candidate.includes('content') || candidate.includes('title'))) {
-                raw = candidate;
-                break;
-              }
-            }
-          }
-        }
-
+        const raw = localStorage.getItem(draftKey);
         if (raw) {
           const parsed = JSON.parse(raw);
-          if (parsed && (parsed.title || parsed.content)) {
+          // 상대방 턴이 끝나고 내 턴이 되어 '처음' 여는 경우(저장된 turnId가 없거나 현재 턴과 다름),
+          // 혹은 이미 상대방에게 발송된 내 최신 일기와 내용이 동일한 경우 이전 초안은 즉시 파기하고 배너를 띄우지 않음.
+          const isFromDifferentTurn = !parsed.turnId || parsed.turnId !== currentTurnId;
+          const isAlreadySent = fallbackPreviousDiary &&
+            fallbackPreviousDiary.authorName === currentUserName &&
+            (parsed.content === fallbackPreviousDiary.content || (parsed.title && parsed.title === fallbackPreviousDiary.title));
+
+          if (isFromDifferentTurn || isAlreadySent) {
+            localStorage.removeItem(draftKey);
+            setHasDraftNotice(false);
+            setLastSavedDraftTime(null);
+          } else if (parsed && (parsed.title?.trim() || parsed.content?.trim())) {
+            // 이번 내 턴 중에 작성하다가 나간 적이 있어 임시 저장본이 남아있는 경우에만 임시저장 배너 표시!
             setHasDraftNotice(true);
             setLastSavedDraftTime(parsed.savedAt || '이전 저장본');
+          } else {
+            setHasDraftNotice(false);
+            setLastSavedDraftTime(null);
           }
+        } else {
+          setHasDraftNotice(false);
+          setLastSavedDraftTime(null);
         }
-      } catch { }
-    } else {
+      } catch {
+        setHasDraftNotice(false);
+        setLastSavedDraftTime(null);
+      }
+    } else if (wasOpen && !isOpen) {
       setHasDraftNotice(false);
+      setLastSavedDraftTime(null);
+      resetForm();
     }
-  }, [isOpen, draftKey, roomCode]);
+  }, [isOpen, draftKey, roomCode, initialTitle, partnerName, currentUserName, fallbackPreviousDiary, resetForm, currentTurnId]);
 
-  // [1번 요구사항] 편지 작성 중 실시간 자동 임시 저장 (디바운스 600ms)
+  // 편지 작성 중 실시간 자동 임시 저장 (디바운스 600ms)
   useEffect(() => {
     if (!isOpen) return;
     if (!title.trim() && !content.trim()) return;
@@ -163,12 +207,14 @@ export default function WriteDiaryModal({
     const timer = setTimeout(() => {
       try {
         const draftData = {
+          turnId: currentTurnId,
           title,
           content,
           diaryDate,
           selectedColor,
           customColor,
           selectedPhoto,
+          uploadedPhotoInfo,
           missionType,
           customPrompt,
           customQuizAnswer,
@@ -183,28 +229,12 @@ export default function WriteDiaryModal({
     }, 600);
 
     return () => clearTimeout(timer);
-  }, [isOpen, title, content, diaryDate, selectedColor, customColor, selectedPhoto, missionType, customPrompt, customQuizAnswer, customQuizHint, selectedStamp, stampStyle, draftKey]);
+  }, [isOpen, title, content, diaryDate, selectedColor, customColor, selectedPhoto, uploadedPhotoInfo, missionType, customPrompt, customQuizAnswer, customQuizHint, selectedStamp, stampStyle, draftKey, currentTurnId]);
 
-  // 임시 저장본 불러와 이어쓰기 (초안 및 아웃박스 복원)
+  // 임시 저장본 불러와 이어쓰기
   const handleRestoreDraft = () => {
     try {
-      let raw = localStorage.getItem(draftKey);
-      if (!raw && roomCode) {
-        raw = localStorage.getItem(`warmth_last_outbox_${roomCode}`);
-      }
-      if (!raw) {
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i) || '';
-          if (k.startsWith('warmth_') && (k.includes('draft') || k.includes('outbox'))) {
-            const candidate = localStorage.getItem(k);
-            if (candidate && (candidate.includes('content') || candidate.includes('title'))) {
-              raw = candidate;
-              break;
-            }
-          }
-        }
-      }
-
+      const raw = localStorage.getItem(draftKey);
       if (!raw) return;
       const parsed = JSON.parse(raw);
       if (typeof parsed.title === 'string') setTitle(parsed.title);
@@ -213,6 +243,7 @@ export default function WriteDiaryModal({
       if (parsed.selectedColor) setSelectedColor(parsed.selectedColor);
       if (parsed.customColor) setCustomColor(parsed.customColor);
       if (parsed.selectedPhoto) setSelectedPhoto(parsed.selectedPhoto);
+      if (parsed.uploadedPhotoInfo) setUploadedPhotoInfo(parsed.uploadedPhotoInfo);
       if (parsed.missionType) setMissionType(parsed.missionType);
       if (parsed.customPrompt) setCustomPrompt(parsed.customPrompt);
       if (parsed.customQuizAnswer) setCustomQuizAnswer(parsed.customQuizAnswer);
@@ -233,10 +264,50 @@ export default function WriteDiaryModal({
   const handleDiscardDraft = () => {
     try {
       localStorage.removeItem(draftKey);
+      if (roomCode) {
+        localStorage.removeItem(`warmth_last_outbox_${roomCode}`);
+      }
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i) || '';
+        if (k.startsWith('warmth_last_outbox_') || (roomCode && k.includes(roomCode) && k.includes('outbox'))) {
+          localStorage.removeItem(k);
+        }
+      }
     } catch { }
-    setDiaryDate(getTodayDateString());
+    resetForm();
     setHasDraftNotice(false);
+    setLastSavedDraftTime(null);
     soundEngine.playTileSlideSound();
+  };
+
+  // 모달 닫기 핸들러 (작성 중 내용이 있다면 즉시 임시 저장 동기화)
+  const handleCloseModal = () => {
+    if (title.trim() || content.trim()) {
+      try {
+        const draftData = {
+          turnId: currentTurnId,
+          title,
+          content,
+          diaryDate,
+          selectedColor,
+          customColor,
+          selectedPhoto,
+          uploadedPhotoInfo,
+          missionType,
+          customPrompt,
+          customQuizAnswer,
+          customQuizHint,
+          selectedStampId: selectedStamp.id,
+          stampStyle,
+          savedAt: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+        };
+        localStorage.setItem(draftKey, JSON.stringify(draftData));
+      } catch { }
+    }
+    resetForm();
+    setHasDraftNotice(false);
+    setLastSavedDraftTime(null);
+    onClose();
   };
 
   // 다른 글감 뽑기 (Gemini AI 실시간 생성 - 새로고침 클릭 시에만 API 호출)
@@ -459,17 +530,18 @@ export default function WriteDiaryModal({
       if (saveResult !== false) {
         try {
           localStorage.removeItem(draftKey);
+          localStorage.removeItem(`warmth_last_outbox_${roomCode}`);
+          for (let i = localStorage.length - 1; i >= 0; i--) {
+            const k = localStorage.key(i) || '';
+            if (k.startsWith('warmth_last_outbox_') || (roomCode && k.includes(roomCode) && k.includes('outbox'))) {
+              localStorage.removeItem(k);
+            }
+          }
         } catch { }
 
-        setTitle('');
-        setContent('');
-        setDiaryDate(getTodayDateString());
-        setSelectedPhoto(null);
-        setUploadedPhotoInfo(null);
-        setPhotoError('');
-        setCustomPrompt('');
-        setCustomQuizAnswer('');
-        setCustomQuizHint('');
+        resetForm();
+        setHasDraftNotice(false);
+        setLastSavedDraftTime(null);
 
         onClose();
       }
@@ -501,7 +573,7 @@ export default function WriteDiaryModal({
           >
             {/* 닫기 버튼 */}
             <button
-              onClick={onClose}
+              onClick={handleCloseModal}
               className="absolute top-3 right-3 sm:top-4 sm:right-4 p-2 text-stone-400 hover:text-stone-700 rounded-full hover:bg-stone-100 transition-colors z-10 min-h-[40px] min-w-[40px] flex items-center justify-center"
             >
               <X className="w-5 h-5" />
@@ -1077,7 +1149,7 @@ export default function WriteDiaryModal({
                     </>
                   )}
                 </button>
-                {lastSavedDraftTime && (
+                {lastSavedDraftTime && (title.trim() || content.trim()) && (
                   <div className="text-center text-[11px] text-stone-400 font-sans-ui flex items-center justify-center gap-1">
                     <Save className="w-3 h-3 text-stone-400" />
                     <span>{language === 'en' ? `Draft safely saved at ${lastSavedDraftTime}` : `작성 중인 내용이 ${lastSavedDraftTime}에 안전하게 임시 저장되었습니다`}</span>
