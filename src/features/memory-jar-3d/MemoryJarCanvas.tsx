@@ -536,10 +536,11 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
           </div>
         )}
 
-        {/* 선택된 왁스 조각 프리뷰 팝업 창 (일기 날짜/사진/제목 및 탭 시 일기 열기) */}
+        {/* 선택된 왁스 조각 프리뷰 팝업 창 (애니메이션, 날짜 단독 중앙 정렬, 일기 연결) */}
         {selectedPiece && (
           <div
-            className="absolute inset-0 z-30 flex items-center justify-center p-4 bg-stone-950/45 backdrop-blur-sm transition-all"
+            className="absolute inset-0 z-30 flex items-center justify-center p-4 bg-stone-950/50 backdrop-blur-sm transition-all"
+            style={{ animation: 'previewBackdropFade 0.22s ease-out forwards' }}
             onPointerDown={(e) => e.stopPropagation()}
             onPointerMove={(e) => e.stopPropagation()}
             onPointerUp={(e) => e.stopPropagation()}
@@ -548,10 +549,23 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
               setSelectedPiece(null);
             }}
           >
+            <style>{`
+              @keyframes previewBackdropFade {
+                from { opacity: 0; }
+                to { opacity: 1; }
+              }
+              @keyframes previewModalPop {
+                from { opacity: 0; transform: scale(0.9) translateY(14px); }
+                to { opacity: 1; transform: scale(1) translateY(0); }
+              }
+            `}</style>
             <div
-              className={`w-full max-w-xs p-5 bg-[#FFFDF9] rounded-2xl shadow-2xl border border-[#E8DFC8] text-stone-800 space-y-3.5 transform transition-all scale-100 paper-texture ${
+              className={`w-full max-w-xs p-5 bg-[#FFFDF9] rounded-2xl shadow-2xl border border-[#E8DFC8] text-stone-800 space-y-3.5 transform transition-all paper-texture ${
                 onOpenDiaryPiece ? 'cursor-pointer hover:border-[#6B1724]/40 hover:shadow-3xl' : ''
               }`}
+              style={{
+                animation: 'previewModalPop 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+              }}
               onPointerDown={(e) => e.stopPropagation()}
               onPointerMove={(e) => e.stopPropagation()}
               onPointerUp={(e) => e.stopPropagation()}
@@ -564,18 +578,11 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
                 }
               }}
             >
-              {/* 상단: 왁스 색상 인장 뱃지 & 날짜 */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="w-4 h-4 rounded-full shadow-inner border border-black/10"
-                    style={{ backgroundColor: selectedPiece.color }}
-                  />
-                  <span className="text-xs font-semibold text-stone-500 font-serif-warm">
-                    {selectedPiece.label} (실링 왁스)
-                  </span>
-                </div>
-                <span className="text-[11px] text-stone-400 font-mono">{selectedPiece.date}</span>
+              {/* 상단: 날짜만 단독 중앙 정렬 (왁스 색상 텍스트 표시 제거) */}
+              <div className="flex items-center justify-center pb-0.5 border-b border-[#F0E8D8]">
+                <span className="text-xs font-serif-warm tracking-widest text-stone-500 font-medium">
+                  {selectedPiece.date}
+                </span>
               </div>
 
               {/* 사진 썸네일 (일기에 사진이 등록되어 있을 때 표시) */}
@@ -759,10 +766,10 @@ const Jar2DFallbackView: React.FC<Jar2DFallbackViewProps> = ({
         <div className="w-52 h-4 rounded-full bg-black/50 blur-md mt-1" />
       </div>
 
-      {/* 앤틱 원목 책상 상판 (2.5D 데스크 베이스) */}
-      <div className="relative w-full max-w-sm h-7 -mt-2 rounded-t-xl bg-gradient-to-r from-[#3A2012] via-[#4A2C1C] to-[#361D10] border-t-2 border-[#6E442B] shadow-2xl flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-x-0 top-0 h-[1px] bg-[#D7A573]/30" />
-        <div className="text-[10px] text-[#A67C52]/50 font-serif-warm tracking-wider select-none">
+      {/* 앤틱 원목 책상 상판 (2.5D 다크 데스크 베이스) */}
+      <div className="relative w-full max-w-sm h-7 -mt-2 rounded-t-xl bg-gradient-to-r from-[#1C0D05] via-[#261308] to-[#170B04] border-t-2 border-[#4A2612] shadow-2xl flex items-center justify-center overflow-hidden">
+        <div className="absolute inset-x-0 top-0 h-[1px] bg-[#D7A573]/20" />
+        <div className="text-[10px] text-[#A67C52]/40 font-serif-warm tracking-wider select-none">
           antique wooden desk
         </div>
       </div>

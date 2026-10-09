@@ -41,12 +41,63 @@ export class JarPhysicsEngine {
         mesh,
         velocity: new THREE.Vector3(0, 0, 0),
         angularVelocity: new THREE.Vector3(0, 0, 0),
-        radius: 0.38 * size,
-        height: 0.16 * size,
+        radius: 0.48 * size, // 실링 왁스 코인 실제 반경(0.55)에 맞추어 충돌 반경 현실화
+        height: 0.18 * size,
         isResting: true,
         restTimer: 0,
       };
     });
+
+    // 초기 배치 시 혹시라도 발생할 수 있는 모델링 겹침을 즉각적으로 완화 및 분리 (Relaxation Passes)
+    this.resolveInitialOverlaps(30);
+  }
+
+  /**
+   * 초기 겹침 원천 제거 루프 (Relaxation)
+   */
+  private resolveInitialOverlaps(iterations: number = 25): void {
+    for (let iter = 0; iter < iterations; iter++) {
+      for (let i = 0; i < this.bodies.length; i++) {
+        const b1 = this.bodies[i];
+
+        // 바닥 및 벽면 경계 보정
+        const floorLimit = this.floorY + b1.height * 0.6;
+        if (b1.mesh.position.y < floorLimit) {
+          b1.mesh.position.y = floorLimit;
+        }
+        const distXZ = Math.hypot(b1.mesh.position.x, b1.mesh.position.z);
+        const maxR = this.innerRadius - b1.radius;
+        if (distXZ > maxR && distXZ > 0.0001) {
+          b1.mesh.position.x = (b1.mesh.position.x / distXZ) * maxR;
+          b1.mesh.position.z = (b1.mesh.position.z / distXZ) * maxR;
+        }
+
+        for (let j = i + 1; j < this.bodies.length; j++) {
+          const b2 = this.bodies[j];
+          const dx = b2.mesh.position.x - b1.mesh.position.x;
+          const dy = b2.mesh.position.y - b1.mesh.position.y;
+          const dz = b2.mesh.position.z - b1.mesh.position.z;
+          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+          const minDist = (b1.radius + b2.radius) * 1.02;
+
+          if (dist < minDist && dist > 0.0001) {
+            const overlap = minDist - dist;
+            const nx = dx / dist;
+            const ny = dy / dist;
+            const nz = dz / dist;
+            const push = overlap * 0.5;
+
+            b1.mesh.position.x -= nx * push;
+            b1.mesh.position.y -= ny * push * 0.9;
+            b1.mesh.position.z -= nz * push;
+
+            b2.mesh.position.x += nx * push;
+            b2.mesh.position.y += ny * push * 0.9;
+            b2.mesh.position.z += nz * push;
+          }
+        }
+      }
+    }
   }
 
   /**
@@ -196,44 +247,52 @@ export class JarPhysicsEngine {
       for (let j = i + 1; j < this.bodies.length; j++) {
         const b1 = this.bodies[i];
         const b2 = this.bodies[j];
-        if (b1.isResting && b2.isResting) continue; // 둘 다 정지 중이면 불필요한 떨림 방지
 
         const dx = b2.mesh.position.x - b1.mesh.position.x;
         const dy = b2.mesh.position.y - b1.mesh.position.y;
         const dz = b2.mesh.position.z - b1.mesh.position.z;
         const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        const minDist = (b1.radius + b2.radius) * 0.82;
+        const minDist = (b1.radius + b2.radius) * 1.04;
 
-        if (dist < minDist && dist > 0.001) {
+        if (dist < minDist && dist > 0.0001) {
           const overlap = minDist - dist;
           const nx = dx / dist;
           const ny = dy / dist;
           const nz = dz / dist;
 
-          // 부드러운 위치 분리 (순간 이동 대신 점진적 이완)
-          const push = overlap * 0.3;
+          // 겹침이 감지되면 즉시 부드럽고 확실하게 상호 분리
+          const push = overlap * 0.45;
           b1.mesh.position.x -= nx * push;
-          b1.mesh.position.y -= ny * push * 0.8;
+          b1.mesh.position.y -= ny * push * 0.95;
           b1.mesh.position.z -= nz * push;
 
           b2.mesh.position.x += nx * push;
-          b2.mesh.position.y += ny * push * 0.8;
+          b2.mesh.position.y += ny * push * 0.95;
           b2.mesh.position.z += nz * push;
 
-          // 충돌 속도 교환
-          const relVel =
-            (b1.velocity.x - b2.velocity.x) * nx +
-            (b1.velocity.y - b2.velocity.y) * ny +
-            (b1.velocity.z - b2.velocity.z) * nz;
+          // 겹쳐 있다면 정지 타이머 리셋하여 확실히 분리 완료 후 정지
+          if (overlap > 0.04) {
+            b1.isResting = false;
+            b2.isResting = false;
+            anyActive = true;
+          }
 
-          if (relVel > 0) {
-            const impulse = relVel * 0.28;
-            b1.velocity.x -= impulse * nx;
-            b1.velocity.y -= impulse * ny;
-            b1.velocity.z -= impulse * nz;
-            b2.velocity.x += impulse * nx;
-            b2.velocity.y += impulse * ny;
-            b2.velocity.z += impulse * nz;
+          // 충돌 속도 교환 (활동 중일 때만)
+          if (!b1.isResting || !b2.isResting) {
+            const relVel =
+              (b1.velocity.x - b2.velocity.x) * nx +
+              (b1.velocity.y - b2.velocity.y) * ny +
+              (b1.velocity.z - b2.velocity.z) * nz;
+
+            if (relVel > 0) {
+              const impulse = relVel * 0.32;
+              b1.velocity.x -= impulse * nx;
+              b1.velocity.y -= impulse * ny;
+              b1.velocity.z -= impulse * nz;
+              b2.velocity.x += impulse * nx;
+              b2.velocity.y += impulse * ny;
+              b2.velocity.z += impulse * nz;
+            }
           }
         }
       }

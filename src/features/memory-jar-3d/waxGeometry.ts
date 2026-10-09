@@ -89,24 +89,28 @@ export function createWaxPiecesGroup(pieces: WaxPieceData[]): {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
 
-    // 자연스러운 바닥 적재(Settling) 좌표 계산
-    // 나선형(Spiral) + 약간의 난수로 병 바닥부터 층층이 채움
-    const angle = index * 2.39996; // 황금각 (Golden Angle)
-    const layer = Math.floor(index / 4); // 4개당 1층
-    const layerSubIndex = index % 4;
-    const distance = (0.2 + (layerSubIndex / 4) * 0.85) * innerRadius;
+    // 자연스러운 바닥 적재(Settling) 좌표 계산 (겹침 원천 방지)
+    // 3개 단위로 층을 나누고, 원주상 120도 균등 배치 + 층간 회전 오프셋
+    const piecesPerLayer = 3;
+    const layer = Math.floor(index / piecesPerLayer);
+    const subIndex = index % piecesPerLayer;
+
+    // 각 층에서 120도 고른 각도 + 층별 42도 엇갈림 오프셋
+    const angle = subIndex * ((Math.PI * 2) / piecesPerLayer) + (layer * 0.73) + (index * 0.05);
+    // 중앙 쏠림을 방지하고 병 내벽과 안전 간격을 유지하는 적정 반경
+    const distance = 0.56 * innerRadius;
 
     const x = Math.cos(angle) * distance;
     const z = Math.sin(angle) * distance;
-    const y = baseHeight + layer * 0.38 + (Math.random() * 0.08 - 0.04);
+    const y = baseHeight + layer * 0.34;
 
     mesh.position.set(x, y, z);
 
-    // 자연스럽게 비스듬히 누운 회전각
+    // 단정하고 안정적인 비스듬한 눕힘 각도
     mesh.rotation.set(
-      (Math.PI / 2) + (Math.random() * 0.5 - 0.25),
-      Math.random() * Math.PI * 2,
-      Math.random() * 0.6 - 0.3
+      (Math.PI / 2) + ((index % 3) * 0.08 - 0.08),
+      angle + 0.3,
+      ((index % 2) === 0 ? 0.12 : -0.12)
     );
 
     // 인터랙션 메타데이터 직접 바인딩 (시각적 코인 지오메트리에 1:1 정확한 레이캐스팅)
