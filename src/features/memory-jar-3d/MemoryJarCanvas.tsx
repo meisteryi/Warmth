@@ -17,7 +17,7 @@ import { JarPhysicsEngine } from './waxPhysics';
 import { soundEngine } from '@/lib/audio';
 
 export interface MemoryJarCanvasHandle {
-  shake: () => void;
+  shake: () => boolean;
 }
 
 export interface MemoryJarCanvasProps {
@@ -126,11 +126,9 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
     const sceneManagerRef = useRef<SunlightSceneManager | null>(null);
     const jarGroupRef = useRef<THREE.Group | null>(null);
 
-    // 병 회전 인터랙션 상태 (관성 & 매끄러운 손끝 반응)
+    // 병 회전 인터랙션 상태 (관성 & 매끄러운 수평 손끝 반응: 횡방향만 허용)
     const rotationYRef = useRef<number>(0);
     const targetRotationYRef = useRef<number>(0);
-    const rotationXRef = useRef<number>(0);
-    const targetRotationXRef = useRef<number>(0);
 
     const isDraggingRef = useRef<boolean>(false);
     const lastPointerXRef = useRef<number>(0);
@@ -138,14 +136,26 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
     const pointerDownPosRef = useRef<{ x: number; y: number; time: number }>({ x: 0, y: 0, time: 0 });
     const dragInertiaRef = useRef<number>(0);
 
-    // 외부 명령(흔들기) 노출
-    const handleTriggerShake = useCallback(() => {
+    // 흔들기 속도 제한 (1초에 최대 3회로 제한하여 과도한 연타 시 프레임 드랍 방지)
+    const shakeTimestampsRef = useRef<number[]>([]);
+
+    // 외부 명령(흔들기) 노출 (1초 3회 제한 반환)
+    const handleTriggerShake = useCallback((): boolean => {
+      const now = performance.now();
+      // 최근 1000ms 윈도우 유지
+      shakeTimestampsRef.current = shakeTimestampsRef.current.filter((t) => now - t < 1000);
+      if (shakeTimestampsRef.current.length >= 3) {
+        return false; // 1초에 3회 초과 차단
+      }
+      shakeTimestampsRef.current.push(now);
+
       if (physicsEngineRef.current) {
         physicsEngineRef.current.triggerShake(1.0);
         try {
           soundEngine.playTileSlideSound();
         } catch {}
       }
+      return true;
     }, []);
 
     useImperativeHandle(ref, () => ({
@@ -270,12 +280,12 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
             dragInertiaRef.current *= 0.93; // 93%로 부드럽게 지수 감속
           }
 
-          // 손끝과 즉각적으로 일체화되는 부드러운 회전 보간 (지연 없는 0.22 계수)
+          // 손끝과 즉각적으로 일체화되는 부드러운 회전 보간 (횡방향 Y축만 회전)
           rotationYRef.current += (targetRotationYRef.current - rotationYRef.current) * 0.22;
-          rotationXRef.current += (targetRotationXRef.current - rotationXRef.current) * 0.22;
 
           jarGroup.rotation.y = rotationYRef.current;
-          jarGroup.rotation.x = Math.max(-0.15, Math.min(0.2, rotationXRef.current));
+          jarGroup.rotation.x = 0; // 하이앵글 시점에서 위아래 회전 완전 고정 (왁스 돌출 방지)
+          jarGroup.rotation.z = 0;
 
           if (sceneManager) {
             sceneManager.update(currentTime);
@@ -299,13 +309,11 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
         resizeObserver = new ResizeObserver(handleResize);
         resizeObserver.observe(container);
 
-        // 자이로스코프 기울기 연동 (명시적으로 켜져 있을 때만)
+        // 자이로스코프 기울기 연동 (명시적으로 켜져 있을 때만 수평 회전)
         const handleDeviceOrientation = (event: DeviceOrientationEvent) => {
           if (!optionsRef.current.enableGyroscope || isDraggingRef.current) return;
           const gamma = event.gamma ?? 0;
-          const beta = event.beta ?? 0;
           targetRotationYRef.current += gamma * 0.0004;
-          targetRotationXRef.current = (beta - 45) * 0.003;
         };
 
         if (window.DeviceOrientationEvent && optionsRef.current.enableGyroscope) {
@@ -345,18 +353,17 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
     };
 
-    // 마우스/터치 이동 (손끝과 오차 없이 100% 일체화되는 매끄러운 3D 회전 추종)
+    // 마우스/터치 이동 (횡방향 수평 회전만 100% 매끄럽게 추종)
     const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
       if (selectedPiece) return;
       if (isDraggingRef.current) {
         const dx = e.clientX - lastPointerXRef.current;
-        const dy = e.clientY - lastPointerYRef.current;
         lastPointerXRef.current = e.clientX;
         lastPointerYRef.current = e.clientY;
 
         const sensitivity = 0.0075;
         targetRotationYRef.current += dx * sensitivity;
-        targetRotationXRef.current += dy * (sensitivity * 0.35);
+        // 위아래 회전(dy)은 완전히 배제하여 왁스가 바닥 밑으로 삐져나오지 않도록 차단
 
         // 손을 뗐을 때 자연스럽게 이어질 회전 관성 속도 보존
         dragInertiaRef.current = dx * sensitivity * 0.75;
@@ -495,11 +502,11 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
         {/* 상단 우측 햇살 조명 인디케이터 배지 */}
         {showSunlightBadge && (
           <div className="absolute top-4 right-4 pointer-events-none flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50/80 backdrop-blur-md border border-amber-200/60 shadow-sm text-xs text-amber-900 font-medium">
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+            <span className="w-2 h-2 rounded-full bg-amber-600" />
             <span>
               {webglUnavailable
-                ? '따스한 오후 햇살 (2.5D 호환 모드)'
-                : '따스한 오후 햇살 (Top-Right 3D)'}
+                ? '앤틱 책상 (2.5D 호환 모드)'
+                : '앤틱 책상 위의 온기 병'}
             </span>
           </div>
         )}
@@ -525,7 +532,7 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
         {/* 조작 힌트 */}
         {showHint && (
           <div className="absolute bottom-4 inset-x-0 mx-auto w-fit pointer-events-none px-4 py-1.5 rounded-full bg-stone-900/50 backdrop-blur-md border border-white/20 text-white/90 text-xs tracking-tight shadow-md transition-opacity duration-300">
-            👆 병을 360° 돌리고, 원하는 왁스 조각을 눌러보세요
+            👆 병을 좌우로 돌리고, 원하는 왁스 조각을 눌러보세요
           </div>
         )}
 
@@ -686,29 +693,11 @@ const Jar2DFallbackView: React.FC<Jar2DFallbackViewProps> = ({
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center overflow-hidden p-6">
-      {/* 우측 상단 햇빛 광원 그러데이션 */}
-      <div className="absolute -top-12 -right-12 w-80 h-80 rounded-full bg-gradient-to-br from-amber-200/35 via-amber-400/15 to-transparent blur-3xl pointer-events-none" />
-
-      {/* 햇살 속 부유하는 반짝이는 먼지 파티클 */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {[...Array(16)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute rounded-full bg-amber-200/70 blur-[0.5px] animate-pulse"
-            style={{
-              width: `${(i % 3) * 2 + 2}px`,
-              height: `${(i % 3) * 2 + 2}px`,
-              top: `${15 + (i * 5) % 65}%`,
-              left: `${20 + (i * 9) % 65}%`,
-              animationDuration: `${2 + (i % 3)}s`,
-              animationDelay: `${i * 0.3}s`,
-            }}
-          />
-        ))}
-      </div>
+      {/* 우측 상단 따스한 오후 햇살 은은한 앰비언트 (파티클 제거) */}
+      <div className="absolute -top-12 -right-12 w-80 h-80 rounded-full bg-gradient-to-br from-amber-200/25 via-amber-400/10 to-transparent blur-3xl pointer-events-none" />
 
       {/* 2.5D 유리병 실루엣 컨테이너 */}
-      <div className="relative w-56 sm:w-64 h-96 flex flex-col items-center justify-end">
+      <div className="relative w-56 sm:w-64 h-96 flex flex-col items-center justify-end z-10">
         {/* 상단 코르크 마개 */}
         <div className="w-20 h-8 bg-gradient-to-b from-[#A07855] via-[#8C6747] to-[#6E4F35] rounded-t-md border border-[#5A402A] shadow-md z-10 relative">
           <div className="absolute inset-x-2 top-1 h-1 rounded-full bg-amber-200/30 blur-[0.5px]" />
@@ -767,7 +756,15 @@ const Jar2DFallbackView: React.FC<Jar2DFallbackViewProps> = ({
         </div>
 
         {/* 바닥 그림자 */}
-        <div className="w-52 h-4 rounded-full bg-black/40 blur-md mt-1" />
+        <div className="w-52 h-4 rounded-full bg-black/50 blur-md mt-1" />
+      </div>
+
+      {/* 앤틱 원목 책상 상판 (2.5D 데스크 베이스) */}
+      <div className="relative w-full max-w-sm h-7 -mt-2 rounded-t-xl bg-gradient-to-r from-[#3A2012] via-[#4A2C1C] to-[#361D10] border-t-2 border-[#6E442B] shadow-2xl flex items-center justify-center overflow-hidden">
+        <div className="absolute inset-x-0 top-0 h-[1px] bg-[#D7A573]/30" />
+        <div className="text-[10px] text-[#A67C52]/50 font-serif-warm tracking-wider select-none">
+          antique wooden desk
+        </div>
       </div>
 
       {/* WebGL 하드웨어 가속 설정 안내 카드 */}

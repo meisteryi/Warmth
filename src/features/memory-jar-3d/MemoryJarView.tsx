@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Sparkles, BookOpen } from 'lucide-react';
+import { ArrowLeft, Shuffle, BookOpen } from 'lucide-react';
 import { DiaryData, WAX_COLORS } from '@/types/diary';
 import { getRoomDiariesFromFirestore, getCachedRoomDiaries } from '@/lib/roomService';
 import { WaxPieceData } from './types';
@@ -47,6 +47,36 @@ export default function MemoryJarView({
     return [];
   });
   const [isLoading, setIsLoading] = useState<boolean>(diaries.length === 0);
+
+  // 병 흔들기 속도 제한 (1초에 3회 이상 연타 차단 -> 프레임 드랍 방지)
+  const shakeTimestampsRef = useRef<number[]>([]);
+  const [isThrottled, setIsThrottled] = useState(false);
+  const [cooldownToast, setCooldownToast] = useState(false);
+
+  const handleShakeClick = () => {
+    const now = performance.now();
+    // 최근 1000ms 이내의 클릭 기록만 유지
+    shakeTimestampsRef.current = shakeTimestampsRef.current.filter((t) => now - t < 1000);
+
+    if (shakeTimestampsRef.current.length >= 3) {
+      setIsThrottled(true);
+      setCooldownToast(true);
+      setTimeout(() => setCooldownToast(false), 900);
+      return;
+    }
+
+    const ok = jarCanvasRef.current?.shake();
+    if (ok !== false) {
+      shakeTimestampsRef.current.push(now);
+    }
+
+    if (shakeTimestampsRef.current.length >= 3) {
+      setIsThrottled(true);
+      setTimeout(() => {
+        setIsThrottled(false);
+      }, 1000);
+    }
+  };
 
   // Firestore에서 현재 방의 모든 일기 로드
   useEffect(() => {
@@ -114,18 +144,18 @@ export default function MemoryJarView({
     });
   }, [diaries]);
 
-  // 메모이제이션된 렌더 옵션 (불필요한 리렌더링 및 센서 간섭 차단)
+  // 메모이제이션된 렌더 옵션 (불필요한 리렌더링 및 센서 간섭 차단, 파티클 제거)
   const jarRenderOptions = React.useMemo(
     () => ({
       autoRotate: false, // 손으로만 회전
-      enableSunlightParticles: true,
+      enableSunlightParticles: false, // 반짝이 파티클 제거
       enableGyroscope: false, // 센서 노이즈로 인한 덜덜 떨림 방지
     }),
     []
   );
 
   return (
-    <div className="relative w-full h-[calc(100dvh-4.25rem)] sm:h-[calc(100vh-4.5rem)] flex flex-col items-center justify-center overflow-hidden bg-[#FBF9F5] select-none">
+    <div className="relative w-full h-[calc(100dvh-4.25rem)] sm:h-[calc(100vh-4.5rem)] flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-[#F8F5EE] via-[#F3EDE2] to-[#EBE2D4] select-none">
       {/* 종이 결 감성 오버레이 */}
       <div className="absolute inset-0 pointer-events-none paper-texture opacity-60 z-0" />
 
@@ -141,7 +171,7 @@ export default function MemoryJarView({
         </button>
       </div>
 
-      {/* 중앙 메인: 3D 온기 유리병 캔버스 (자동 회전 OFF, 손으로만 360° 회전) */}
+      {/* 중앙 메인: 3D 온기 유리병 캔버스 (자동 회전 OFF, 손으로만 횡방향 회전) */}
       <div className="relative w-full max-w-xl h-full flex items-center justify-center z-10">
         {isLoading && waxPieces.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 text-stone-500">
@@ -194,16 +224,26 @@ export default function MemoryJarView({
         )}
       </div>
 
-      {/* 하단: 병 흔들기 액션 버튼 */}
+      {/* 하단: 병 흔들기 액션 버튼 및 쿨다운 알림 */}
       {waxPieces.length > 0 && (
-        <div className="absolute bottom-6 inset-x-0 mx-auto w-fit z-20">
+        <div className="absolute bottom-6 inset-x-0 mx-auto w-fit z-20 flex flex-col items-center gap-2">
+          {cooldownToast && (
+            <div className="animate-fade-in px-3 py-1 rounded-full bg-stone-900/80 backdrop-blur-md text-[11px] text-amber-200 font-sans-ui shadow-lg">
+              잠시 후 다시 흔들어주세요 (1초에 최대 3회)
+            </div>
+          )}
           <button
             type="button"
-            onClick={() => jarCanvasRef.current?.shake()}
-            className="px-5 py-2.5 rounded-full bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-xs font-serif-warm font-bold shadow-lg shadow-[#6B1724]/20 flex items-center gap-2 active:scale-95 transition-all cursor-pointer border border-[#831D2D]"
-            title="병을 흔들어 묻혀 있는 왁스들을 물리 엔진으로 섞습니다"
+            onClick={handleShakeClick}
+            disabled={isThrottled}
+            className={`px-5 py-2.5 rounded-full text-xs font-serif-warm font-bold shadow-lg flex items-center gap-2 transition-all cursor-pointer border ${
+              isThrottled
+                ? 'bg-[#5C1A24]/70 text-amber-200/60 border-[#5C1A24] cursor-not-allowed scale-95'
+                : 'bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 shadow-[#6B1724]/20 border-[#831D2D] active:scale-95'
+            }`}
+            title="병을 흔들어 묻혀 있는 왁스들을 물리 엔진으로 섞습니다 (1초당 최대 3회)"
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <Shuffle className="w-3.5 h-3.5 text-amber-300" />
             <span>병 흔들기 (왁스 섞기)</span>
           </button>
         </div>
