@@ -26,8 +26,8 @@ export class JarPhysicsEngine {
   // 유리병 내부 치수
   private readonly innerRadius = 1.35;
   private readonly floorY = 0.32;
-  private readonly ceilingY = 3.9;
-  private readonly gravity = -18.0;
+  private readonly ceilingY = 4.25;
+  private readonly gravity = -22.0;
   private simTime: number = 0;
 
   constructor(waxMeshes: THREE.Mesh[]) {
@@ -101,18 +101,18 @@ export class JarPhysicsEngine {
   }
 
   /**
-   * 병 흔들기 임펄스 발동!
-   * 모든 왁스 조각을 공중으로 자연스럽게 솟구치게 하고 병 자체의 탄성 흔들림을 트리거합니다.
+   * 병 흔들기 임펄스 발동! (3배 더 드라마틱하게 솟구침)
+   * 왁스 조각들이 병 꼭대기까지 높이 솟구쳐 텀블링하며 다이내믹하게 섞입니다.
    */
   public triggerShake(intensity: number = 1.0): void {
     this.isSimulating = true;
-    this.shakeTimer = 0.85;
+    this.shakeTimer = 1.15; // 흔들림 시간 연장
 
     this.bodies.forEach((body) => {
-      // 위쪽 솟구치는 힘 + 부드러운 수평 분산력
-      const upwardForce = (3.2 + Math.random() * 3.8) * intensity;
+      // 기존 대비 3배 강력한 수직 상승력 (9.5 ~ 19.5)
+      const upwardForce = (9.5 + Math.random() * 10.5) * intensity;
       const angle = Math.random() * Math.PI * 2;
-      const horizontalSpeed = (0.8 + Math.random() * 2.2) * intensity;
+      const horizontalSpeed = (1.5 + Math.random() * 3.5) * intensity;
 
       body.velocity.set(
         Math.cos(angle) * horizontalSpeed,
@@ -120,11 +120,11 @@ export class JarPhysicsEngine {
         Math.sin(angle) * horizontalSpeed
       );
 
-      // 자연스러운 텀블링 회전 토크
+      // 다이내믹한 텀블링 3D 회전 토크
       body.angularVelocity.set(
-        (Math.random() - 0.5) * 10 * intensity,
-        (Math.random() - 0.5) * 8 * intensity,
-        (Math.random() - 0.5) * 10 * intensity
+        (Math.random() - 0.5) * 26 * intensity,
+        (Math.random() - 0.5) * 20 * intensity,
+        (Math.random() - 0.5) * 26 * intensity
       );
 
       body.isResting = false;
@@ -213,11 +213,11 @@ export class JarPhysicsEngine {
         }
       }
 
-      // 상단 병목 천장 충돌
+      // 상단 병목 천장 충돌 (경쾌한 아래쪽 반발)
       if (b.mesh.position.y > this.ceilingY) {
         b.mesh.position.y = this.ceilingY;
         if (b.velocity.y > 0) {
-          b.velocity.y = -b.velocity.y * 0.25;
+          b.velocity.y = -b.velocity.y * 0.4;
         }
       }
 

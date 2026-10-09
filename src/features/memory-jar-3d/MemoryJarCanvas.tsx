@@ -136,18 +136,16 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
     const pointerDownPosRef = useRef<{ x: number; y: number; time: number }>({ x: 0, y: 0, time: 0 });
     const dragInertiaRef = useRef<number>(0);
 
-    // 흔들기 속도 제한 (1초에 최대 3회로 제한하여 과도한 연타 시 프레임 드랍 방지)
-    const shakeTimestampsRef = useRef<number[]>([]);
+    // 흔들기 속도 제한 (1초에 1번으로 제한하여 과도한 연타 방지 및 안정적 물리 연산 유지)
+    const lastShakeTimeRef = useRef<number>(0);
 
-    // 외부 명령(흔들기) 노출 (1초 3회 제한 반환)
+    // 외부 명령(흔들기) 노출 (1초 1회 쿨다운 반환)
     const handleTriggerShake = useCallback((): boolean => {
       const now = performance.now();
-      // 최근 1000ms 윈도우 유지
-      shakeTimestampsRef.current = shakeTimestampsRef.current.filter((t) => now - t < 1000);
-      if (shakeTimestampsRef.current.length >= 3) {
-        return false; // 1초에 3회 초과 차단
+      if (now - lastShakeTimeRef.current < 1000) {
+        return false; // 1초 내 중복 실행 차단
       }
-      shakeTimestampsRef.current.push(now);
+      lastShakeTimeRef.current = now;
 
       if (physicsEngineRef.current) {
         physicsEngineRef.current.triggerShake(1.0);

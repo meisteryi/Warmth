@@ -48,29 +48,22 @@ export default function MemoryJarView({
   });
   const [isLoading, setIsLoading] = useState<boolean>(diaries.length === 0);
 
-  // 병 흔들기 속도 제한 (1초에 3회 이상 연타 차단 -> 프레임 드랍 방지)
-  const shakeTimestampsRef = useRef<number[]>([]);
+  // 병 흔들기 속도 제한 (1초에 1번만 가능하도록 쿨다운 적용)
+  const lastShakeTimeRef = useRef<number>(0);
   const [isThrottled, setIsThrottled] = useState(false);
   const [cooldownToast, setCooldownToast] = useState(false);
 
   const handleShakeClick = () => {
     const now = performance.now();
-    // 최근 1000ms 이내의 클릭 기록만 유지
-    shakeTimestampsRef.current = shakeTimestampsRef.current.filter((t) => now - t < 1000);
-
-    if (shakeTimestampsRef.current.length >= 3) {
-      setIsThrottled(true);
+    if (now - lastShakeTimeRef.current < 1000) {
       setCooldownToast(true);
-      setTimeout(() => setCooldownToast(false), 900);
+      setTimeout(() => setCooldownToast(false), 800);
       return;
     }
 
     const ok = jarCanvasRef.current?.shake();
     if (ok !== false) {
-      shakeTimestampsRef.current.push(now);
-    }
-
-    if (shakeTimestampsRef.current.length >= 3) {
+      lastShakeTimeRef.current = now;
       setIsThrottled(true);
       setTimeout(() => {
         setIsThrottled(false);
@@ -229,7 +222,7 @@ export default function MemoryJarView({
         <div className="absolute bottom-6 inset-x-0 mx-auto w-fit z-20 flex flex-col items-center gap-2">
           {cooldownToast && (
             <div className="animate-fade-in px-3 py-1 rounded-full bg-stone-900/80 backdrop-blur-md text-[11px] text-amber-200 font-sans-ui shadow-lg">
-              잠시 후 다시 흔들어주세요 (1초에 최대 3회)
+              잠시 후 다시 흔들어주세요 (1초에 1번)
             </div>
           )}
           <button
@@ -241,7 +234,7 @@ export default function MemoryJarView({
                 ? 'bg-[#5C1A24]/70 text-amber-200/60 border-[#5C1A24] cursor-not-allowed scale-95'
                 : 'bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 shadow-[#6B1724]/20 border-[#831D2D] active:scale-95'
             }`}
-            title="병을 흔들어 묻혀 있는 왁스들을 물리 엔진으로 섞습니다 (1초당 최대 3회)"
+            title="병을 흔들어 묻혀 있는 왁스들을 물리 엔진으로 섞습니다 (1초에 1번)"
           >
             <Shuffle className="w-3.5 h-3.5 text-amber-300" />
             <span>병 흔들기 (왁스 섞기)</span>
