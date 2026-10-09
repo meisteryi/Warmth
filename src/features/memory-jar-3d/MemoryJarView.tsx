@@ -368,7 +368,7 @@ export default function MemoryJarView({
         )}
       </div>
 
-      {/* 하단: 월별 온기 병 네비게이션 & 병 흔들기 액션 컨트롤 (완벽히 동일한 버건디 캡슐 레이아웃) */}
+      {/* 하단: 월별 온기 병 네비게이션 & 병 흔들기 액션 컨트롤 */}
       {monthJars.length > 0 && currentJar && (
         <div className="absolute bottom-6 inset-x-0 mx-auto w-fit z-20 flex flex-col items-center gap-2.5">
           {cooldownToast && (
@@ -377,9 +377,9 @@ export default function MemoryJarView({
             </div>
           )}
 
-          {/* 1. 월별 병 선택 네비게이션 (병 흔들기 버튼과 동일한 버건디 색상, 테두리, 텍스트) */}
-          <div className="relative flex items-center justify-between gap-2 px-3 py-2 rounded-full bg-[#6B1724] border border-[#831D2D] shadow-lg shadow-[#6B1724]/20 text-amber-50 text-xs font-serif-warm font-bold min-w-[220px]">
-            {/* 연도와 월 선택 팝오버 (중앙 버튼 클릭 시 표시) */}
+          {/* 1. 상단 행: [이전 동그란 버튼] [중앙 날짜 타원] [다음 동그란 버튼] */}
+          <div className="relative flex items-center gap-2.5">
+            {/* 연도와 월 선택 팝오버 (중앙 타원 클릭 시 표시) */}
             {isPickerOpen && (
               <div
                 ref={pickerRef}
@@ -418,7 +418,7 @@ export default function MemoryJarView({
                           )}
                         </div>
                         <span className="text-[10.5px] text-amber-200/60 font-sans-ui">
-                          {jar.diaries.length}편의 온기
+                          {jar.diaries.length}편
                         </span>
                       </button>
                     );
@@ -427,14 +427,14 @@ export default function MemoryJarView({
               </div>
             )}
 
-            {/* 이전 달 화살표 */}
+            {/* 이전 달 화살표 동그란 버튼 */}
             <button
               type="button"
               onClick={() => handleNavigateMonth('prev')}
               disabled={selectedMonthIndex <= 0 || isSliding}
-              className={`p-1.5 rounded-full transition-all text-amber-300 hover:text-amber-100 hover:bg-[#831D2D] active:scale-90 ${
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition-all bg-[#6B1724] border border-[#831D2D] shadow-lg shadow-[#6B1724]/20 text-amber-300 hover:text-amber-100 hover:bg-[#831D2D] active:scale-90 ${
                 selectedMonthIndex <= 0 || isSliding
-                  ? 'opacity-25 cursor-not-allowed hover:bg-transparent'
+                  ? 'opacity-25 cursor-not-allowed hover:bg-[#6B1724]'
                   : 'cursor-pointer'
               }`}
               title="이전 달의 온기 병으로 이동"
@@ -442,48 +442,31 @@ export default function MemoryJarView({
               <ChevronLeft className="w-4 h-4" />
             </button>
 
-            {/* 중앙: 연도/월 선택 트리거 버튼 (중앙 탭 시 연도/월 선택기 팝오버 열림) */}
+            {/* 중앙: 날짜만 표시하는 타원형 버튼 (고정 너비 w-40, 높이 h-10) */}
             <button
               type="button"
               onClick={() => setIsPickerOpen((prev) => !prev)}
-              className="flex flex-col items-center px-2 py-0.5 rounded-lg hover:bg-[#831D2D]/70 active:scale-95 transition-all cursor-pointer group"
+              className="h-10 w-40 rounded-full flex items-center justify-center gap-1.5 bg-[#6B1724] border border-[#831D2D] shadow-lg shadow-[#6B1724]/20 text-amber-50 text-xs font-serif-warm font-bold hover:bg-[#831D2D] active:scale-95 transition-all cursor-pointer group"
               title="클릭하여 다른 연도와 월을 선택합니다"
             >
-              <div className="flex items-center gap-1">
-                <span className="tracking-wide text-amber-50 text-xs font-bold group-hover:text-amber-200">
-                  {currentJar.label}
-                </span>
-                <span className="text-[11px] text-amber-200/80 font-normal">의 온기 병</span>
-                <ChevronDown
-                  className={`w-3.5 h-3.5 text-amber-300/80 transition-transform duration-200 ${
-                    isPickerOpen ? 'rotate-180 text-amber-200' : ''
-                  }`}
-                />
-              </div>
-              {monthJars.length > 1 && (
-                <div className="flex items-center gap-1 mt-0.5">
-                  {monthJars.map((jar, idx) => (
-                    <span
-                      key={jar.key}
-                      className={`rounded-full transition-all ${
-                        idx === selectedMonthIndex
-                          ? 'w-3 h-1 bg-amber-300'
-                          : 'w-1 h-1 bg-amber-200/30'
-                      }`}
-                    />
-                  ))}
-                </div>
-              )}
+              <span className="tracking-wide text-amber-50 text-xs font-bold group-hover:text-amber-200">
+                {currentJar.label}
+              </span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-amber-300/80 transition-transform duration-200 ${
+                  isPickerOpen ? 'rotate-180 text-amber-200' : ''
+                }`}
+              />
             </button>
 
-            {/* 다음 달 화살표 */}
+            {/* 다음 달 화살표 동그란 버튼 */}
             <button
               type="button"
               onClick={() => handleNavigateMonth('next')}
               disabled={selectedMonthIndex >= monthJars.length - 1 || isSliding}
-              className={`p-1.5 rounded-full transition-all text-amber-300 hover:text-amber-100 hover:bg-[#831D2D] active:scale-90 ${
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition-all bg-[#6B1724] border border-[#831D2D] shadow-lg shadow-[#6B1724]/20 text-amber-300 hover:text-amber-100 hover:bg-[#831D2D] active:scale-90 ${
                 selectedMonthIndex >= monthJars.length - 1 || isSliding
-                  ? 'opacity-25 cursor-not-allowed hover:bg-transparent'
+                  ? 'opacity-25 cursor-not-allowed hover:bg-[#6B1724]'
                   : 'cursor-pointer'
               }`}
               title="다음 달의 온기 병으로 이동"
@@ -492,16 +475,16 @@ export default function MemoryJarView({
             </button>
           </div>
 
-          {/* 2. 병 흔들기 버튼 */}
+          {/* 2. 하단: 병 흔들기 버튼 (중앙 타원과 완벽히 동일한 h-10 높이, w-[260px]로 상하 일체 정렬) */}
           {waxPieces.length > 0 && (
             <button
               type="button"
               onClick={handleShakeClick}
               disabled={isThrottled || isSliding}
-              className={`px-5 py-2.5 rounded-full text-xs font-serif-warm font-bold shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer border min-w-[220px] ${
+              className={`h-10 w-[260px] rounded-full text-xs font-serif-warm font-bold shadow-lg shadow-[#6B1724]/20 flex items-center justify-center gap-2 transition-all cursor-pointer border ${
                 isThrottled || isSliding
                   ? 'bg-[#5C1A24]/70 text-amber-200/60 border-[#5C1A24] cursor-not-allowed scale-95'
-                  : 'bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 shadow-[#6B1724]/20 border-[#831D2D] active:scale-95'
+                  : 'bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 border-[#831D2D] active:scale-95'
               }`}
               title="병을 흔들어 묻혀 있는 왁스들을 물리 엔진으로 섞습니다 (1초에 1번)"
             >
