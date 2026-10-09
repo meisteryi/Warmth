@@ -57,12 +57,25 @@ export default function MemoryJarView({
       try {
         const list = await getRoomDiariesFromFirestore(roomCode);
         if (isMounted) {
-          setDiaries(list);
+          if (list && list.length > 0) {
+            setDiaries(list);
+          } else {
+            const cached = getCachedRoomDiaries(roomCode);
+            if (cached && cached.length > 0) {
+              setDiaries(cached);
+            } else {
+              setDiaries([]);
+            }
+          }
           setIsLoading(false);
         }
       } catch (err) {
         console.warn('Failed to load diaries for MemoryJarView:', err);
-        if (isMounted) setIsLoading(false);
+        if (isMounted) {
+          const cached = getCachedRoomDiaries(roomCode);
+          if (cached && cached.length > 0) setDiaries(cached);
+          setIsLoading(false);
+        }
       }
     }
 
@@ -75,23 +88,28 @@ export default function MemoryJarView({
   // 일기 목록을 1:1 대응되는 WaxPieceData 배열로 변환
   const waxPieces: WaxPieceData[] = React.useMemo(() => {
     return diaries.map((diary, index) => {
-      const hexColor = diary.waxColor || '#6B1724';
+      const ensuredDiaryId = diary.diaryId || `diary-${index}-${diary.createdAt || Date.now()}`;
+      const safeDiary: DiaryData = {
+        ...diary,
+        diaryId: ensuredDiaryId,
+      };
+      const hexColor = safeDiary.waxColor || '#6B1724';
       const colorOption = WAX_COLORS.find(
         (c) => c.hex.toLowerCase() === hexColor.toLowerCase()
       );
 
       return {
-        id: diary.diaryId || `diary-${index}`,
-        diaryId: diary.diaryId,
+        id: ensuredDiaryId,
+        diaryId: ensuredDiaryId,
         color: hexColor,
         label: colorOption ? colorOption.name : '실링 왁스',
-        title: diary.title || '소중한 온기 편지',
-        date: formatDiaryDate(diary.createdAt),
-        authorName: diary.authorName || '익명',
+        title: safeDiary.title || '소중한 온기 편지',
+        date: formatDiaryDate(safeDiary.createdAt),
+        authorName: safeDiary.authorName || '익명',
         shapeType: 'SEAL_COIN' as const,
         size: 0.95 + ((index % 3) * 0.08), // 미세한 자연스러운 크기 차이
-        photoUrl: diary.photos && diary.photos.length > 0 ? diary.photos[0] : undefined,
-        diary,
+        photoUrl: safeDiary.photos && safeDiary.photos.length > 0 ? safeDiary.photos[0] : undefined,
+        diary: safeDiary,
       };
     });
   }, [diaries]);
@@ -162,8 +180,13 @@ export default function MemoryJarView({
               showSunlightBadge={false}
               showHint={false}
               onOpenDiaryPiece={(piece) => {
-                if (piece.diary) {
-                  onSelectDiary(piece.diary as DiaryData);
+                // piece.diaryId로 diaries 최신 목록에서 직접 1:1 매칭 (불일치 원천 차단)
+                const targetDiary =
+                  diaries.find((d) => d.diaryId && d.diaryId === piece.diaryId) ||
+                  (piece.diary as DiaryData | undefined) ||
+                  diaries.find((d) => d.title === piece.title);
+                if (targetDiary) {
+                  onSelectDiary(targetDiary);
                 }
               }}
             />

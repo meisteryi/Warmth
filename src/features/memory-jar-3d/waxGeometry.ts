@@ -109,25 +109,13 @@ export function createWaxPiecesGroup(pieces: WaxPieceData[]): {
       Math.random() * 0.6 - 0.3
     );
 
-    // 모바일 터치 피킹을 원활하게 돕는 넉넉한 보이지 않는 히트박스 자식 메쉬 추가
-    const hitBoxGeo = new THREE.CylinderGeometry(0.75 * pieceSize, 0.75 * pieceSize, 0.45 * pieceSize, 12);
-    const hitBoxMat = new THREE.MeshBasicMaterial({
-      transparent: true,
-      opacity: 0,
-      depthWrite: false,
-    });
-    const hitBox = new THREE.Mesh(hitBoxGeo, hitBoxMat);
-    hitBox.name = 'WaxHitbox';
-    mesh.add(hitBox);
-
-    // 인터랙션 메타데이터 바인딩
+    // 인터랙션 메타데이터 직접 바인딩 (시각적 코인 지오메트리에 1:1 정확한 레이캐스팅)
     const metadata = {
       ...piece,
       originalPosition: mesh.position.clone(),
       originalRotation: mesh.rotation.clone(),
     };
     mesh.userData = metadata;
-    hitBox.userData = metadata;
 
     waxGroup.add(mesh);
     waxMeshes.push(mesh);

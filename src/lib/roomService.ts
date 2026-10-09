@@ -32,8 +32,34 @@ export function setCachedRoomSalt(roomCode: string, salt: string) {
 // 방별 최근 일기 메모리 캐시 (오프라인 회복력 및 Stale-While-Revalidate 지원)
 const roomDiariesCache = new Map<string, DiaryData[]>();
 
+export function setCachedRoomDiaries(roomCode: string, diaries: DiaryData[]) {
+  if (roomCode && Array.isArray(diaries)) {
+    roomDiariesCache.set(roomCode, diaries);
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem(`warmth_room_diaries_cache_${roomCode}`, JSON.stringify(diaries));
+      } catch {}
+    }
+  }
+}
+
 export function getCachedRoomDiaries(roomCode: string): DiaryData[] | undefined {
-  return roomDiariesCache.get(roomCode);
+  if (roomDiariesCache.has(roomCode)) {
+    return roomDiariesCache.get(roomCode);
+  }
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = sessionStorage.getItem(`warmth_room_diaries_cache_${roomCode}`);
+      if (saved) {
+        const parsed = JSON.parse(saved) as DiaryData[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          roomDiariesCache.set(roomCode, parsed);
+          return parsed;
+        }
+      }
+    } catch {}
+  }
+  return undefined;
 }
 
 export async function getOrFetchRoomSalt(roomCode: string): Promise<string | undefined> {
@@ -623,9 +649,16 @@ export async function getRoomDiariesFromFirestore(
     const list: DiaryData[] = [];
     
     for (const docSnap of snapshot.docs) {
-      const raw = docSnap.data() as DiaryData;
+      const data = docSnap.data() as DiaryData;
+      const raw: DiaryData = {
+        ...data,
+        diaryId: data.diaryId || docSnap.id,
+      };
       const decrypted = await decryptDiaryData(roomCode, raw, roomSalt);
-      const sanitized = sanitizeDiaryReaction(decrypted);
+      const sanitized = sanitizeDiaryReaction({
+        ...decrypted,
+        diaryId: decrypted.diaryId || raw.diaryId || docSnap.id,
+      });
 
       // Firestore에 오염/누출되어 있던 반응이 있다면 백그라운드에서 자가 치유
       if (raw.reaction && !sanitized.reaction) {

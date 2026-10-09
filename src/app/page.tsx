@@ -1264,7 +1264,7 @@ export default function HomePage() {
           {uiState === 'VIEW_OPENED_DIARY' && (
             (selectedArchiveDiary || diary) ? (
               <OpenedLetter
-                key={selectedArchiveDiary ? `view-opened-${selectedArchiveDiary.diaryId}` : (diary ? `view-opened-${diary.diaryId}` : 'view-opened')}
+                key={selectedArchiveDiary ? `view-opened-${selectedArchiveDiary.diaryId || selectedArchiveDiary.createdAt || 'archive'}` : (diary ? `view-opened-${diary.diaryId || diary.createdAt || 'latest'}` : 'view-opened')}
                 diary={selectedArchiveDiary || diary!}
                 onWriteReply={handleOpenWriteModal}
                 onResetView={handleGoHome}

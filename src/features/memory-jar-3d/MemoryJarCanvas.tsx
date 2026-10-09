@@ -174,6 +174,15 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
       } else {
         physicsEngineRef.current = new JarPhysicsEngine(waxMeshes);
       }
+
+      // 현재 프리뷰 팝업이 열려있다면 새로 갱신된 pieces에서 1:1 매칭되는 최신 일기 데이터로 자동 동기화
+      setSelectedPiece((prev) => {
+        if (!prev) return null;
+        const matching = pieces.find(
+          (p) => (p.diaryId && p.diaryId === prev.diaryId) || p.id === prev.id || p.title === prev.title
+        );
+        return matching || prev;
+      });
     }, [pieces]);
 
     // 메인 Three.js 캔버스 렌더러 & 씬 라이프사이클 (마운트 시 단 1회만 초기화)
@@ -326,6 +335,7 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
 
     // 마우스/터치 다운
     const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+      if (selectedPiece) return; // 모달이 떠있을 때는 3D 씬 조작 차단
       isDraggingRef.current = true;
       setIsInteracting(true);
       dragInertiaRef.current = 0; // 터치 시 즉시 이전 회전 관성 멈춤
@@ -337,6 +347,7 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
 
     // 마우스/터치 이동 (손끝과 오차 없이 100% 일체화되는 매끄러운 3D 회전 추종)
     const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+      if (selectedPiece) return;
       if (isDraggingRef.current) {
         const dx = e.clientX - lastPointerXRef.current;
         const dy = e.clientY - lastPointerYRef.current;
@@ -363,23 +374,18 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
 
       const raycaster = new THREE.Raycaster();
       raycaster.setFromCamera(new THREE.Vector2(x, y), sceneManager.camera);
-      const intersects = raycaster.intersectObjects(waxMeshesRef.current, true);
+      const intersects = raycaster.intersectObjects(waxMeshesRef.current, false);
 
       if (intersects.length > 0) {
-        let hit: THREE.Object3D | null = intersects[0].object;
-        while (hit && !(hit.userData && hit.userData.title) && hit.parent) {
-          hit = hit.parent;
-        }
-
+        const hit = intersects[0].object as THREE.Mesh;
         if (hit && hoveredMeshRef.current !== hit) {
-          const meshHit = hit as THREE.Mesh;
           if (hoveredMeshRef.current && (hoveredMeshRef.current.material as THREE.MeshStandardMaterial)?.emissive) {
             (hoveredMeshRef.current.material as THREE.MeshStandardMaterial).emissive.setHex(0x000000);
           }
-          if (meshHit.material && (meshHit.material as THREE.MeshStandardMaterial)?.emissive) {
-            (meshHit.material as THREE.MeshStandardMaterial).emissive.setHex(0x442211);
+          if (hit.material && (hit.material as THREE.MeshStandardMaterial)?.emissive) {
+            (hit.material as THREE.MeshStandardMaterial).emissive.setHex(0x442211);
           }
-          hoveredMeshRef.current = meshHit;
+          hoveredMeshRef.current = hit;
           setIsHoveringWax(true);
         }
       } else {
@@ -395,6 +401,7 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
 
     // 마우스/터치 업 (정확한 1:1 레이캐스팅 선택)
     const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+      if (selectedPiece) return;
       if (!isDraggingRef.current) return;
       isDraggingRef.current = false;
       setIsInteracting(false);
@@ -420,8 +427,9 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
 
     // 정확한 1:1 왁스 조각 레이캐스팅 선택 함수
     const handleRaycastPick = (clientX: number, clientY: number) => {
+      if (selectedPiece) return; // 모달이 열려있으면 중복 피킹 절대 차단
       const now = Date.now();
-      if (now - lastPickTimeRef.current < 200) return;
+      if (now - lastPickTimeRef.current < 250) return;
       lastPickTimeRef.current = now;
 
       const canvas = canvasRef.current;
@@ -435,16 +443,12 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
       const raycaster = new THREE.Raycaster();
       raycaster.setFromCamera(new THREE.Vector2(x, y), sceneManager.camera);
 
-      // 투명 유리는 관통하여 오직 waxMeshesRef(왁스 조각들)만 정확히 검출
-      const intersects = raycaster.intersectObjects(waxMeshesRef.current, true);
+      // 시각적으로 보이는 왁스 코인 메쉬 자체를 정확히 직접 검출
+      const intersects = raycaster.intersectObjects(waxMeshesRef.current, false);
 
       if (intersects.length > 0) {
-        // 가장 앞쪽에서 클릭된 1:1 대응 왁스 조각 (상위 메쉬 탐색)
-        let hitMesh: THREE.Object3D | null = intersects[0].object;
-        while (hitMesh && !(hitMesh.userData && hitMesh.userData.title) && hitMesh.parent) {
-          hitMesh = hitMesh.parent;
-        }
-
+        // 가장 앞쪽에서 클릭된 1:1 대응 왁스 조각
+        const hitMesh = intersects[0].object as THREE.Mesh;
         if (hitMesh && hitMesh.userData && hitMesh.userData.title) {
           const pieceData = hitMesh.userData as WaxPieceData;
           setSelectedPiece(pieceData);
@@ -465,9 +469,6 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        onClick={(e) => {
-          handleRaycastPick(e.clientX, e.clientY);
-        }}
         style={{
           cursor: isInteracting ? 'grabbing' : isHoveringWax ? 'pointer' : 'grab',
         }}
@@ -531,18 +532,28 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
         {/* 선택된 왁스 조각 프리뷰 팝업 창 (일기 날짜/사진/제목 및 탭 시 일기 열기) */}
         {selectedPiece && (
           <div
-            className="absolute inset-0 z-20 flex items-center justify-center p-4 bg-stone-950/45 backdrop-blur-sm transition-all"
-            onClick={() => setSelectedPiece(null)}
+            className="absolute inset-0 z-30 flex items-center justify-center p-4 bg-stone-950/45 backdrop-blur-sm transition-all"
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerMove={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedPiece(null);
+            }}
           >
             <div
               className={`w-full max-w-xs p-5 bg-[#FFFDF9] rounded-2xl shadow-2xl border border-[#E8DFC8] text-stone-800 space-y-3.5 transform transition-all scale-100 paper-texture ${
                 onOpenDiaryPiece ? 'cursor-pointer hover:border-[#6B1724]/40 hover:shadow-3xl' : ''
               }`}
+              onPointerDown={(e) => e.stopPropagation()}
+              onPointerMove={(e) => e.stopPropagation()}
+              onPointerUp={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
-                if (onOpenDiaryPiece) {
-                  onOpenDiaryPiece(selectedPiece);
+                if (onOpenDiaryPiece && selectedPiece) {
+                  const pieceToOpen = selectedPiece;
                   setSelectedPiece(null);
+                  onOpenDiaryPiece(pieceToOpen);
                 }
               }}
             >
@@ -590,6 +601,8 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
               <div className="pt-2 border-t border-[#E8DFC8] flex items-center justify-between gap-2">
                 <button
                   type="button"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onPointerUp={(e) => e.stopPropagation()}
                   onClick={(e) => {
                     e.stopPropagation();
                     setSelectedPiece(null);
@@ -602,10 +615,15 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
                 {onOpenDiaryPiece ? (
                   <button
                     type="button"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onPointerUp={(e) => e.stopPropagation()}
                     onClick={(e) => {
                       e.stopPropagation();
-                      onOpenDiaryPiece(selectedPiece);
-                      setSelectedPiece(null);
+                      if (selectedPiece) {
+                        const pieceToOpen = selectedPiece;
+                        setSelectedPiece(null);
+                        onOpenDiaryPiece(pieceToOpen);
+                      }
                     }}
                     className="flex-1 py-1.5 px-3 rounded-lg bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-xs font-serif-warm font-bold flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all cursor-pointer"
                   >
