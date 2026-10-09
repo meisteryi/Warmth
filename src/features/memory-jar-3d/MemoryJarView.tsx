@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { ArrowLeft, Shuffle, ChevronLeft, ChevronRight, ChevronDown, Calendar } from 'lucide-react';
 import { DiaryData, WAX_COLORS } from '@/types/diary';
 import { getRoomDiariesFromFirestore, getCachedRoomDiaries } from '@/lib/roomService';
@@ -82,12 +82,53 @@ export default function MemoryJarView({
   const [isThrottled, setIsThrottled] = useState(false);
   const [cooldownToast, setCooldownToast] = useState(false);
 
-  const handleShakeClick = () => {
+  // 폰 흔들기 센서 권한 및 감지 상태
+  const [motionPermissionGranted, setMotionPermissionGranted] = useState<boolean>(false);
+  const [needsMotionPermission, setNeedsMotionPermission] = useState<boolean>(false);
+
+  // iOS Safari 여부 판별 (DeviceMotionEvent.requestPermission 지원 기기)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const isIos =
+      typeof (window as any).DeviceMotionEvent !== 'undefined' &&
+      typeof (window as any).DeviceMotionEvent.requestPermission === 'function';
+
+    if (isIos) {
+      setNeedsMotionPermission(true);
+    } else if (typeof window.DeviceMotionEvent !== 'undefined') {
+      // 안드로이드 및 일반 브라우저는 권한 팝업 없이 즉시 수신 가능
+      setMotionPermissionGranted(true);
+    }
+  }, []);
+
+  // iOS 센서 접근 권한 요청
+  const requestSensorPermission = useCallback(async () => {
+    if (
+      typeof window !== 'undefined' &&
+      typeof (window as any).DeviceMotionEvent !== 'undefined' &&
+      typeof (window as any).DeviceMotionEvent.requestPermission === 'function'
+    ) {
+      try {
+        const res = await (window as any).DeviceMotionEvent.requestPermission();
+        if (res === 'granted') {
+          setMotionPermissionGranted(true);
+          setNeedsMotionPermission(false);
+          return true;
+        }
+      } catch (err) {
+        console.warn('Motion permission request error:', err);
+      }
+    }
+    return false;
+  }, []);
+
+  // 공통 흔들기 실행 함수 (쿨다운 1초 & 3D 물리 흔들림 연산)
+  const triggerShake = useCallback((): boolean => {
     const now = performance.now();
     if (now - lastShakeTimeRef.current < 1000) {
       setCooldownToast(true);
       setTimeout(() => setCooldownToast(false), 800);
-      return;
+      return false;
     }
 
     const ok = jarCanvasRef.current?.shake();
@@ -97,8 +138,69 @@ export default function MemoryJarView({
       setTimeout(() => {
         setIsThrottled(false);
       }, 1000);
+      try {
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          navigator.vibrate(50);
+        }
+      } catch { }
+      return true;
     }
+    return false;
+  }, []);
+
+  // 기존 버튼 클릭 시 흔들기 동작 (100% 동일 작동 + iOS인 경우 권한 획득 병행)
+  const handleShakeClick = () => {
+    if (needsMotionPermission && !motionPermissionGranted) {
+      requestSensorPermission();
+    }
+    triggerShake();
   };
+
+  // 모바일 기기 실제 흔들기 감지 (devicemotion 이벤트)
+  useEffect(() => {
+    if (!motionPermissionGranted || typeof window === 'undefined') return;
+
+    let lastX = 0;
+    let lastY = 0;
+    let lastZ = 0;
+    let lastUpdate = 0;
+
+    const handleMotion = (event: DeviceMotionEvent) => {
+      const now = performance.now();
+      // 90ms 간격 샘플링
+      if (now - lastUpdate < 90) return;
+
+      const acc = event.acceleration;
+      if (acc && acc.x !== null && acc.y !== null && acc.z !== null) {
+        // 중력 제외 순수 가속도 (iOS 및 최신 안드로이드)
+        const speed = Math.hypot(acc.x, acc.y, acc.z);
+        if (speed > 17) {
+          triggerShake();
+        }
+      } else {
+        // 중력 포함 가속도 폴백 (일부 안드로이드 기기)
+        const accG = event.accelerationIncludingGravity;
+        if (accG && accG.x !== null && accG.y !== null && accG.z !== null) {
+          const deltaX = accG.x - lastX;
+          const deltaY = accG.y - lastY;
+          const deltaZ = accG.z - lastZ;
+          const delta = Math.hypot(deltaX, deltaY, deltaZ);
+          if (delta > 15.5 && lastUpdate > 0) {
+            triggerShake();
+          }
+          lastX = accG.x;
+          lastY = accG.y;
+          lastZ = accG.z;
+        }
+      }
+      lastUpdate = now;
+    };
+
+    window.addEventListener('devicemotion', handleMotion);
+    return () => {
+      window.removeEventListener('devicemotion', handleMotion);
+    };
+  }, [motionPermissionGranted, triggerShake]);
 
   useEffect(() => {
     if (!roomCode) return;
@@ -305,7 +407,14 @@ export default function MemoryJarView({
   );
 
   return (
-    <div className="relative w-full h-[calc(100dvh-4.25rem)] sm:h-[calc(100vh-4.5rem)] flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-[#F8F5EE] via-[#F3EDE2] to-[#EBE2D4] select-none">
+    <div
+      onPointerDown={() => {
+        if (needsMotionPermission && !motionPermissionGranted) {
+          requestSensorPermission();
+        }
+      }}
+      className="relative w-full h-[calc(100dvh-4.25rem)] sm:h-[calc(100vh-4.5rem)] flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-[#F8F5EE] via-[#F3EDE2] to-[#EBE2D4] select-none"
+    >
       {/* 종이 결 감성 오버레이 */}
       <div className="absolute inset-0 pointer-events-none paper-texture opacity-60 z-0" />
 
@@ -320,6 +429,21 @@ export default function MemoryJarView({
           <span>홈으로 돌아가기</span>
         </button>
       </div>
+
+      {/* 우측 상단: iOS 모션 센서 권한 허용 버튼 (필요 시에만 표시) */}
+      {needsMotionPermission && !motionPermissionGranted && (
+        <div className="absolute top-4 right-4 z-20">
+          <button
+            type="button"
+            onClick={requestSensorPermission}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 border border-[#831D2D] shadow-sm backdrop-blur-md text-xs font-serif-warm font-bold active:scale-95 transition-all cursor-pointer animate-pulse"
+            title="폰을 흔들어 왁스를 섞을 수 있도록 센서 접근을 허용합니다"
+          >
+            <span>📱</span>
+            <span>폰 흔들기 센서 켜기</span>
+          </button>
+        </div>
+      )}
 
 
 
