@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Shuffle, BookOpen } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { ArrowLeft, Shuffle, ChevronLeft, ChevronRight, ChevronDown, Calendar } from 'lucide-react';
 import { DiaryData, WAX_COLORS } from '@/types/diary';
 import { getRoomDiariesFromFirestore, getCachedRoomDiaries } from '@/lib/roomService';
 import { WaxPieceData } from './types';
@@ -31,6 +31,33 @@ function formatDiaryDate(dateString: string): string {
   }
 }
 
+/**
+ * 날짜에서 YYYY-MM 추출 (월별 그룹핑용)
+ */
+function getYearMonthKey(dateString?: string): string {
+  if (!dateString) {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }
+  try {
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return '2026-10';
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  } catch {
+    return '2026-10';
+  }
+}
+
+interface MonthJarGroup {
+  key: string;       // "2026-10"
+  year: number;      // 2026
+  month: number;     // 10
+  label: string;     // "2026년 10월"
+  shortLabel: string;// "10월"
+  diaries: DiaryData[];
+  isLatest: boolean; // 가장 최신 월인가? (최신이면 코르크 마개 열림)
+}
+
 export default function MemoryJarView({
   roomCode,
   currentUserName,
@@ -39,14 +66,16 @@ export default function MemoryJarView({
   onSelectDiary,
 }: MemoryJarViewProps) {
   const jarCanvasRef = useRef<MemoryJarCanvasHandle>(null);
-  const [diaries, setDiaries] = useState<DiaryData[]>(() => {
+
+  // Firestore에서 현재 방의 모든 일기 로드
+  const [roomDiaries, setRoomDiaries] = useState<DiaryData[]>(() => {
     if (typeof window !== 'undefined' && roomCode) {
       const cached = getCachedRoomDiaries(roomCode);
       if (cached && cached.length > 0) return cached;
     }
     return [];
   });
-  const [isLoading, setIsLoading] = useState<boolean>(diaries.length === 0);
+  const [isLoading, setIsLoading] = useState<boolean>(roomDiaries.length === 0);
 
   // 병 흔들기 속도 제한 (1초에 1번만 가능하도록 쿨다운 적용)
   const lastShakeTimeRef = useRef<number>(0);
@@ -71,7 +100,6 @@ export default function MemoryJarView({
     }
   };
 
-  // Firestore에서 현재 방의 모든 일기 로드
   useEffect(() => {
     if (!roomCode) return;
     let isMounted = true;
@@ -81,13 +109,11 @@ export default function MemoryJarView({
         const list = await getRoomDiariesFromFirestore(roomCode);
         if (isMounted) {
           if (list && list.length > 0) {
-            setDiaries(list);
+            setRoomDiaries(list);
           } else {
             const cached = getCachedRoomDiaries(roomCode);
             if (cached && cached.length > 0) {
-              setDiaries(cached);
-            } else {
-              setDiaries([]);
+              setRoomDiaries(cached);
             }
           }
           setIsLoading(false);
@@ -96,7 +122,7 @@ export default function MemoryJarView({
         console.warn('Failed to load diaries for MemoryJarView:', err);
         if (isMounted) {
           const cached = getCachedRoomDiaries(roomCode);
-          if (cached && cached.length > 0) setDiaries(cached);
+          if (cached && cached.length > 0) setRoomDiaries(cached);
           setIsLoading(false);
         }
       }
@@ -108,9 +134,131 @@ export default function MemoryJarView({
     };
   }, [roomCode]);
 
-  // 일기 목록을 1:1 대응되는 WaxPieceData 배열로 변환
-  const waxPieces: WaxPieceData[] = React.useMemo(() => {
-    return diaries.map((diary, index) => {
+  // 편지가 작성된 달들만 추출하여 월별 병(MonthJarGroup) 목록 생성
+  const monthJars: MonthJarGroup[] = useMemo(() => {
+    if (roomDiaries.length === 0) return [];
+
+    const map = new Map<string, DiaryData[]>();
+
+    roomDiaries.forEach((d) => {
+      const key = getYearMonthKey(d.createdAt);
+      if (!map.has(key)) {
+        map.set(key, []);
+      }
+      map.get(key)!.push(d);
+    });
+
+    // 연월 오름차순 (과거 -> 현재) 정렬
+    const sortedKeys = Array.from(map.keys()).sort();
+
+    return sortedKeys.map((key, index) => {
+      const [yearStr, monthStr] = key.split('-');
+      const year = parseInt(yearStr, 10) || 2026;
+      const month = parseInt(monthStr, 10) || 10;
+      const diariesInMonth = map.get(key)!;
+      const isLatest = index === sortedKeys.length - 1;
+
+      return {
+        key,
+        year,
+        month,
+        label: `${year}년 ${month}월`,
+        shortLabel: `${month}월`,
+        diaries: diariesInMonth,
+        isLatest,
+      };
+    });
+  }, [roomDiaries]);
+
+  // 현재 선택된 월 인덱스 (기본값: 가장 최신 월)
+  const [selectedMonthIndex, setSelectedMonthIndex] = useState<number>(0);
+
+  // monthJars가 갱신될 때 최신 달로 자동 포커스
+  useEffect(() => {
+    if (monthJars.length > 0) {
+      setSelectedMonthIndex(monthJars.length - 1);
+    }
+  }, [monthJars.length]);
+
+  // 안전한 현재 월 데이터
+  const currentJar: MonthJarGroup | undefined = monthJars[selectedMonthIndex] || monthJars[0];
+
+  // 3D 병 슬라이드 전환 진행 여부 (중복 연타 방지)
+  const [isSliding, setIsSliding] = useState<boolean>(false);
+
+  // 중앙 버튼 클릭 시 연도/월 선택 팝오버 상태
+  const [isPickerOpen, setIsPickerOpen] = useState<boolean>(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  // 팝오버 바깥 클릭 시 닫기
+  useEffect(() => {
+    if (!isPickerOpen) return;
+    const handlePointerDownOutside = (e: MouseEvent | TouchEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setIsPickerOpen(false);
+      }
+    };
+    window.addEventListener('pointerdown', handlePointerDownOutside);
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerDownOutside);
+    };
+  }, [isPickerOpen]);
+
+  // 화살표 네비게이션: 책상은 멈춰있고 병만 책상 위를 스르륵 미끄러져 사라졌다가 새로운 병이 반대편에서 나타남
+  const handleNavigateMonth = (direction: 'prev' | 'next') => {
+    if (isSliding || monthJars.length <= 1) return;
+
+    const nextIndex = direction === 'prev' ? selectedMonthIndex - 1 : selectedMonthIndex + 1;
+    if (nextIndex < 0 || nextIndex >= monthJars.length) return;
+
+    setIsSliding(true);
+    setIsPickerOpen(false);
+
+    const started = jarCanvasRef.current?.slideTransition(direction, () => {
+      // 3D 병이 화면 밖으로 완전히 나간 순간에 새로운 달 데이터 및 왁스 교체
+      setSelectedMonthIndex(nextIndex);
+    });
+
+    if (!started) {
+      setSelectedMonthIndex(nextIndex);
+      setIsSliding(false);
+    } else {
+      setTimeout(() => {
+        setIsSliding(false);
+      }, 700);
+    }
+  };
+
+  // 팝오버에서 특정 달 직접 선택 시 3D 슬라이드 연동
+  const handleSelectMonthDirectly = (targetIndex: number) => {
+    if (targetIndex === selectedMonthIndex || isSliding) {
+      setIsPickerOpen(false);
+      return;
+    }
+
+    setIsPickerOpen(false);
+    const direction = targetIndex > selectedMonthIndex ? 'next' : 'prev';
+    setIsSliding(true);
+
+    const started = jarCanvasRef.current?.slideTransition(direction, () => {
+      setSelectedMonthIndex(targetIndex);
+    });
+
+    if (!started) {
+      setSelectedMonthIndex(targetIndex);
+      setIsSliding(false);
+    } else {
+      setTimeout(() => {
+        setIsSliding(false);
+      }, 700);
+    }
+  };
+
+  // 현재 선택된 월의 일기들을 1:1 WaxPieceData로 변환
+  const waxPieces: WaxPieceData[] = useMemo(() => {
+    if (!currentJar) return [];
+
+    return currentJar.diaries.map((diary, index) => {
       const ensuredDiaryId = diary.diaryId || `diary-${index}-${diary.createdAt || Date.now()}`;
       const safeDiary: DiaryData = {
         ...diary,
@@ -130,21 +278,23 @@ export default function MemoryJarView({
         date: formatDiaryDate(safeDiary.createdAt),
         authorName: safeDiary.authorName || '익명',
         shapeType: 'SEAL_COIN' as const,
-        size: 0.95 + ((index % 3) * 0.08), // 미세한 자연스러운 크기 차이
+        size: 0.95 + ((index % 3) * 0.08),
         photoUrl: safeDiary.photos && safeDiary.photos.length > 0 ? safeDiary.photos[0] : undefined,
         diary: safeDiary,
       };
     });
-  }, [diaries]);
+  }, [currentJar]);
 
-  // 메모이제이션된 렌더 옵션 (불필요한 리렌더링 및 센서 간섭 차단, 파티클 제거)
-  const jarRenderOptions = React.useMemo(
+  // 메모이제이션된 3D 렌더 옵션 (최신 달: 마개 열림 / 과거 달: 마개 닫힘)
+  const isCorkOpen = currentJar?.isLatest ?? true;
+  const jarRenderOptions = useMemo(
     () => ({
-      autoRotate: false, // 손으로만 회전
-      enableSunlightParticles: false, // 반짝이 파티클 제거
-      enableGyroscope: false, // 센서 노이즈로 인한 덜덜 떨림 방지
+      autoRotate: false,
+      enableSunlightParticles: false,
+      enableGyroscope: false,
+      isCorkOpen,
     }),
-    []
+    [isCorkOpen]
   );
 
   return (
@@ -164,14 +314,16 @@ export default function MemoryJarView({
         </button>
       </div>
 
-      {/* 중앙 메인: 3D 온기 유리병 캔버스 (자동 회전 OFF, 손으로만 횡방향 회전) */}
+
+
+      {/* 중앙 메인: 3D 온기 유리병 캔버스 (책상은 고정, 병만 좌우로 스르륵 미끄러짐) */}
       <div className="relative w-full max-w-xl h-full flex items-center justify-center z-10">
         {isLoading && waxPieces.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 text-stone-500">
             <div className="w-8 h-8 border-2 border-[#6B1724] border-t-transparent rounded-full animate-spin" />
             <span className="text-xs font-serif-warm font-medium">유리병 안의 온기 조각을 모으는 중...</span>
           </div>
-        ) : waxPieces.length === 0 ? (
+        ) : monthJars.length === 0 || waxPieces.length === 0 ? (
           <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center">
             {/* 빈 병 렌더링 */}
             <div className="w-full h-[70%] max-h-[460px]">
@@ -184,7 +336,7 @@ export default function MemoryJarView({
                 showHint={false}
               />
             </div>
-            <div className="mt-2 p-4 rounded-2xl bg-white/80 border border-stone-200/80 shadow-sm max-w-xs space-y-1 backdrop-blur-xs">
+            <div className="mt-2 p-4 rounded-2xl bg-white/80 border border-stone-200/80 shadow-sm max-w-xs space-y-1.5 backdrop-blur-xs">
               <p className="font-serif-warm font-bold text-sm text-stone-800">
                 아직 병에 담긴 온기가 없습니다
               </p>
@@ -194,7 +346,7 @@ export default function MemoryJarView({
             </div>
           </div>
         ) : (
-          <div className="w-full h-full">
+          <div className="w-full h-full relative">
             <MemoryJarCanvas
               ref={jarCanvasRef}
               pieces={waxPieces}
@@ -203,11 +355,10 @@ export default function MemoryJarView({
               showSunlightBadge={false}
               showHint={false}
               onOpenDiaryPiece={(piece) => {
-                // piece.diaryId로 diaries 최신 목록에서 직접 1:1 매칭 (불일치 원천 차단)
                 const targetDiary =
-                  diaries.find((d) => d.diaryId && d.diaryId === piece.diaryId) ||
+                  currentJar?.diaries.find((d) => d.diaryId && d.diaryId === piece.diaryId) ||
                   (piece.diary as DiaryData | undefined) ||
-                  diaries.find((d) => d.title === piece.title);
+                  currentJar?.diaries.find((d) => d.title === piece.title);
                 if (targetDiary) {
                   onSelectDiary(targetDiary);
                 }
@@ -217,28 +368,147 @@ export default function MemoryJarView({
         )}
       </div>
 
-      {/* 하단: 병 흔들기 액션 버튼 및 쿨다운 알림 */}
-      {waxPieces.length > 0 && (
-        <div className="absolute bottom-6 inset-x-0 mx-auto w-fit z-20 flex flex-col items-center gap-2">
+      {/* 하단: 월별 온기 병 네비게이션 & 병 흔들기 액션 컨트롤 (완벽히 동일한 버건디 캡슐 레이아웃) */}
+      {monthJars.length > 0 && currentJar && (
+        <div className="absolute bottom-6 inset-x-0 mx-auto w-fit z-20 flex flex-col items-center gap-2.5">
           {cooldownToast && (
             <div className="animate-fade-in px-3 py-1 rounded-full bg-stone-900/80 backdrop-blur-md text-[11px] text-amber-200 font-sans-ui shadow-lg">
               잠시 후 다시 흔들어주세요 (1초에 1번)
             </div>
           )}
-          <button
-            type="button"
-            onClick={handleShakeClick}
-            disabled={isThrottled}
-            className={`px-5 py-2.5 rounded-full text-xs font-serif-warm font-bold shadow-lg flex items-center gap-2 transition-all cursor-pointer border ${
-              isThrottled
-                ? 'bg-[#5C1A24]/70 text-amber-200/60 border-[#5C1A24] cursor-not-allowed scale-95'
-                : 'bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 shadow-[#6B1724]/20 border-[#831D2D] active:scale-95'
-            }`}
-            title="병을 흔들어 묻혀 있는 왁스들을 물리 엔진으로 섞습니다 (1초에 1번)"
-          >
-            <Shuffle className="w-3.5 h-3.5 text-amber-300" />
-            <span>병 흔들기 (왁스 섞기)</span>
-          </button>
+
+          {/* 1. 월별 병 선택 네비게이션 (병 흔들기 버튼과 동일한 버건디 색상, 테두리, 텍스트) */}
+          <div className="relative flex items-center justify-between gap-2 px-3 py-2 rounded-full bg-[#6B1724] border border-[#831D2D] shadow-lg shadow-[#6B1724]/20 text-amber-50 text-xs font-serif-warm font-bold min-w-[220px]">
+            {/* 연도와 월 선택 팝오버 (중앙 버튼 클릭 시 표시) */}
+            {isPickerOpen && (
+              <div
+                ref={pickerRef}
+                className="absolute bottom-full mb-3 inset-x-0 mx-auto w-64 p-3 rounded-2xl bg-[#52131D]/95 border border-[#831D2D] shadow-2xl backdrop-blur-md text-amber-50 z-30 animate-fade-in"
+              >
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-amber-900/40 px-1">
+                  <div className="flex items-center gap-1.5 text-xs font-serif-warm font-bold text-amber-200">
+                    <Calendar className="w-3.5 h-3.5 text-amber-300" />
+                    <span>온기 병 선택</span>
+                  </div>
+                  <span className="text-[10px] text-amber-300/70 font-sans-ui">
+                    {monthJars.length}개의 온기 달
+                  </span>
+                </div>
+                <div className="max-h-48 overflow-y-auto space-y-1 pr-0.5 custom-scrollbar">
+                  {monthJars.map((jar, idx) => {
+                    const isSelected = idx === selectedMonthIndex;
+                    return (
+                      <button
+                        key={jar.key}
+                        type="button"
+                        onClick={() => handleSelectMonthDirectly(idx)}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-serif-warm transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#831D2D] text-amber-200 font-bold border border-amber-300/40 shadow-sm'
+                            : 'hover:bg-white/10 text-amber-100/90 hover:text-amber-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className={isSelected ? 'text-amber-300 font-bold' : 'text-amber-400/40'}>•</span>
+                          <span>{jar.label}</span>
+                          {jar.isLatest && (
+                            <span className="text-[9.5px] px-1.5 py-0.2 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-500/30">
+                              기록 중
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10.5px] text-amber-200/60 font-sans-ui">
+                          {jar.diaries.length}편의 온기
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 이전 달 화살표 */}
+            <button
+              type="button"
+              onClick={() => handleNavigateMonth('prev')}
+              disabled={selectedMonthIndex <= 0 || isSliding}
+              className={`p-1.5 rounded-full transition-all text-amber-300 hover:text-amber-100 hover:bg-[#831D2D] active:scale-90 ${
+                selectedMonthIndex <= 0 || isSliding
+                  ? 'opacity-25 cursor-not-allowed hover:bg-transparent'
+                  : 'cursor-pointer'
+              }`}
+              title="이전 달의 온기 병으로 이동"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            {/* 중앙: 연도/월 선택 트리거 버튼 (중앙 탭 시 연도/월 선택기 팝오버 열림) */}
+            <button
+              type="button"
+              onClick={() => setIsPickerOpen((prev) => !prev)}
+              className="flex flex-col items-center px-2 py-0.5 rounded-lg hover:bg-[#831D2D]/70 active:scale-95 transition-all cursor-pointer group"
+              title="클릭하여 다른 연도와 월을 선택합니다"
+            >
+              <div className="flex items-center gap-1">
+                <span className="tracking-wide text-amber-50 text-xs font-bold group-hover:text-amber-200">
+                  {currentJar.label}
+                </span>
+                <span className="text-[11px] text-amber-200/80 font-normal">의 온기 병</span>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 text-amber-300/80 transition-transform duration-200 ${
+                    isPickerOpen ? 'rotate-180 text-amber-200' : ''
+                  }`}
+                />
+              </div>
+              {monthJars.length > 1 && (
+                <div className="flex items-center gap-1 mt-0.5">
+                  {monthJars.map((jar, idx) => (
+                    <span
+                      key={jar.key}
+                      className={`rounded-full transition-all ${
+                        idx === selectedMonthIndex
+                          ? 'w-3 h-1 bg-amber-300'
+                          : 'w-1 h-1 bg-amber-200/30'
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
+            </button>
+
+            {/* 다음 달 화살표 */}
+            <button
+              type="button"
+              onClick={() => handleNavigateMonth('next')}
+              disabled={selectedMonthIndex >= monthJars.length - 1 || isSliding}
+              className={`p-1.5 rounded-full transition-all text-amber-300 hover:text-amber-100 hover:bg-[#831D2D] active:scale-90 ${
+                selectedMonthIndex >= monthJars.length - 1 || isSliding
+                  ? 'opacity-25 cursor-not-allowed hover:bg-transparent'
+                  : 'cursor-pointer'
+              }`}
+              title="다음 달의 온기 병으로 이동"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* 2. 병 흔들기 버튼 */}
+          {waxPieces.length > 0 && (
+            <button
+              type="button"
+              onClick={handleShakeClick}
+              disabled={isThrottled || isSliding}
+              className={`px-5 py-2.5 rounded-full text-xs font-serif-warm font-bold shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer border min-w-[220px] ${
+                isThrottled || isSliding
+                  ? 'bg-[#5C1A24]/70 text-amber-200/60 border-[#5C1A24] cursor-not-allowed scale-95'
+                  : 'bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 shadow-[#6B1724]/20 border-[#831D2D] active:scale-95'
+              }`}
+              title="병을 흔들어 묻혀 있는 왁스들을 물리 엔진으로 섞습니다 (1초에 1번)"
+            >
+              <Shuffle className="w-3.5 h-3.5 text-amber-300" />
+              <span>병 흔들기 (왁스 섞기)</span>
+            </button>
+          )}
         </div>
       )}
     </div>

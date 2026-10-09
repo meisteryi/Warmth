@@ -21,6 +21,7 @@ export interface JarRenderOptions {
   enableGyroscope?: boolean; // 스마트폰 기울기 센서 연동 여부
   soundEnabled?: boolean; // 유리병/왁스 마찰 사운드
   autoRotate?: boolean; // 천천히 자동 회전 쇼케이스 모드
+  isCorkOpen?: boolean; // 코르크 마개 열림 여부 (현재 달: 열림, 과거 달: 닫힘)
 }
 
 export const SAMPLE_WAX_PIECES: WaxPieceData[] = [

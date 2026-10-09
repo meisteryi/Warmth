@@ -5,11 +5,12 @@ import * as THREE from 'three';
  * 안쪽/바깥쪽 이중벽으로 인한 겹침/왜곡 현상을 완전히 없애고
  * 맑고 투명한 한 겹의 매끄러운 유리 외피로만 렌더링합니다.
  */
-export function createGlassJarGroup(): {
+export function createGlassJarGroup(initialOptions?: { isCorkOpen?: boolean }): {
   jarGroup: THREE.Group;
   glassMesh: THREE.Mesh;
   corkMesh: THREE.Mesh;
   rimMesh: THREE.Mesh;
+  setCorkOpen: (isOpen: boolean) => void;
 } {
   const jarGroup = new THREE.Group();
   jarGroup.name = 'MemoryJarGroup';
@@ -44,7 +45,6 @@ export function createGlassJarGroup(): {
   jarGeometry.computeVertexNormals();
 
   // 2. 단일 겹 전용 투명 광학 유리 재질 (Single-Layer Clear Physical Glass)
-  // 두께(thickness) 볼륨 중첩을 배제하여 다중 겹 왜곡 없이 속이 훤히 비치는 맑은 유리
   const glassMaterial = new THREE.MeshPhysicalMaterial({
     color: 0xFFFFFF,
     transparent: true,
@@ -67,7 +67,7 @@ export function createGlassJarGroup(): {
   glassMesh.name = 'GlassBody';
   jarGroup.add(glassMesh);
 
-  // 3. 상단 원목 코르크 마개 (Cork Stopper)
+  // 3. 상단 원목 코르크 마개 (Cork Stopper - 열림/닫힘 상태 지원)
   const corkGeo = new THREE.CylinderGeometry(1.08, 0.98, 0.65, 32);
   const corkMat = new THREE.MeshStandardMaterial({
     color: 0x8C6747, // 따뜻한 코르크 원목 컬러
@@ -76,10 +76,23 @@ export function createGlassJarGroup(): {
     bumpScale: 0.05,
   });
   const corkMesh = new THREE.Mesh(corkGeo, corkMat);
-  corkMesh.position.set(0, 5.1, 0);
   corkMesh.castShadow = true;
   corkMesh.receiveShadow = true;
   corkMesh.name = 'CorkStopper';
+
+  const setCorkOpen = (isOpen: boolean) => {
+    if (isOpen) {
+      // 마개가 열려 병목 옆에 비스듬히 얹혀 있는 감성적 연출
+      corkMesh.position.set(0.65, 5.35, 0.3);
+      corkMesh.rotation.set(0.3, 0.15, -0.45);
+    } else {
+      // 마개가 단단히 닫혀 완결/봉인된 상태
+      corkMesh.position.set(0, 5.1, 0);
+      corkMesh.rotation.set(0, 0, 0);
+    }
+  };
+
+  setCorkOpen(initialOptions?.isCorkOpen ?? false);
   jarGroup.add(corkMesh);
 
   // 4. 병목 앤틱 황동 링 장식 (Brass Rim Detail)
@@ -99,5 +112,5 @@ export function createGlassJarGroup(): {
   // 병 중심점을 바닥이 아닌 정중앙으로 보정하여 자연스럽게 회전하도록 오프셋 설정
   jarGroup.position.y = -2.35;
 
-  return { jarGroup, glassMesh, corkMesh, rimMesh };
+  return { jarGroup, glassMesh, corkMesh, rimMesh, setCorkOpen };
 }

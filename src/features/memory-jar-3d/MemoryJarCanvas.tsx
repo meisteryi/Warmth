@@ -18,6 +18,7 @@ import { soundEngine } from '@/lib/audio';
 
 export interface MemoryJarCanvasHandle {
   shake: () => boolean;
+  slideTransition: (direction: 'prev' | 'next', onMidpoint: () => void) => boolean;
 }
 
 export interface MemoryJarCanvasProps {
@@ -125,6 +126,12 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
     const waxGroupRef = useRef<THREE.Group | null>(null);
     const sceneManagerRef = useRef<SunlightSceneManager | null>(null);
     const jarGroupRef = useRef<THREE.Group | null>(null);
+    const setCorkOpenRef = useRef<((isOpen: boolean) => void) | null>(null);
+
+    // 코르크 마개 열림/닫힘 동기화
+    useEffect(() => {
+      setCorkOpenRef.current?.(options.isCorkOpen ?? false);
+    }, [options.isCorkOpen]);
 
     // 병 회전 인터랙션 상태 (관성 & 매끄러운 수평 손끝 반응: 횡방향만 허용)
     const rotationYRef = useRef<number>(0);
@@ -139,8 +146,22 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
     // 흔들기 속도 제한 (1초에 1번으로 제한하여 과도한 연타 방지 및 안정적 물리 연산 유지)
     const lastShakeTimeRef = useRef<number>(0);
 
-    // 외부 명령(흔들기) 노출 (1초 1회 쿨다운 반환)
+    // 책상은 고정되고 유리병만 좌우로 스르륵 미끄러지는 3D 슬라이드 트랜지션 상태
+    const slideAnimRef = useRef<{
+      active: boolean;
+      phase: 'EXIT' | 'ENTER';
+      direction: 'prev' | 'next';
+      progress: number;
+      onMidpoint?: () => void;
+    } | null>(null);
+    const slideOffsetXRef = useRef<number>(0);
+    const slideTiltZRef = useRef<number>(0);
+
+    // 외부 명령(흔들기) 노출 (1초 1회 쿨다운 반환 & 슬라이드 중 방지)
     const handleTriggerShake = useCallback((): boolean => {
+      if (slideAnimRef.current?.active) {
+        return false;
+      }
       const now = performance.now();
       if (now - lastShakeTimeRef.current < 1000) {
         return false; // 1초 내 중복 실행 차단
@@ -156,8 +177,27 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
       return true;
     }, []);
 
+    // 슬라이드 트랜지션 트리거 (연타 방지)
+    const handleSlideTransition = useCallback((direction: 'prev' | 'next', onMidpoint: () => void): boolean => {
+      if (slideAnimRef.current?.active) {
+        return false;
+      }
+      slideAnimRef.current = {
+        active: true,
+        phase: 'EXIT',
+        direction,
+        progress: 0,
+        onMidpoint,
+      };
+      try {
+        soundEngine.playTileSlideSound();
+      } catch {}
+      return true;
+    }, []);
+
     useImperativeHandle(ref, () => ({
       shake: handleTriggerShake,
+      slideTransition: handleSlideTransition,
     }));
 
     // pieces 변경 시 씬 전체를 파괴하지 않고 내부 왁스 그룹만 안전하게 갱신
@@ -231,9 +271,10 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
         sceneManager = new SunlightSceneManager(width, height);
         sceneManagerRef.current = sceneManager;
 
-        // 단일 겹 유리병 생성
-        const { jarGroup } = createGlassJarGroup();
+        // 단일 겹 유리병 생성 (코르크 마개 열림/닫힘 지원)
+        const { jarGroup, setCorkOpen } = createGlassJarGroup({ isCorkOpen: options.isCorkOpen });
         jarGroupRef.current = jarGroup;
+        setCorkOpenRef.current = setCorkOpen;
 
         // 초기 왁스 조각 그룹 생성
         const { waxGroup, waxMeshes } = createWaxPiecesGroup(pieces);
@@ -256,14 +297,62 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
           const deltaTime = (currentTime - lastTime) * 0.001;
           lastTime = currentTime;
 
+          // 3D 슬라이드 트랜지션 연산 (책상은 고정되어 있고 병만 책상 위를 스르륵 미끄러짐)
+          if (slideAnimRef.current && slideAnimRef.current.active) {
+            const anim = slideAnimRef.current;
+            const speed = anim.phase === 'EXIT' ? 3.6 : 3.2;
+            anim.progress += deltaTime * speed;
+
+            const maxSlideDist = 13.5;
+
+            if (anim.phase === 'EXIT') {
+              const t = Math.min(anim.progress, 1);
+              const eased = t * t * t; // 출발 시 부드러운 가속 (easeInCubic)
+              const sign = anim.direction === 'next' ? -1 : 1;
+              slideOffsetXRef.current = sign * maxSlideDist * eased;
+              slideTiltZRef.current = -sign * 0.07 * eased;
+
+              if (anim.progress >= 1) {
+                try {
+                  anim.onMidpoint?.();
+                } catch (err) {
+                  console.warn('Slide midpoint error:', err);
+                }
+                anim.phase = 'ENTER';
+                anim.progress = 0;
+                targetRotationYRef.current = 0;
+                rotationYRef.current = 0;
+              }
+            } else if (anim.phase === 'ENTER') {
+              const t = Math.min(anim.progress, 1);
+              const eased = 1 - Math.pow(1 - t, 3); // 도착 시 부드러운 감속 안착 (easeOutCubic)
+              const sign = anim.direction === 'next' ? 1 : -1;
+              slideOffsetXRef.current = sign * maxSlideDist * (1 - eased);
+              slideTiltZRef.current = sign * 0.07 * (1 - eased);
+
+              if (anim.progress >= 1) {
+                slideOffsetXRef.current = 0;
+                slideTiltZRef.current = 0;
+                anim.active = false;
+              }
+            }
+          } else {
+            slideOffsetXRef.current = 0;
+            slideTiltZRef.current = 0;
+          }
+
           // 물리 시뮬레이션 갱신 (흔들림 및 연속 텀블링 낙하)
           if (physics) {
             physics.update(deltaTime);
 
-            // 병 자체의 탄성 흔들림 오프셋 반영 (덜컹거림 없는 연속 곡선)
-            jarGroup.position.x = physics.shakeOffset.x;
+            // 병 자체의 탄성 흔들림 오프셋 + 슬라이드 미끄러짐 반영
+            jarGroup.position.x = physics.shakeOffset.x + slideOffsetXRef.current;
             jarGroup.position.y = -2.35 + physics.shakeOffset.y;
             jarGroup.position.z = physics.shakeOffset.z;
+          } else {
+            jarGroup.position.x = slideOffsetXRef.current;
+            jarGroup.position.y = -2.35;
+            jarGroup.position.z = 0;
           }
 
           // 자동 회전 (옵션 명시적으로 활성화된 경우만)
@@ -283,7 +372,7 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
 
           jarGroup.rotation.y = rotationYRef.current;
           jarGroup.rotation.x = 0; // 하이앵글 시점에서 위아래 회전 완전 고정 (왁스 돌출 방지)
-          jarGroup.rotation.z = 0;
+          jarGroup.rotation.z = slideTiltZRef.current;
 
           if (sceneManager) {
             sceneManager.update(currentTime);
@@ -341,7 +430,7 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
 
     // 마우스/터치 다운
     const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-      if (selectedPiece) return; // 모달이 떠있을 때는 3D 씬 조작 차단
+      if (selectedPiece || slideAnimRef.current?.active) return; // 모달이 떠있거나 슬라이드 중일 때는 조작 차단
       isDraggingRef.current = true;
       setIsInteracting(true);
       dragInertiaRef.current = 0; // 터치 시 즉시 이전 회전 관성 멈춤
