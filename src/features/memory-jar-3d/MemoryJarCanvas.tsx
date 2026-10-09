@@ -114,25 +114,34 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
     const physicsEngineRef = useRef<JarPhysicsEngine | null>(null);
     const hoveredMeshRef = useRef<THREE.Mesh | null>(null);
 
-    // 병 회전 인터랙션 상태
+    // 옵션 최신 참조 유지 (불필요한 전체 씬 리렌더링/파괴 방지)
+    const optionsRef = useRef(options);
+    useEffect(() => {
+      optionsRef.current = options;
+    }, [options]);
+
+    // 세부 오브젝트 & 씬 참조
+    const waxMeshesRef = useRef<THREE.Mesh[]>([]);
+    const waxGroupRef = useRef<THREE.Group | null>(null);
+    const sceneManagerRef = useRef<SunlightSceneManager | null>(null);
+    const jarGroupRef = useRef<THREE.Group | null>(null);
+
+    // 병 회전 인터랙션 상태 (관성 & 매끄러운 손끝 반응)
     const rotationYRef = useRef<number>(0);
     const targetRotationYRef = useRef<number>(0);
     const rotationXRef = useRef<number>(0);
     const targetRotationXRef = useRef<number>(0);
 
     const isDraggingRef = useRef<boolean>(false);
-    const pointerStartRef = useRef<{ x: number; y: number; time: number }>({ x: 0, y: 0, time: 0 });
-    const startRotationRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-
-    // 세부 오브젝트 & 씬 참조
-    const waxMeshesRef = useRef<THREE.Mesh[]>([]);
-    const sceneManagerRef = useRef<SunlightSceneManager | null>(null);
-    const jarGroupRef = useRef<THREE.Group | null>(null);
+    const lastPointerXRef = useRef<number>(0);
+    const lastPointerYRef = useRef<number>(0);
+    const pointerDownPosRef = useRef<{ x: number; y: number; time: number }>({ x: 0, y: 0, time: 0 });
+    const dragInertiaRef = useRef<number>(0);
 
     // 외부 명령(흔들기) 노출
     const handleTriggerShake = useCallback(() => {
       if (physicsEngineRef.current) {
-        physicsEngineRef.current.triggerShake(1.1);
+        physicsEngineRef.current.triggerShake(1.0);
         try {
           soundEngine.playTileSlideSound();
         } catch {}
@@ -143,6 +152,31 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
       shake: handleTriggerShake,
     }));
 
+    // pieces 변경 시 씬 전체를 파괴하지 않고 내부 왁스 그룹만 안전하게 갱신
+    useEffect(() => {
+      if (!jarGroupRef.current) return;
+      const jarGroup = jarGroupRef.current;
+
+      // 이전 왁스 그룹 제거
+      if (waxGroupRef.current) {
+        jarGroup.remove(waxGroupRef.current);
+      }
+
+      // 새 왁스 그룹 생성 및 추가
+      const { waxGroup, waxMeshes } = createWaxPiecesGroup(pieces);
+      waxGroupRef.current = waxGroup;
+      waxMeshesRef.current = waxMeshes;
+      jarGroup.add(waxGroup);
+
+      // 물리 엔진 바디 재동기화
+      if (physicsEngineRef.current) {
+        physicsEngineRef.current.initBodies(waxMeshes);
+      } else {
+        physicsEngineRef.current = new JarPhysicsEngine(waxMeshes);
+      }
+    }, [pieces]);
+
+    // 메인 Three.js 캔버스 렌더러 & 씬 라이프사이클 (마운트 시 단 1회만 초기화)
     useEffect(() => {
       const container = containerRef.current;
       const canvas = canvasRef.current;
@@ -180,11 +214,13 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
         sceneManager = new SunlightSceneManager(width, height);
         sceneManagerRef.current = sceneManager;
 
-        // 단일 겹 유리병 & 왁스 조각 그룹 생성
+        // 단일 겹 유리병 생성
         const { jarGroup } = createGlassJarGroup();
         jarGroupRef.current = jarGroup;
 
+        // 초기 왁스 조각 그룹 생성
         const { waxGroup, waxMeshes } = createWaxPiecesGroup(pieces);
+        waxGroupRef.current = waxGroup;
         waxMeshesRef.current = waxMeshes;
 
         jarGroup.add(waxGroup);
@@ -203,24 +239,31 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
           const deltaTime = (currentTime - lastTime) * 0.001;
           lastTime = currentTime;
 
-          // 물리 시뮬레이션 갱신 (흔들림 및 텀블링 낙하)
+          // 물리 시뮬레이션 갱신 (흔들림 및 연속 텀블링 낙하)
           if (physics) {
             physics.update(deltaTime);
 
-            // 병 자체의 흔들림 오프셋 반영
+            // 병 자체의 탄성 흔들림 오프셋 반영 (덜컹거림 없는 연속 곡선)
             jarGroup.position.x = physics.shakeOffset.x;
             jarGroup.position.y = -2.35 + physics.shakeOffset.y;
             jarGroup.position.z = physics.shakeOffset.z;
           }
 
-          // 자동 회전 (드래그 중이 아니거나 옵션 활성화 시)
-          if (!isDraggingRef.current && (options.autoRotate ?? true)) {
+          // 자동 회전 (옵션 명시적으로 활성화된 경우만)
+          const currentOpts = optionsRef.current;
+          if (!isDraggingRef.current && (currentOpts.autoRotate ?? false)) {
             targetRotationYRef.current += 0.003;
           }
 
-          // 부드러운 관성 회전 보간
-          rotationYRef.current += (targetRotationYRef.current - rotationYRef.current) * 0.08;
-          rotationXRef.current += (targetRotationXRef.current - rotationXRef.current) * 0.08;
+          // 손을 뗐을 때 자연스러운 관성 감속 (Inertial deceleration)
+          if (!isDraggingRef.current && Math.abs(dragInertiaRef.current) > 0.0001) {
+            targetRotationYRef.current += dragInertiaRef.current;
+            dragInertiaRef.current *= 0.93; // 93%로 부드럽게 지수 감속
+          }
+
+          // 손끝과 즉각적으로 일체화되는 부드러운 회전 보간 (지연 없는 0.22 계수)
+          rotationYRef.current += (targetRotationYRef.current - rotationYRef.current) * 0.22;
+          rotationXRef.current += (targetRotationXRef.current - rotationXRef.current) * 0.22;
 
           jarGroup.rotation.y = rotationYRef.current;
           jarGroup.rotation.x = Math.max(-0.15, Math.min(0.2, rotationXRef.current));
@@ -247,23 +290,23 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
         resizeObserver = new ResizeObserver(handleResize);
         resizeObserver.observe(container);
 
-        // 자이로스코프 기울기 연동
+        // 자이로스코프 기울기 연동 (명시적으로 켜져 있을 때만)
         const handleDeviceOrientation = (event: DeviceOrientationEvent) => {
-          if (!options.enableGyroscope || isDraggingRef.current) return;
+          if (!optionsRef.current.enableGyroscope || isDraggingRef.current) return;
           const gamma = event.gamma ?? 0;
           const beta = event.beta ?? 0;
           targetRotationYRef.current += gamma * 0.0004;
           targetRotationXRef.current = (beta - 45) * 0.003;
         };
 
-        if (window.DeviceOrientationEvent && options.enableGyroscope) {
+        if (window.DeviceOrientationEvent && optionsRef.current.enableGyroscope) {
           window.addEventListener('deviceorientation', handleDeviceOrientation);
         }
 
         return () => {
           if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
           resizeObserver?.disconnect();
-          if (window.DeviceOrientationEvent && options.enableGyroscope) {
+          if (window.DeviceOrientationEvent) {
             window.removeEventListener('deviceorientation', handleDeviceOrientation);
           }
           sceneManager?.dispose();
@@ -279,29 +322,33 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
           renderer?.dispose();
         };
       }
-    }, [pieces, options, retryKey]);
+    }, [retryKey]);
 
     // 마우스/터치 다운
     const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
       isDraggingRef.current = true;
       setIsInteracting(true);
-      pointerStartRef.current = { x: e.clientX, y: e.clientY, time: Date.now() };
-      startRotationRef.current = {
-        x: targetRotationXRef.current,
-        y: targetRotationYRef.current,
-      };
+      dragInertiaRef.current = 0; // 터치 시 즉시 이전 회전 관성 멈춤
+      lastPointerXRef.current = e.clientX;
+      lastPointerYRef.current = e.clientY;
+      pointerDownPosRef.current = { x: e.clientX, y: e.clientY, time: Date.now() };
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
     };
 
-    // 마우스/터치 이동
+    // 마우스/터치 이동 (손끝과 오차 없이 100% 일체화되는 매끄러운 3D 회전 추종)
     const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
       if (isDraggingRef.current) {
-        const deltaX = e.clientX - pointerStartRef.current.x;
-        const deltaY = e.clientY - pointerStartRef.current.y;
+        const dx = e.clientX - lastPointerXRef.current;
+        const dy = e.clientY - lastPointerYRef.current;
+        lastPointerXRef.current = e.clientX;
+        lastPointerYRef.current = e.clientY;
 
-        const sensitivity = 0.008;
-        targetRotationYRef.current = startRotationRef.current.y + deltaX * sensitivity;
-        targetRotationXRef.current = startRotationRef.current.x + deltaY * (sensitivity * 0.4);
+        const sensitivity = 0.0075;
+        targetRotationYRef.current += dx * sensitivity;
+        targetRotationXRef.current += dy * (sensitivity * 0.35);
+
+        // 손을 뗐을 때 자연스럽게 이어질 회전 관성 속도 보존
+        dragInertiaRef.current = dx * sensitivity * 0.75;
         return;
       }
 
@@ -316,25 +363,28 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
 
       const raycaster = new THREE.Raycaster();
       raycaster.setFromCamera(new THREE.Vector2(x, y), sceneManager.camera);
-      const intersects = raycaster.intersectObjects(waxMeshesRef.current, false);
+      const intersects = raycaster.intersectObjects(waxMeshesRef.current, true);
 
       if (intersects.length > 0) {
-        const hit = intersects[0].object as THREE.Mesh;
-        if (hoveredMeshRef.current !== hit) {
-          // 이전 호버 메쉬 발광 해제
-          if (hoveredMeshRef.current && (hoveredMeshRef.current.material as THREE.MeshStandardMaterial).emissive) {
+        let hit: THREE.Object3D | null = intersects[0].object;
+        while (hit && !(hit.userData && hit.userData.title) && hit.parent) {
+          hit = hit.parent;
+        }
+
+        if (hit && hoveredMeshRef.current !== hit) {
+          const meshHit = hit as THREE.Mesh;
+          if (hoveredMeshRef.current && (hoveredMeshRef.current.material as THREE.MeshStandardMaterial)?.emissive) {
             (hoveredMeshRef.current.material as THREE.MeshStandardMaterial).emissive.setHex(0x000000);
           }
-          // 새 메쉬 발광 하이라이트
-          if ((hit.material as THREE.MeshStandardMaterial).emissive) {
-            (hit.material as THREE.MeshStandardMaterial).emissive.setHex(0x553311);
+          if (meshHit.material && (meshHit.material as THREE.MeshStandardMaterial)?.emissive) {
+            (meshHit.material as THREE.MeshStandardMaterial).emissive.setHex(0x442211);
           }
-          hoveredMeshRef.current = hit;
+          hoveredMeshRef.current = meshHit;
           setIsHoveringWax(true);
         }
       } else {
         if (hoveredMeshRef.current) {
-          if ((hoveredMeshRef.current.material as THREE.MeshStandardMaterial).emissive) {
+          if (hoveredMeshRef.current.material && (hoveredMeshRef.current.material as THREE.MeshStandardMaterial)?.emissive) {
             (hoveredMeshRef.current.material as THREE.MeshStandardMaterial).emissive.setHex(0x000000);
           }
           hoveredMeshRef.current = null;
@@ -350,13 +400,14 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
       setIsInteracting(false);
 
       const deltaDist = Math.hypot(
-        e.clientX - pointerStartRef.current.x,
-        e.clientY - pointerStartRef.current.y
+        e.clientX - pointerDownPosRef.current.x,
+        e.clientY - pointerDownPosRef.current.y
       );
-      const deltaTime = Date.now() - pointerStartRef.current.time;
+      const deltaTime = Date.now() - pointerDownPosRef.current.time;
 
-      // 6px 미만 이동 & 450ms 이하 클릭/탭인 경우에만 1:1 피킹 수행
-      if (deltaDist < 6 && deltaTime < 450) {
+      // 8px 미만 이동 & 450ms 이하 클릭/탭인 경우에만 1:1 피킹 수행
+      if (deltaDist < 8 && deltaTime < 450) {
+        dragInertiaRef.current = 0; // 탭 클릭 시에는 관성 회전 방지
         handleRaycastPick(e.clientX, e.clientY);
       }
 

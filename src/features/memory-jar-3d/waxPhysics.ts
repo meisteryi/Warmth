@@ -12,9 +12,9 @@ export interface WaxPhysicsBody {
 
 /**
  * 온기 유리병 왁스 조각 물리 시뮬레이션 엔진
- * - 흔들기(Shake) 시 조각들이 병 내부에서 공중으로 솟구쳤다가 텀블링하며 떨어집니다.
- * - 유리벽 실린더 충돌, 바닥 충돌 및 반발 탄성, 조각 간 상호 분리(Separation) 처리.
- * - 정지 상태(Resting) 시 연산을 정지하여 CPU 및 배터리를 100% 절약합니다.
+ * - 흔들기(Shake) 시 조각들이 병 내부에서 공중으로 솟구쳤다가 텀블링하며 부드럽게 안착합니다.
+ * - 유리벽 실린더 충돌, 바닥 충돌 및 쫀득한 왁스 탄성, 조각 간 상호 분리(Separation Relaxation) 처리.
+ * - 순간적인 위치 점프나 텔레포트 없이 프레임 간 완벽히 연속적인 움직임을 보장합니다.
  */
 export class JarPhysicsEngine {
   public bodies: WaxPhysicsBody[] = [];
@@ -25,9 +25,10 @@ export class JarPhysicsEngine {
 
   // 유리병 내부 치수
   private readonly innerRadius = 1.35;
-  private readonly floorY = 0.28;
-  private readonly ceilingY = 4.1;
-  private readonly gravity = -17.0;
+  private readonly floorY = 0.32;
+  private readonly ceilingY = 3.9;
+  private readonly gravity = -18.0;
+  private simTime: number = 0;
 
   constructor(waxMeshes: THREE.Mesh[]) {
     this.initBodies(waxMeshes);
@@ -50,17 +51,17 @@ export class JarPhysicsEngine {
 
   /**
    * 병 흔들기 임펄스 발동!
-   * 모든 왁스 조각을 공중으로 흩뿌리고 병 자체를 흔듭니다.
+   * 모든 왁스 조각을 공중으로 자연스럽게 솟구치게 하고 병 자체의 탄성 흔들림을 트리거합니다.
    */
   public triggerShake(intensity: number = 1.0): void {
     this.isSimulating = true;
     this.shakeTimer = 0.85;
 
     this.bodies.forEach((body) => {
-      // 위쪽 솟구치는 힘 + 무작위 3D 방향 충격량
-      const upwardForce = (3.5 + Math.random() * 4.2) * intensity;
+      // 위쪽 솟구치는 힘 + 부드러운 수평 분산력
+      const upwardForce = (3.2 + Math.random() * 3.8) * intensity;
       const angle = Math.random() * Math.PI * 2;
-      const horizontalSpeed = (1.2 + Math.random() * 2.8) * intensity;
+      const horizontalSpeed = (0.8 + Math.random() * 2.2) * intensity;
 
       body.velocity.set(
         Math.cos(angle) * horizontalSpeed,
@@ -68,11 +69,11 @@ export class JarPhysicsEngine {
         Math.sin(angle) * horizontalSpeed
       );
 
-      // 무작위 스핀 회전량
+      // 자연스러운 텀블링 회전 토크
       body.angularVelocity.set(
-        (Math.random() - 0.5) * 14 * intensity,
-        (Math.random() - 0.5) * 14 * intensity,
-        (Math.random() - 0.5) * 14 * intensity
+        (Math.random() - 0.5) * 10 * intensity,
+        (Math.random() - 0.5) * 8 * intensity,
+        (Math.random() - 0.5) * 10 * intensity
       );
 
       body.isResting = false;
@@ -81,78 +82,83 @@ export class JarPhysicsEngine {
   }
 
   /**
-   * 매 프레임 물리 시뮬레이션 계산
+   * 매 프레임 연속적 물리 시뮬레이션 계산
    */
   public update(deltaTime: number): { isShaking: boolean } {
     if (!this.isSimulating && this.shakeTimer <= 0) {
       return { isShaking: false };
     }
 
-    const dt = Math.min(deltaTime, 0.033); // 30FPS 델타 타임 클램프 (터널링 방지)
+    // 60FPS 서브스텝 시간 클램프
+    const dt = Math.min(deltaTime, 0.025);
+    this.simTime += dt;
 
-    // 1. 유리병 자체의 좌우 요동(Jostle) 계산
+    // 1. 유리병 자체의 탄성 감쇠 진동 (Damped Harmonic Vibration)
     if (this.shakeTimer > 0) {
-      this.shakeTimer -= dt * 1.4;
-      const freq = 36;
-      const amp = Math.max(0, this.shakeTimer) * 0.24;
+      this.shakeTimer -= dt * 1.35;
+      const progress = Math.max(0, this.shakeTimer / 0.85); // 1.0 -> 0.0
+      const amp = progress * progress * 0.16; // 2차 감쇠 곡선으로 매우 부드러움
+
+      const freq1 = 28;
+      const freq2 = 34;
       this.shakeOffset.set(
-        Math.sin(Date.now() * 0.001 * freq) * amp,
-        Math.cos(Date.now() * 0.001 * freq * 1.3) * (amp * 0.4),
-        Math.sin(Date.now() * 0.001 * freq * 0.7) * amp
-      );
-      this.shakeAngle.set(
-        Math.cos(Date.now() * 0.001 * freq) * (amp * 0.4),
-        0,
-        Math.sin(Date.now() * 0.001 * freq) * (amp * 0.4)
+        Math.sin(this.simTime * freq1) * amp,
+        Math.cos(this.simTime * freq2) * (amp * 0.35),
+        Math.sin(this.simTime * freq1 * 0.8) * (amp * 0.7)
       );
     } else {
-      this.shakeOffset.set(0, 0, 0);
-      this.shakeAngle.set(0, 0, 0);
+      // 흔들림이 끝나면 원점으로 부드럽게 지수 보간 수렴
+      this.shakeOffset.lerp(new THREE.Vector3(0, 0, 0), 0.15);
     }
 
     let anyActive = false;
 
-    // 2. 개별 왁스 조각 물리 이동 및 경계 충돌
+    // 2. 개별 왁스 조각 물리 이동 및 완충 충돌
     for (let i = 0; i < this.bodies.length; i++) {
       const b = this.bodies[i];
       if (b.isResting) continue;
 
-      // 중력 및 공기 저항
+      // 중력 및 공기 점성 저항
       b.velocity.y += this.gravity * dt;
-      b.velocity.multiplyScalar(0.985);
-      b.angularVelocity.multiplyScalar(0.97);
+      b.velocity.multiplyScalar(0.988);
+      b.angularVelocity.multiplyScalar(0.975);
 
-      // 위치 및 회전 업데이트
+      // 연속적 위치 및 회전 적분
       b.mesh.position.addScaledVector(b.velocity, dt);
       b.mesh.rotation.x += b.angularVelocity.x * dt;
       b.mesh.rotation.y += b.angularVelocity.y * dt;
       b.mesh.rotation.z += b.angularVelocity.z * dt;
 
-      // 원통형 유리벽 충돌 (수평 반경 제한)
-      const distXZ = Math.sqrt(b.mesh.position.x ** 2 + b.mesh.position.z ** 2);
+      // 원통형 유리벽 충돌 (수평 반경 제한 및 부드러운 반발)
+      const distXZ = Math.hypot(b.mesh.position.x, b.mesh.position.z);
       const maxRadius = this.innerRadius - b.radius;
-      if (distXZ > maxRadius) {
+      if (distXZ > maxRadius && distXZ > 0.0001) {
         const normX = b.mesh.position.x / distXZ;
         const normZ = b.mesh.position.z / distXZ;
-        b.mesh.position.x = normX * maxRadius;
-        b.mesh.position.z = normZ * maxRadius;
+        const penetration = distXZ - maxRadius;
+
+        // 벽면 침투 부드러운 이완
+        b.mesh.position.x -= normX * penetration * 0.6;
+        b.mesh.position.z -= normZ * penetration * 0.6;
 
         const dot = b.velocity.x * normX + b.velocity.z * normZ;
         if (dot > 0) {
-          b.velocity.x -= 1.4 * dot * normX;
-          b.velocity.z -= 1.4 * dot * normZ;
+          b.velocity.x -= 1.35 * dot * normX;
+          b.velocity.z -= 1.35 * dot * normZ;
         }
       }
 
-      // 바닥 충돌
-      const floorLimit = this.floorY + b.height;
-      if (b.mesh.position.y <= floorLimit) {
-        b.mesh.position.y = floorLimit;
+      // 바닥 충돌 및 쫀득한 왁스 탄성
+      const floorLimit = this.floorY + b.height * 0.6;
+      if (b.mesh.position.y < floorLimit) {
+        const penetrationY = floorLimit - b.mesh.position.y;
+        b.mesh.position.y += penetrationY * 0.6; // 순간 고정 대신 부드러운 이완
+
         if (b.velocity.y < 0) {
-          b.velocity.y = -b.velocity.y * 0.3; // 바닥 탄성 반발
-          b.velocity.x *= 0.75; // 바닥 마찰
-          b.velocity.z *= 0.75;
-          b.angularVelocity.multiplyScalar(0.65);
+          b.velocity.y = -b.velocity.y * 0.22; // 낮은 반발 탄성 (쫀득하게 안착)
+          b.velocity.x *= 0.82; // 바닥 마찰 감속
+          b.velocity.z *= 0.82;
+          b.angularVelocity.multiplyScalar(0.72);
         }
       }
 
@@ -160,18 +166,24 @@ export class JarPhysicsEngine {
       if (b.mesh.position.y > this.ceilingY) {
         b.mesh.position.y = this.ceilingY;
         if (b.velocity.y > 0) {
-          b.velocity.y = -b.velocity.y * 0.3;
+          b.velocity.y = -b.velocity.y * 0.25;
         }
       }
 
-      // 정지 상태 안착 감지
+      // 연속적 감속 및 정지 상태 안착 판정
       const speedSq = b.velocity.lengthSq();
-      if (speedSq < 0.05 && Math.abs(b.mesh.position.y - floorLimit) < 0.25) {
+      if (speedSq < 0.15 && Math.abs(b.mesh.position.y - floorLimit) < 0.35) {
+        // 점진적인 감속 마찰
+        b.velocity.multiplyScalar(0.92);
+        b.angularVelocity.multiplyScalar(0.9);
         b.restTimer += dt;
-        if (b.restTimer > 0.35) {
+
+        if (b.restTimer > 0.45 && speedSq < 0.004) {
           b.isResting = true;
           b.velocity.set(0, 0, 0);
           b.angularVelocity.set(0, 0, 0);
+        } else {
+          anyActive = true;
         }
       } else {
         b.restTimer = 0;
@@ -179,38 +191,43 @@ export class JarPhysicsEngine {
       }
     }
 
-    // 3. 조각 간 충돌 및 겹침 방지 (자연스러운 층층 쌓임)
+    // 3. 조각 간 충돌 및 겹침 이완 (부드러운 상호 분리 Relaxation)
     for (let i = 0; i < this.bodies.length; i++) {
       for (let j = i + 1; j < this.bodies.length; j++) {
         const b1 = this.bodies[i];
         const b2 = this.bodies[j];
+        if (b1.isResting && b2.isResting) continue; // 둘 다 정지 중이면 불필요한 떨림 방지
+
         const dx = b2.mesh.position.x - b1.mesh.position.x;
         const dy = b2.mesh.position.y - b1.mesh.position.y;
         const dz = b2.mesh.position.z - b1.mesh.position.z;
         const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        const minDist = (b1.radius + b2.radius) * 0.85;
+        const minDist = (b1.radius + b2.radius) * 0.82;
 
         if (dist < minDist && dist > 0.001) {
-          const overlap = (minDist - dist) * 0.5;
+          const overlap = minDist - dist;
           const nx = dx / dist;
           const ny = dy / dist;
           const nz = dz / dist;
 
-          // 겹침 밀어내기
-          b1.mesh.position.x -= nx * overlap * 0.5;
-          b1.mesh.position.y -= ny * overlap * 0.7;
-          b1.mesh.position.z -= nz * overlap * 0.5;
+          // 부드러운 위치 분리 (순간 이동 대신 점진적 이완)
+          const push = overlap * 0.3;
+          b1.mesh.position.x -= nx * push;
+          b1.mesh.position.y -= ny * push * 0.8;
+          b1.mesh.position.z -= nz * push;
 
-          b2.mesh.position.x += nx * overlap * 0.5;
-          b2.mesh.position.y += ny * overlap * 0.7;
-          b2.mesh.position.z += nz * overlap * 0.5;
+          b2.mesh.position.x += nx * push;
+          b2.mesh.position.y += ny * push * 0.8;
+          b2.mesh.position.z += nz * push;
 
-          // 탄성 충돌 속도 교환
-          const relVel = (b1.velocity.x - b2.velocity.x) * nx +
-                         (b1.velocity.y - b2.velocity.y) * ny +
-                         (b1.velocity.z - b2.velocity.z) * nz;
+          // 충돌 속도 교환
+          const relVel =
+            (b1.velocity.x - b2.velocity.x) * nx +
+            (b1.velocity.y - b2.velocity.y) * ny +
+            (b1.velocity.z - b2.velocity.z) * nz;
+
           if (relVel > 0) {
-            const impulse = relVel * 0.35;
+            const impulse = relVel * 0.28;
             b1.velocity.x -= impulse * nx;
             b1.velocity.y -= impulse * ny;
             b1.velocity.z -= impulse * nz;

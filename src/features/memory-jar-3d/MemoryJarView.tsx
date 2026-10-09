@@ -96,6 +96,16 @@ export default function MemoryJarView({
     });
   }, [diaries]);
 
+  // 메모이제이션된 렌더 옵션 (불필요한 리렌더링 및 센서 간섭 차단)
+  const jarRenderOptions = React.useMemo(
+    () => ({
+      autoRotate: false, // 손으로만 회전
+      enableSunlightParticles: true,
+      enableGyroscope: false, // 센서 노이즈로 인한 덜덜 떨림 방지
+    }),
+    []
+  );
+
   return (
     <div className="relative w-full h-[calc(100dvh-4.25rem)] sm:h-[calc(100vh-4.5rem)] flex flex-col items-center justify-center overflow-hidden bg-[#FBF9F5] select-none">
       {/* 종이 결 감성 오버레이 */}
@@ -127,11 +137,7 @@ export default function MemoryJarView({
               <MemoryJarCanvas
                 ref={jarCanvasRef}
                 pieces={[]}
-                options={{
-                  autoRotate: false,
-                  enableSunlightParticles: true,
-                  enableGyroscope: true,
-                }}
+                options={jarRenderOptions}
                 showInternalShakeButton={false}
                 showSunlightBadge={false}
                 showHint={false}
@@ -151,11 +157,7 @@ export default function MemoryJarView({
             <MemoryJarCanvas
               ref={jarCanvasRef}
               pieces={waxPieces}
-              options={{
-                autoRotate: false, // 사용자 요구사항: 자동 회전 제거, 손으로만 회전
-                enableSunlightParticles: true,
-                enableGyroscope: true,
-              }}
+              options={jarRenderOptions}
               showInternalShakeButton={false}
               showSunlightBadge={false}
               showHint={false}
