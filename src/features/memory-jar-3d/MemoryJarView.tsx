@@ -189,12 +189,19 @@ export default function MemoryJarView({
   // 중앙 버튼 클릭 시 연도/월 선택 팝오버 상태
   const [isPickerOpen, setIsPickerOpen] = useState<boolean>(false);
   const pickerRef = useRef<HTMLDivElement>(null);
+  const triggerButtonRef = useRef<HTMLButtonElement>(null);
 
-  // 팝오버 바깥 클릭 시 닫기
+  // 팝오버 바깥 클릭 시 닫기 (트리거 버튼 자체를 클릭한 경우는 토글이 작동하도록 제외)
   useEffect(() => {
     if (!isPickerOpen) return;
     const handlePointerDownOutside = (e: MouseEvent | TouchEvent) => {
-      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node | null;
+      if (!target) return;
+
+      const isInsidePicker = pickerRef.current?.contains(target);
+      const isInsideTrigger = triggerButtonRef.current?.contains(target);
+
+      if (!isInsidePicker && !isInsideTrigger) {
         setIsPickerOpen(false);
       }
     };
@@ -444,6 +451,7 @@ export default function MemoryJarView({
 
             {/* 중앙: 날짜만 표시하는 타원형 버튼 (고정 너비 w-40, 높이 h-10) */}
             <button
+              ref={triggerButtonRef}
               type="button"
               onClick={() => setIsPickerOpen((prev) => !prev)}
               className="h-10 w-40 rounded-full flex items-center justify-center gap-1.5 bg-[#6B1724] border border-[#831D2D] shadow-lg shadow-[#6B1724]/20 text-amber-50 text-xs font-serif-warm font-bold hover:bg-[#831D2D] active:scale-95 transition-all cursor-pointer group"
