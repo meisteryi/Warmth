@@ -821,17 +821,27 @@ export default function HomePage() {
   // 3. 새 일기 작성 완료 -> Firestore 저장 & VIEW_WAITING (상대방 턴으로 전환)
   const handleSaveDiary = async (newDiaryPart: Partial<DiaryData>): Promise<boolean> => {
     const myUid = getOrCreateUserId();
+    const nowIso = new Date().toISOString();
+    
+    // 이전 일기의 상태(포스트잇 reaction, isWaxBroken 등)가 절대 새 일기로 누출되지 않도록 명시적으로 격리 생성
     const updated: DiaryData = {
-      ...(diary || INITIAL_DIARY),
-      ...newDiaryPart,
+      diaryId: 'diary-' + Date.now(),
       authorId: myUid,
       authorName: userName,
+      recipientId: diary?.authorId || 'partner',
       recipientName: partnerName,
-      diaryId: 'diary-' + Date.now(),
+      title: newDiaryPart.title || '',
+      content: newDiaryPart.content || '',
+      photos: newDiaryPart.photos || [],
+      waxColor: newDiaryPart.waxColor || (diary?.waxColor || '#6B1724'),
+      createdAt: newDiaryPart.createdAt || nowIso,
+      mission: newDiaryPart.mission || INITIAL_DIARY.mission,
       isWaxBroken: false,
       openedAt: null,
+      warmthScore: newDiaryPart.warmthScore ?? null,
+      stamp: newDiaryPart.stamp ?? null,
+      reaction: null, // 새 일기는 항상 포스트잇 반응이 없는 깨끗한 상태로 시작
     };
-    const nowIso = new Date().toISOString();
 
     try {
       // 1. Firestore에 먼저 안전하게 저장 및 턴 검증

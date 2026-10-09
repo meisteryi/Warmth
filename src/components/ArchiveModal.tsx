@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DiaryData } from '@/types/diary';
+import { DiaryData, sanitizeDiaryReaction } from '@/types/diary';
 import { getRoomDiariesFromFirestore, getCachedRoomDiaries } from '@/lib/roomService';
 import { generateFallbackWarmth } from '@/lib/gemini';
 import { 
@@ -46,7 +46,8 @@ interface ArchiveModalProps {
 
 // 상대방이 보낸 미개봉 비밀 편지는 React State/메모리 레벨에서도 완전히 마스킹 (F12/DevTools 스포일러 원천 차단)
 function maskUnopenedDiaries(list: DiaryData[], currentUserName: string): DiaryData[] {
-  return list.map((item) => {
+  return list.map((rawItem) => {
+    const item = sanitizeDiaryReaction(rawItem);
     const isMine = item.authorName === currentUserName;
     if (!isMine && !item.isWaxBroken) {
       return {
@@ -56,6 +57,7 @@ function maskUnopenedDiaries(list: DiaryData[], currentUserName: string): DiaryD
         photos: [],
         warmthScore: undefined,
         stamp: undefined,
+        reaction: null,
       };
     }
     return item;

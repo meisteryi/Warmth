@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DiaryData, DiaryReaction } from '@/types/diary';
+import { DiaryData, DiaryReaction, sanitizeDiaryReaction } from '@/types/diary';
 import { generateFallbackWarmth } from '@/lib/gemini';
 import { Feather, Calendar, Heart, MessageSquareQuote, PenLine, ThermometerSun, ThermometerSnowflake, Edit3, Check, X, Smile, Sparkles, Trash2 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
@@ -42,11 +42,13 @@ export default function OpenedLetter({
   });
   const [isSavingDate, setIsSavingDate] = useState(false);
 
-  // 포스트잇 이모티콘 + 20자 한 줄 코멘트 반응 상태
-  const [currentReaction, setCurrentReaction] = useState<DiaryReaction | null>(diary.reaction || null);
+  // 포스트잇 이모티콘 + 20자 한 줄 코멘트 반응 상태 (해당 일기만의 독립된 반응 동기화)
+  const [currentReaction, setCurrentReaction] = useState<DiaryReaction | null>(() => {
+    return sanitizeDiaryReaction(diary).reaction || null;
+  });
   const [isReactionModalOpen, setIsReactionModalOpen] = useState(false);
-  const [reactionEmoji, setReactionEmoji] = useState('❤️');
-  const [reactionComment, setReactionComment] = useState('');
+  const [reactionEmoji, setReactionEmoji] = useState(() => diary.reaction?.emoji || '❤️');
+  const [reactionComment, setReactionComment] = useState(() => diary.reaction?.comment || '');
   const [isSavingReaction, setIsSavingReaction] = useState(false);
 
   useEffect(() => {
@@ -57,9 +59,18 @@ export default function OpenedLetter({
     } catch { }
   }, [diary.createdAt]);
 
+  // 일기가 전환(diaryId 변경)되거나 해당 일기의 반응 prop이 변경되었을 때만 동기화
   useEffect(() => {
-    setCurrentReaction(diary.reaction || null);
-  }, [diary.reaction]);
+    const sanitized = sanitizeDiaryReaction(diary);
+    setCurrentReaction(sanitized.reaction || null);
+    if (sanitized.reaction) {
+      setReactionEmoji(sanitized.reaction.emoji || '❤️');
+      setReactionComment(sanitized.reaction.comment || '');
+    } else {
+      setReactionEmoji('❤️');
+      setReactionComment('');
+    }
+  }, [diary.diaryId, diary.reaction]);
 
   const handleSaveReaction = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();

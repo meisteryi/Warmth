@@ -1,4 +1,4 @@
-import { DiaryData, KnockData } from '@/types/diary';
+import { DiaryData, KnockData, sanitizeDiaryReaction } from '@/types/diary';
 
 // 기본 클라이언트 솔트 (하위 호환성용)
 const E2EE_DEFAULT_SALT = new TextEncoder().encode('warmth-analog-diary-secret-salt-2026');
@@ -199,14 +199,14 @@ export async function encryptDiaryData(
       };
     }
 
-    return {
+    return sanitizeDiaryReaction({
       ...diary,
       title: encryptedTitle,
       content: encryptedContent,
       photos: encryptedPhotos,
       mission: encryptedMission,
       warmthScore: encryptedWarmth,
-    };
+    });
   } catch (e) {
     console.warn('Failed to encrypt diary data:', e);
     return diary;
@@ -263,14 +263,14 @@ export async function decryptDiaryData(
       };
     }
 
-    return {
+    return sanitizeDiaryReaction({
       ...diary,
       title: decryptedTitle,
       content: decryptedContent,
       photos: decryptedPhotos,
       mission: decryptedMission,
       warmthScore: decryptedWarmth,
-    };
+    });
   } catch (e) {
     console.warn('Failed to decrypt diary data:', e);
     return diary;

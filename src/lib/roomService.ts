@@ -14,7 +14,7 @@ import {
   Unsubscribe 
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { DiaryData, DiaryReaction, RoomData } from '@/types/diary';
+import { DiaryData, DiaryReaction, RoomData, sanitizeDiaryReaction } from '@/types/diary';
 import { 
   encryptDiaryData, 
   decryptDiaryData, 
@@ -176,7 +176,14 @@ export function subscribeDiary(
       const raw = snapshot.data() as DiaryData;
       const roomSalt = await getOrFetchRoomSalt(roomCode);
       const decrypted = await decryptDiaryData(roomCode, raw, roomSalt);
-      onUpdate(decrypted);
+      const sanitized = sanitizeDiaryReaction(decrypted);
+
+      // Firestore에 오염/누출되어 있던 반응이 있다면 백그라운드에서 자가 치유
+      if (raw.reaction && !sanitized.reaction) {
+        updateDiaryReactionInFirestore(roomCode, diaryId, null).catch(() => {});
+      }
+
+      onUpdate(sanitized);
     }
   });
 }
@@ -389,8 +396,13 @@ export async function saveDiaryToFirestore(
   roomCode: string,
   diary: DiaryData
 ): Promise<void> {
+  // 새 일기 저장 시 이전 일기의 반응(reaction)이 누출되지 않도록 원천 격리
+  const safeDiary: DiaryData = {
+    ...diary,
+    reaction: diary.isWaxBroken ? (diary.reaction || null) : null,
+  };
   const roomSalt = await getOrFetchRoomSalt(roomCode);
-  const encryptedDiary = await encryptDiaryData(roomCode, diary, roomSalt);
+  const encryptedDiary = await encryptDiaryData(roomCode, safeDiary, roomSalt);
 
   const roomRef = doc(db, 'rooms', roomCode);
   const diaryRef = doc(db, 'rooms', roomCode, 'diaries', diary.diaryId);
@@ -613,7 +625,14 @@ export async function getRoomDiariesFromFirestore(
     for (const docSnap of snapshot.docs) {
       const raw = docSnap.data() as DiaryData;
       const decrypted = await decryptDiaryData(roomCode, raw, roomSalt);
-      list.push(decrypted);
+      const sanitized = sanitizeDiaryReaction(decrypted);
+
+      // Firestore에 오염/누출되어 있던 반응이 있다면 백그라운드에서 자가 치유
+      if (raw.reaction && !sanitized.reaction) {
+        updateDiaryReactionInFirestore(roomCode, sanitized.diaryId, null).catch(() => {});
+      }
+
+      list.push(sanitized);
     }
 
     // 최신 날짜 순으로 정렬
