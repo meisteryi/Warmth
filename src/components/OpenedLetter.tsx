@@ -43,7 +43,7 @@ export default function OpenedLetter({
   });
   const [isSavingDate, setIsSavingDate] = useState(false);
 
-  // 포스트잇 이모티콘 + 20자 한 줄 코멘트 반응 상태 (해당 일기만의 독립된 반응 동기화)
+  // 포스트잇 이모티콘 + 공백 포함 100자 코멘트 반응 상태 (해당 일기만의 독립된 반응 동기화)
   const [currentReaction, setCurrentReaction] = useState<DiaryReaction | null>(() => {
     return sanitizeDiaryReaction(diary).reaction || null;
   });
@@ -85,7 +85,7 @@ export default function OpenedLetter({
     setIsSavingReaction(true);
     const newReaction: DiaryReaction = {
       emoji: reactionEmoji.trim(),
-      comment: reactionComment.trim() ? reactionComment.trim().slice(0, 20) : undefined,
+      comment: reactionComment.trim() ? reactionComment.trim().slice(0, 100) : undefined,
       reactorName: userName || (language === 'en' ? 'Partner' : '상대방'),
       reactedAt: new Date().toISOString(),
     };
@@ -391,7 +391,7 @@ export default function OpenedLetter({
                 {/* 코멘트 및 서명 */}
                 <div className="min-w-0 flex-1">
                   {currentReaction.comment ? (
-                    <p className="text-sm font-serif-warm font-semibold text-stone-800 leading-snug break-keep select-text">
+                    <p className="text-sm font-serif-warm font-semibold text-stone-800 leading-relaxed break-keep select-text whitespace-pre-wrap">
                       {currentReaction.comment}
                     </p>
                   ) : (
@@ -559,7 +559,7 @@ export default function OpenedLetter({
       </div>
 
       {/* =============================================================== */}
-      {/* 포스트잇 반응 입력 모달 (이모티콘 하나 + 20자 이내 한 줄 코멘트) */}
+      {/* 포스트잇 반응 입력 모달 (이모티콘 하나 + 공백 포함 100자 이내 코멘트) */}
       {/* =============================================================== */}
       <AnimatePresence>
         {isReactionModalOpen && (
@@ -633,23 +633,23 @@ export default function OpenedLetter({
                   </p>
                 </div>
 
-                {/* 2. 20자 이내의 간단한 한 줄 코멘트 */}
+                {/* 2. 공백 포함 100자 이내의 코멘트 */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-xs font-serif-warm font-semibold text-stone-700">
-                      {language === 'en' ? 'Short Note (within 20 chars)' : '한 줄 코멘트 (20자 이내)'}
+                      {language === 'en' ? 'Short Note (within 100 chars)' : '한 줄 코멘트 (공백 포함 100자 이내)'}
                     </label>
-                    <span className={`text-[11px] font-sans-ui ${reactionComment.length >= 20 ? 'text-rose-500 font-bold' : 'text-stone-400'}`}>
-                      {reactionComment.length}/20자
+                    <span className={`text-[11px] font-sans-ui ${reactionComment.length >= 100 ? 'text-rose-500 font-bold' : 'text-stone-400'}`}>
+                      {reactionComment.length}/100자
                     </span>
                   </div>
-                  <input
-                    type="text"
+                  <textarea
+                    rows={3}
                     value={reactionComment}
-                    maxLength={20}
-                    onChange={(e) => setReactionComment(e.target.value.slice(0, 20))}
-                    placeholder={language === 'en' ? 'e.g. Good job today!' : '예: 오늘도 고생 많았어 토닥토닥'}
-                    className="w-full px-3.5 py-2.5 bg-white/95 border border-[#FDE68A] rounded-xl text-stone-800 placeholder-stone-400 font-serif-warm text-sm focus:outline-none focus:ring-2 focus:ring-[#8A5A44]/40 shadow-inner"
+                    maxLength={100}
+                    onChange={(e) => setReactionComment(e.target.value.slice(0, 100))}
+                    placeholder={language === 'en' ? 'e.g. Reading your letter warmed my heart so much today! Let’s have a cup of warm tea together.' : '예: 오늘도 고생 많았어 토닥토닥. 편지 읽고 마음이 몽글몽글해졌어. 내일도 다정한 하루 보내자!'}
+                    className="w-full px-3.5 py-2.5 bg-white/95 border border-[#FDE68A] rounded-xl text-stone-800 placeholder-stone-400 font-serif-warm text-sm focus:outline-none focus:ring-2 focus:ring-[#8A5A44]/40 shadow-inner resize-none leading-relaxed"
                   />
                 </div>
 

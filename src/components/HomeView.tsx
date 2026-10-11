@@ -122,10 +122,12 @@ export default function HomeView({
   const partnerBirthDate = useMemo(() => {
     if (!roomData?.memberInfo) return null;
     const partnerEntry = Object.entries(roomData.memberInfo).find(
-      ([key, info]) => key !== userName && info.nickname !== userName
+      ([key, info]) =>
+        (partnerName && info?.nickname?.trim().toLowerCase() === partnerName.trim().toLowerCase()) ||
+        (info?.nickname && info.nickname.trim().toLowerCase() !== userName.trim().toLowerCase() && key !== userName)
     );
     return partnerEntry?.[1]?.birthDate || null;
-  }, [roomData, userName]);
+  }, [roomData, userName, partnerName]);
 
   // 이어진 날짜 계산 (기념일 설정값 -> 매칭일 -> 방 생성일 -> 오늘 순 우선순위)
   const effectiveStartDate = roomData?.anniversaryDate || roomData?.matchedAt || roomData?.createdAt || null;
