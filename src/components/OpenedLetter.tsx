@@ -17,7 +17,7 @@ interface OpenedLetterProps {
   userName?: string;
   roomCode?: string;
   onUpdateDiaryDate?: (diaryId: string, newIsoDate: string) => void;
-  onUpdateDiaryReaction?: (diaryId: string, reaction: DiaryReaction | null) => void;
+  onUpdateDiaryReaction?: (diaryId: string, reaction: DiaryReaction | null, diaryTitle?: string) => void | Promise<void>;
 }
 
 export default function OpenedLetter({
@@ -98,7 +98,7 @@ export default function OpenedLetter({
       if (roomCode) {
         await updateDiaryReactionInFirestore(roomCode, diary.diaryId, newReaction);
       }
-      onUpdateDiaryReaction?.(diary.diaryId, newReaction);
+      onUpdateDiaryReaction?.(diary.diaryId, newReaction, diary.title);
     } catch (err) {
       console.warn('Failed to update diary reaction:', err);
     } finally {
@@ -117,7 +117,7 @@ export default function OpenedLetter({
       if (roomCode) {
         await updateDiaryReactionInFirestore(roomCode, diary.diaryId, null);
       }
-      onUpdateDiaryReaction?.(diary.diaryId, null);
+      onUpdateDiaryReaction?.(diary.diaryId, null, diary.title);
     } catch (err) {
       console.warn('Failed to remove diary reaction:', err);
     } finally {

@@ -117,7 +117,8 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
 export async function sendServerWebPush(
   subscription: any,
   title: string,
-  body: string
+  body: string,
+  tag?: string
 ): Promise<boolean> {
   if (!subscription) return false;
   try {
@@ -129,6 +130,7 @@ export async function sendServerWebPush(
         subscription: subObj,
         title,
         body,
+        tag: tag || 'warmth-notification',
         icon: '/icon-192.png',
         url: '/',
       }),

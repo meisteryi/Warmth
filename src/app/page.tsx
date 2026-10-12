@@ -952,8 +952,12 @@ export default function HomePage() {
     showToast('📅 일기 날짜가 성공적으로 수정되었습니다.');
   };
 
-  // 3-2. 상대방의 일기에 이모티콘 마음 반응 등록 / 수정 / 삭제 처리
-  const handleUpdateDiaryReaction = (diaryId: string, reaction: DiaryReaction | null) => {
+  // 3-2. 상대방의 일기에 이모티콘 및 포스트잇 마음 반응 등록 / 수정 / 삭제 처리
+  const handleUpdateDiaryReaction = async (
+    diaryId: string,
+    reaction: DiaryReaction | null,
+    diaryTitle?: string
+  ) => {
     if (diary && diary.diaryId === diaryId) {
       const updated = { ...diary, reaction };
       setDiary(updated);
@@ -963,9 +967,35 @@ export default function HomePage() {
       setSelectedArchiveDiary((prev) => (prev ? { ...prev, reaction } : null));
     }
     if (reaction) {
-      showToast(`💌 일기에 ${reaction.emoji} 이모티콘으로 마음을 남겼습니다.`);
+      showToast(`💌 일기에 ${reaction.emoji} 포스트잇으로 마음을 남겼습니다.`);
+
+      // 상대방에게 백그라운드 Web Push 발송 (앱이 꺼져 있어도 OS 잠금 화면에 알림 표시)
+      if (roomCode) {
+        try {
+          const myUid = getOrCreateUserId();
+          const roomSnap = await getDoc(doc(db, 'rooms', roomCode));
+          if (roomSnap.exists()) {
+            const freshRoom = roomSnap.data() as RoomData;
+            if (freshRoom.memberInfo) {
+              const partnerEntry = Object.entries(freshRoom.memberInfo).find(([uid]) => uid !== myUid);
+              if (partnerEntry?.[1]?.pushSubscription) {
+                const targetTitle = diaryTitle ? `「${diaryTitle}」 ` : '';
+                const commentPreview = reaction.comment ? `: "${reaction.comment}"` : '';
+                await sendServerWebPush(
+                  partnerEntry[1].pushSubscription,
+                  '📌 포스트잇 마음 알림',
+                  `${userName} 님이 ${targetTitle}일기에 ${reaction.emoji} 포스트잇을 남겼어요${commentPreview}`,
+                  'warmth-reaction'
+                );
+              }
+            }
+          }
+        } catch (pushErr) {
+          console.warn('Post-it reaction web push send error:', pushErr);
+        }
+      }
     } else {
-      showToast('이모티콘 마음 반응이 삭제되었습니다.');
+      showToast('포스트잇 마음 반응이 삭제되었습니다.');
     }
   };
 
