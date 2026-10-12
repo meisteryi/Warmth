@@ -18,13 +18,14 @@ function createWaxCoinGeometry(radius: number, thickness: number): THREE.BufferG
     else shape.lineTo(x, y);
   }
 
+  const bevel = 0.08 * (radius / 0.55);
   const extrudeSettings: THREE.ExtrudeGeometryOptions = {
     depth: thickness,
     bevelEnabled: true,
     bevelSegments: 4,
     steps: 1,
-    bevelSize: 0.08,
-    bevelThickness: 0.08,
+    bevelSize: bevel,
+    bevelThickness: bevel,
   };
 
   const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
@@ -67,13 +68,16 @@ export function createWaxPiecesGroup(pieces: WaxPieceData[]): {
 
   const waxMeshes: THREE.Mesh[] = [];
 
+  // 사용자 요청: 실링 왁스 크기를 기존의 0.7배로 축소
+  const WAX_SCALE = 0.7;
+
   // 병 안쪽 반경과 층 높이 계산
   const innerRadius = 1.35;
-  const baseHeight = 0.45;
+  const baseHeight = 0.40;
 
   pieces.forEach((piece, index) => {
-    // 사용자의 요청에 따라 모든 왁스를 온전하고 매끄러운 원형 실링 왁스 인장 코인으로 통일
-    const pieceSize = piece.size || 1.0;
+    // 사용자의 요청에 따라 모든 왁스를 온전하고 매끄러운 원형 실링 왁스 인장 코인으로 통일 (0.7배 크기)
+    const pieceSize = (piece.size || 1.0) * WAX_SCALE;
     const geo = createWaxCoinGeometry(0.55 * pieceSize, 0.16 * pieceSize);
 
     // 왁스 특유의 매트하고 쫀득한 PBR 질감
@@ -97,12 +101,12 @@ export function createWaxPiecesGroup(pieces: WaxPieceData[]): {
 
     // 각 층에서 120도 고른 각도 + 층별 42도 엇갈림 오프셋
     const angle = subIndex * ((Math.PI * 2) / piecesPerLayer) + (layer * 0.73) + (index * 0.05);
-    // 중앙 쏠림을 방지하고 병 내벽과 안전 간격을 유지하는 적정 반경
-    const distance = 0.56 * innerRadius;
+    // 중앙 쏠림을 방지하고 병 내벽과 안전 간격을 유지하는 적정 반경 (0.7배 축소에 맞추어 조정)
+    const distance = 0.48 * innerRadius;
 
     const x = Math.cos(angle) * distance;
     const z = Math.sin(angle) * distance;
-    const y = baseHeight + layer * 0.34;
+    const y = baseHeight + layer * (0.34 * WAX_SCALE);
 
     mesh.position.set(x, y, z);
 
@@ -116,6 +120,7 @@ export function createWaxPiecesGroup(pieces: WaxPieceData[]): {
     // 인터랙션 메타데이터 직접 바인딩 (시각적 코인 지오메트리에 1:1 정확한 레이캐스팅)
     const metadata = {
       ...piece,
+      size: pieceSize,
       originalPosition: mesh.position.clone(),
       originalRotation: mesh.rotation.clone(),
     };

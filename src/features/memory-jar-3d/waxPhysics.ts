@@ -36,12 +36,12 @@ export class JarPhysicsEngine {
 
   public initBodies(waxMeshes: THREE.Mesh[]): void {
     this.bodies = waxMeshes.map((mesh) => {
-      const size = (mesh.userData?.size as number) || 1.0;
+      const size = (mesh.userData?.size as number) || 0.7;
       return {
         mesh,
         velocity: new THREE.Vector3(0, 0, 0),
         angularVelocity: new THREE.Vector3(0, 0, 0),
-        radius: 0.48 * size, // 실링 왁스 코인 실제 반경(0.55)에 맞추어 충돌 반경 현실화
+        radius: 0.48 * size, // 0.7배 크기 실링 왁스 코인에 맞추어 물리 충돌 반경(0.336) 및 높이 현실화
         height: 0.18 * size,
         isResting: true,
         restTimer: 0,
