@@ -977,10 +977,17 @@ export default function HomePage() {
           if (roomSnap.exists()) {
             const freshRoom = roomSnap.data() as RoomData;
             if (freshRoom.memberInfo) {
-              const partnerEntry = Object.entries(freshRoom.memberInfo).find(([uid]) => uid !== myUid);
+              // 닉네임과 UID 복합 판별로 본인이 아닌 실제 상대방(파트너)을 안전하고 정확하게 특정
+              const partnerEntry = Object.entries(freshRoom.memberInfo).find(([uid, info]) => {
+                const isMe = uid === myUid || (Boolean(info?.nickname && userName) && info.nickname.trim().toLowerCase() === userName.trim().toLowerCase());
+                return !isMe;
+              });
+
               if (partnerEntry?.[1]?.pushSubscription) {
-                const targetTitle = diaryTitle ? `「${diaryTitle}」 ` : '';
-                const commentPreview = reaction.comment ? `: "${reaction.comment}"` : '';
+                const trimmedTitle = (diaryTitle || '').trim();
+                const targetTitle = trimmedTitle ? `「${trimmedTitle}」 ` : '';
+                const cleanComment = reaction.comment ? reaction.comment.trim().replace(/\s+/g, ' ') : '';
+                const commentPreview = cleanComment ? `: "${cleanComment}"` : '';
                 await sendServerWebPush(
                   partnerEntry[1].pushSubscription,
                   '📌 포스트잇 마음 알림',

@@ -34,7 +34,7 @@ self.addEventListener('push', (event) => {
     tag: data.tag || 'warmth-notification',
     renotify: true,
     data: {
-      url: '/',
+      url: data.url || '/',
     },
   };
 

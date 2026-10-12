@@ -753,8 +753,20 @@ export async function updateDiaryReactionInFirestore(
 ): Promise<{ success: boolean }> {
   try {
     const diaryRef = doc(db, 'rooms', roomCode, 'diaries', diaryId);
+    let sanitizedReaction: Record<string, any> | null = null;
+    if (reaction) {
+      sanitizedReaction = {
+        emoji: reaction.emoji || '❤️',
+        reactorName: reaction.reactorName || '상대방',
+        reactedAt: reaction.reactedAt || new Date().toISOString(),
+      };
+      if (reaction.comment && reaction.comment.trim()) {
+        sanitizedReaction.comment = reaction.comment.trim().slice(0, 100);
+      }
+    }
+
     await updateDoc(diaryRef, {
-      reaction: reaction || null,
+      reaction: sanitizedReaction,
       updatedAt: serverTimestamp(),
     });
 

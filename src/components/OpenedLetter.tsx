@@ -85,9 +85,9 @@ export default function OpenedLetter({
     setIsSavingReaction(true);
     const newReaction: DiaryReaction = {
       emoji: reactionEmoji.trim(),
-      comment: reactionComment.trim() ? reactionComment.trim().slice(0, 100) : undefined,
       reactorName: userName || (language === 'en' ? 'Partner' : '상대방'),
       reactedAt: new Date().toISOString(),
+      ...(reactionComment.trim() ? { comment: reactionComment.trim().slice(0, 100) } : {}),
     };
 
     try {
