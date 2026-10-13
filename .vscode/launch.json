@@ -1,0 +1,11 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "iOS 앱 실행 (F5)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run ios"
+    }
+  ]
+}
