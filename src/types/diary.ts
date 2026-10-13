@@ -86,6 +86,7 @@ export interface DiaryReaction {
   emoji: string;
   comment?: string; // 공백 포함 100자 이내 코멘트
   reactorName: string;
+  reactorId?: string; // 작성자 고유 UID
   reactedAt: string;
 }
 

@@ -6,7 +6,7 @@ import { DiaryData, DiaryReaction, sanitizeDiaryReaction } from '@/types/diary';
 import { generateFallbackWarmth } from '@/lib/gemini';
 import { Feather, Calendar, Heart, MessageSquareQuote, PenLine, ThermometerSun, ThermometerSnowflake, Edit3, Check, X, Smile, Sparkles, Trash2 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
-import { updateDiaryDateInFirestore, updateDiaryReactionInFirestore } from '@/lib/roomService';
+import { updateDiaryDateInFirestore, updateDiaryReactionInFirestore, getOrCreateUserId } from '@/lib/roomService';
 import { soundEngine } from '@/lib/audio';
 import { forceScrollToTop } from '@/lib/scrollUtils';
 
@@ -31,6 +31,7 @@ export default function OpenedLetter({
 }: OpenedLetterProps) {
   const { language, t } = useLanguage();
   const isAuthor = Boolean(userName && diary.authorName === userName);
+  const currentUserId = typeof window !== 'undefined' ? getOrCreateUserId() : '';
   const [currentDiaryDate, setCurrentDiaryDate] = useState<string>(diary.createdAt);
   const [isEditingDate, setIsEditingDate] = useState(false);
   const [editDateValue, setEditDateValue] = useState<string>(() => {
@@ -47,6 +48,14 @@ export default function OpenedLetter({
   const [currentReaction, setCurrentReaction] = useState<DiaryReaction | null>(() => {
     return sanitizeDiaryReaction(diary).reaction || null;
   });
+
+  // 내가 등록한 포스트잇 반응인지 여부 판별 (닉네임 또는 UID 기준)
+  const isReactionOwner = Boolean(
+    currentReaction &&
+    ((userName && currentReaction.reactorName && currentReaction.reactorName.trim().toLowerCase() === userName.trim().toLowerCase()) ||
+     (currentReaction.reactorId && currentUserId && currentReaction.reactorId === currentUserId))
+  );
+
   const [isReactionModalOpen, setIsReactionModalOpen] = useState(false);
   const [reactionEmoji, setReactionEmoji] = useState(() => diary.reaction?.emoji || '❤️');
   const [reactionComment, setReactionComment] = useState(() => diary.reaction?.comment || '');
@@ -82,10 +91,13 @@ export default function OpenedLetter({
   const handleSaveReaction = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!reactionEmoji.trim() || isSavingReaction) return;
+    // 상대방이 등록한 포스트잇인 경우 수정/덮어쓰기 차단
+    if (currentReaction && !isReactionOwner) return;
     setIsSavingReaction(true);
     const newReaction: DiaryReaction = {
       emoji: reactionEmoji.trim(),
       reactorName: userName || (language === 'en' ? 'Partner' : '상대방'),
+      reactorId: currentUserId || undefined,
       reactedAt: new Date().toISOString(),
       ...(reactionComment.trim() ? { comment: reactionComment.trim().slice(0, 100) } : {}),
     };
@@ -108,6 +120,8 @@ export default function OpenedLetter({
 
   const handleRemoveReaction = async () => {
     if (isSavingReaction) return;
+    // 상대방이 등록한 포스트잇인 경우 삭제 차단
+    if (currentReaction && !isReactionOwner) return;
     setIsSavingReaction(true);
     try {
       setCurrentReaction(null);
@@ -126,6 +140,8 @@ export default function OpenedLetter({
   };
 
   const handleOpenReactionModal = () => {
+    // 상대방이 등록한 포스트잇인 경우 수정 모달 진입 차단
+    if (currentReaction && !isReactionOwner) return;
     if (currentReaction) {
       setReactionEmoji(currentReaction.emoji || '❤️');
       setReactionComment(currentReaction.comment || '');
@@ -404,39 +420,43 @@ export default function OpenedLetter({
                       — {currentReaction.reactorName}
                       {currentReaction.reactedAt && ` · ${formatReactionTime(currentReaction.reactedAt)}`}
                     </span>
-                    <div className="flex items-center gap-2 shrink-0 ml-2">
-                      <button
-                        type="button"
-                        onClick={handleOpenReactionModal}
-                        className="text-[11px] text-stone-400 hover:text-stone-700 underline cursor-pointer"
-                      >
-                        {language === 'en' ? 'Edit' : '수정'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleRemoveReaction}
-                        disabled={isSavingReaction}
-                        className="text-[11px] text-stone-400 hover:text-rose-500 underline cursor-pointer"
-                      >
-                        {language === 'en' ? 'Remove' : '떼기'}
-                      </button>
-                    </div>
+                    {isReactionOwner && (
+                      <div className="flex items-center gap-2 shrink-0 ml-2">
+                        <button
+                          type="button"
+                          onClick={handleOpenReactionModal}
+                          className="text-[11px] text-stone-400 hover:text-stone-700 underline cursor-pointer"
+                        >
+                          {language === 'en' ? 'Edit' : '수정'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleRemoveReaction}
+                          disabled={isSavingReaction}
+                          className="text-[11px] text-stone-400 hover:text-rose-500 underline cursor-pointer"
+                        >
+                          {language === 'en' ? 'Remove' : '떼기'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             </motion.div>
           )}
 
-          {/* 온도 위에 눈에 띄지 않게 조용한 텍스트로 '반응 추가하기+' */}
-          <div className="flex justify-end items-center mb-1.5 -mt-2">
-            <button
-              type="button"
-              onClick={handleOpenReactionModal}
-              className="text-xs text-stone-400 hover:text-stone-600 transition-colors font-serif-warm cursor-pointer select-none py-0.5"
-            >
-              {currentReaction ? (language === 'en' ? 'Edit reaction' : '반응 수정하기') : (language === 'en' ? 'Add reaction +' : '반응 추가하기+')}
-            </button>
-          </div>
+          {/* 온도 위에 눈에 띄지 않게 조용한 텍스트로 '반응 추가하기+' (내가 쓴 반응일 때만 수정 가능, 상대방 반응이면 버튼 숨김) */}
+          {(!currentReaction || isReactionOwner) && (
+            <div className="flex justify-end items-center mb-1.5 -mt-2">
+              <button
+                type="button"
+                onClick={handleOpenReactionModal}
+                className="text-xs text-stone-400 hover:text-stone-600 transition-colors font-serif-warm cursor-pointer select-none py-0.5"
+              >
+                {currentReaction ? (language === 'en' ? 'Edit reaction' : '반응 수정하기') : (language === 'en' ? 'Add reaction +' : '반응 추가하기+')}
+              </button>
+            </div>
+          )}
 
           {/* AI 온기 온도계 & 감정 날씨 배지 (편지 내용 밑으로 이동) */}
           {warmth && typeof warmth.temperature === 'number' && (
@@ -655,7 +675,7 @@ export default function OpenedLetter({
 
                 {/* 하단 액션 버튼 */}
                 <div className="pt-2 flex items-center justify-between">
-                  {currentReaction ? (
+                  {currentReaction && isReactionOwner ? (
                     <button
                       type="button"
                       onClick={handleRemoveReaction}

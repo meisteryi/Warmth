@@ -760,6 +760,9 @@ export async function updateDiaryReactionInFirestore(
         reactorName: reaction.reactorName || '상대방',
         reactedAt: reaction.reactedAt || new Date().toISOString(),
       };
+      if (reaction.reactorId) {
+        sanitizedReaction.reactorId = reaction.reactorId;
+      }
       if (reaction.comment && reaction.comment.trim()) {
         sanitizedReaction.comment = reaction.comment.trim().slice(0, 100);
       }
