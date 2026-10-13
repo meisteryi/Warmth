@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { soundEngine } from '@/lib/audio';
 import confetti from 'canvas-confetti';
-import { Sparkles, RotateCcw, CheckCircle2, Hand } from 'lucide-react';
+import { RotateCcw, CheckCircle2, Hand } from 'lucide-react';
 
 interface PhotoSlidingPuzzleProps {
   imageUrl?: string;
@@ -160,22 +160,11 @@ export default function PhotoSlidingPuzzle({
       (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
     } catch {}
 
-    const threshold = 22; // 22px 이상 슬라이드 시 이동 확정
+    const threshold = 22; // 22px 이상 슬라이드 시에만 이동 확정 (단순 클릭/탭 방지)
     const movedDistance = Math.abs(dragOffset.x) + Math.abs(dragOffset.y);
 
     if (movedDistance >= threshold) {
       moveTile(draggingIdx);
-    } else {
-      // 아주 짧은 탭/클릭인 경우에도 인접하면 바로 슬라이드
-      if (dragStartPos.current) {
-        const totalDist = Math.hypot(
-          e.clientX - dragStartPos.current.x,
-          e.clientY - dragStartPos.current.y
-        );
-        if (totalDist < 8) {
-          moveTile(draggingIdx);
-        }
-      }
     }
 
     setDraggingIdx(null);
@@ -249,6 +238,7 @@ export default function PhotoSlidingPuzzle({
               <motion.div
                 key={tileNum}
                 onPointerDown={(e) => handlePointerDown(currentIdx, e)}
+                onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
                 onPointerCancel={handlePointerUp}
                 style={{
@@ -304,18 +294,10 @@ export default function PhotoSlidingPuzzle({
             type="button"
             onClick={shuffleTiles}
             title="퍼즐 다시 섞기"
-            className="p-1.5 rounded-lg border border-stone-300 hover:bg-stone-100 text-stone-600 active:scale-95"
+            className="px-2.5 py-1 rounded-lg border border-stone-300 hover:bg-stone-100 text-stone-600 active:scale-95 flex items-center gap-1.5 cursor-pointer text-xs transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-          </button>
-
-          <button
-            type="button"
-            onClick={handleAutoSolve}
-            className="px-2.5 py-1 rounded-lg bg-amber-100/70 hover:bg-amber-100 border border-amber-300 text-amber-900 text-[11px] font-medium flex items-center gap-1 active:scale-95"
-          >
-            <Sparkles className="w-3 h-3 text-amber-700" />
-            <span>바로 완성하기</span>
+            <span>다시 섞기</span>
           </button>
         </div>
       </div>

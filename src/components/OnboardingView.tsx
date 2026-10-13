@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { soundEngine } from '@/lib/audio';
@@ -353,16 +354,25 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
               {language === 'en' ? '[Required] Agree to Community Guidelines & EULA' : '[필수] 커뮤니티 가이드라인 및 EULA 동의'}
             </span>
           </label>
-          <button
-            type="button"
-            onClick={() => {
-              setIsEulaModalOpen(true);
-              soundEngine.playTileSlideSound();
-            }}
-            className="text-[11px] text-[#6B1724] hover:text-[#831D2D] underline font-semibold shrink-0 cursor-pointer"
-          >
-            {language === 'en' ? 'View Terms' : '약관 보기'}
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0 text-[11px]">
+            <button
+              type="button"
+              onClick={() => {
+                setIsEulaModalOpen(true);
+                soundEngine.playTileSlideSound();
+              }}
+              className="text-[#6B1724] hover:text-[#831D2D] underline font-semibold cursor-pointer"
+            >
+              {language === 'en' ? 'EULA' : '약관'}
+            </button>
+            <span className="text-stone-300">·</span>
+            <Link
+              href="/privacy"
+              className="text-stone-500 hover:text-stone-800 underline transition-colors"
+            >
+              {language === 'en' ? 'Privacy' : '개인정보'}
+            </Link>
+          </div>
         </div>
 
         {/* 탭 1: 방 새로 만들기 */}

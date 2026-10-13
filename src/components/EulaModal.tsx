@@ -1,6 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldCheck, X, Mail, FileText, AlertOctagon } from 'lucide-react';
 
@@ -10,18 +12,25 @@ interface EulaModalProps {
 }
 
 export default function EulaModal({ isOpen, onClose }: EulaModalProps) {
-  if (!isOpen) return null;
+  const [mounted, setMounted] = useState(false);
 
-  return (
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          transition={{ duration: 0.2 }}
-          className="w-full max-w-lg bg-[#FAF7F2] rounded-2xl border border-[#E5DAC8] shadow-2xl overflow-hidden font-sans-ui text-stone-800 flex flex-col max-h-[85vh]"
-        >
+      {isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 pt-[calc(env(safe-area-inset-top,0px)+1.25rem)] pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] bg-black/60 backdrop-blur-xs select-none">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            transition={{ duration: 0.2 }}
+            className="w-full max-w-lg bg-[#FAF7F2] rounded-2xl border border-[#E5DAC8] shadow-2xl overflow-hidden font-sans-ui text-stone-800 flex flex-col max-h-[82dvh] my-auto"
+          >
           {/* 헤더 */}
           <div className="bg-[#6B1724] px-5 py-4 text-amber-50 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2.5">
@@ -84,9 +93,18 @@ export default function EulaModal({ isOpen, onClose }: EulaModalProps) {
 
             {/* 제4조 */}
             <div className="space-y-1">
-              <h3 className="font-bold text-stone-900 text-sm">제4조 (데이터 보호 및 개인정보)</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-stone-900 text-sm">제4조 (데이터 보호 및 개인정보)</h3>
+                <Link
+                  href="/privacy"
+                  onClick={onClose}
+                  className="text-[11px] text-[#6B1724] hover:underline font-semibold"
+                >
+                  개인정보 처리방침 전문 →
+                </Link>
+              </div>
               <p>
-                모든 교환일기와 개인 데이터는 강력한 암호화 및 보안 전송을 통해 보호되며, 사용자는 언제든지 데이터 삭제 및 방 탈퇴를 요청할 수 있습니다.
+                모든 교환일기와 개인 데이터는 강력한 암호화 및 보안 전송을 통해 보호되며, 사용자는 언제든지 데이터 삭제 및 방 탈퇴를 요청할 수 있습니다. 수집 항목 및 파기 절차에 대한 세부 사항은 개인정보 처리방침을 준수합니다.
               </p>
             </div>
 
@@ -98,13 +116,20 @@ export default function EulaModal({ isOpen, onClose }: EulaModalProps) {
               </p>
               <div className="p-2.5 rounded-lg bg-stone-100 flex items-center gap-2 text-stone-700">
                 <Mail className="w-4 h-4 text-[#6B1724]" />
-                <span>운영 및 고객지원: <strong>support@warmth.app</strong> (warmth.app.contact@gmail.com)</span>
+                <span>운영 및 고객지원: <strong>yjh020701@gmail.com</strong> (support@warmth.app)</span>
               </div>
             </div>
           </div>
 
           {/* 푸터 */}
-          <div className="p-4 bg-stone-100/80 border-t border-stone-200 flex justify-end shrink-0">
+          <div className="p-4 bg-stone-100/80 border-t border-stone-200 flex items-center justify-between shrink-0">
+            <Link
+              href="/privacy"
+              onClick={onClose}
+              className="text-xs text-stone-500 hover:text-stone-800 underline underline-offset-2 font-medium"
+            >
+              개인정보 처리방침 보기
+            </Link>
             <button
               type="button"
               onClick={onClose}
@@ -115,6 +140,8 @@ export default function EulaModal({ isOpen, onClose }: EulaModalProps) {
           </div>
         </motion.div>
       </div>
-    </AnimatePresence>
+      )}
+    </AnimatePresence>,
+    document.body
   );
 }

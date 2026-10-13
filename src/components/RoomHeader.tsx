@@ -20,8 +20,10 @@ import {
   User,
   Globe,
   ShieldAlert,
+  ShieldCheck,
   FileText,
 } from 'lucide-react';
+import Link from 'next/link';
 import { getNotificationStatus, requestNotificationPermission } from '@/lib/notifications';
 import { soundEngine } from '@/lib/audio';
 import { useLanguage } from '@/lib/i18n';
@@ -162,7 +164,7 @@ export default function RoomHeader({
   const isMatched = currentState !== 'VIEW_ONBOARDING';
 
   return (
-    <header className="w-full bg-[#FAF7F2]/95 backdrop-blur-md border-b border-[#E8DFD3] sticky top-0 z-40 px-3.5 sm:px-6 pt-[calc(env(safe-area-inset-top,0px)+0.65rem)] pb-2.5 sm:pb-3 shrink-0 shadow-2xs">
+    <header className="w-full bg-[#FAF7F2]/95 backdrop-blur-md border-b border-[#E8DFD3] shrink-0 z-40 px-3.5 sm:px-6 pt-[calc(env(safe-area-inset-top,0px)+0.65rem)] pb-2.5 sm:pb-3 shadow-2xs select-none">
       <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
         {/* 좌측: 로고 및 다정한 커플 상태 (클릭 시 홈으로 이동) */}
         <div 
@@ -457,7 +459,8 @@ export default function RoomHeader({
             </div>
 
             {/* 6. 이용약관 및 커뮤니티 가이드라인 (Apple Guideline 1.2) */}
-            <div className="border-t border-[#E8DFD3]/80 pt-1">
+            {/* 6. 이용약관 및 개인정보 처리방침 */}
+            <div className="border-t border-[#E8DFD3]/80 pt-1 space-y-0.5">
               <button
                 type="button"
                 onClick={() => {
@@ -470,6 +473,14 @@ export default function RoomHeader({
                 <FileText className="w-3.5 h-3.5 text-stone-500" />
                 <span>{language === 'en' ? 'Community Guidelines & EULA' : '이용약관 및 가이드라인'}</span>
               </button>
+              <Link
+                href="/privacy"
+                onClick={() => setIsMenuOpen(false)}
+                className="w-full px-3.5 py-2 text-left flex items-center gap-2 text-stone-600 hover:text-stone-900 hover:bg-stone-100/60 transition-colors text-xs cursor-pointer font-sans-ui"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-stone-500" />
+                <span>{language === 'en' ? 'Privacy Policy' : '개인정보 처리방침'}</span>
+              </Link>
             </div>
 
             {/* 7. 상대방 차단 및 연결 해제 (Apple Review Guideline 1.2 UGC) */}

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, ShieldAlert, CheckCircle, X, Mail } from 'lucide-react';
 import { soundEngine } from '@/lib/audio';
@@ -29,12 +30,15 @@ export default function ReportModal({
   targetAuthorName,
   onConfirmReport,
 }: ReportModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [selectedReason, setSelectedReason] = useState(REPORT_REASONS[0].id);
   const [additionalDetails, setAdditionalDetails] = useState('');
   const [blockPartnerAlso, setBlockPartnerAlso] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const targetTypeText =
     targetType === 'REACTION'
@@ -60,16 +64,19 @@ export default function ReportModal({
     }, 1200);
   };
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          transition={{ duration: 0.2 }}
-          className="w-full max-w-md bg-[#FAF7F2] rounded-2xl border border-[#E5DAC8] shadow-2xl overflow-hidden font-sans-ui text-stone-800"
-        >
+      {isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 pt-[calc(env(safe-area-inset-top,0px)+1.25rem)] pb-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] bg-black/60 backdrop-blur-xs select-none">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            transition={{ duration: 0.2 }}
+            className="w-full max-w-md bg-[#FAF7F2] rounded-2xl border border-[#E5DAC8] shadow-2xl overflow-hidden font-sans-ui text-stone-800 my-auto"
+          >
           {/* 헤더 */}
           <div className="bg-[#6B1724] px-5 py-4 text-amber-50 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -194,7 +201,9 @@ export default function ReportModal({
             </form>
           )}
         </motion.div>
-      </div>
-    </AnimatePresence>
+        </div>
+      )}
+    </AnimatePresence>,
+    document.body
   );
 }

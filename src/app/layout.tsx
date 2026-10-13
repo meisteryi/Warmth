@@ -42,10 +42,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className="h-full antialiased" suppressHydrationWarning>
+    <html lang="ko" className="h-full overflow-hidden antialiased" suppressHydrationWarning>
       <body
         suppressHydrationWarning
-        className="min-h-full flex flex-col font-serif-warm bg-[#FAF7F2] text-[#2C2A29] selection:bg-[#6B1724]/20 selection:text-[#6B1724]"
+        className="h-full overflow-hidden flex flex-col font-serif-warm bg-[#FAF7F2] text-[#2C2A29] selection:bg-[#6B1724]/20 selection:text-[#6B1724]"
       >
         <LanguageProvider>
           {children}

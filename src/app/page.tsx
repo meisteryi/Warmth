@@ -1098,7 +1098,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen min-h-dvh flex flex-col bg-[#FDFBF7] text-[#2C2A29] selection:bg-[#6B1724]/20 selection:text-[#6B1724]">
+    <div className="h-screen h-dvh max-h-dvh flex flex-col overflow-hidden bg-[#FDFBF7] text-[#2C2A29] selection:bg-[#6B1724]/20 selection:text-[#6B1724]">
       {/* 앱 시작 시 온기 감성 스플래시 화면 (0.85초 유지 후 0.35초 페이드아웃) */}
       <AnimatePresence>
         {showSplash && (
@@ -1164,10 +1164,10 @@ export default function HomePage() {
         countdownFormatted={countdown.formatted}
       />
 
-      {/* 메인 뷰 컨테이너 (iOS 스크롤 및 키보드 오버플로우 방지) */}
+      {/* 메인 뷰 컨테이너 (상단바 고정 및 내부 독립 스크롤) */}
       <main
         ref={mainRef}
-        className={`flex-1 flex flex-col items-center justify-start sm:justify-center p-2 sm:p-4 pb-[max(env(safe-area-inset-bottom,0px),1rem)] relative overflow-y-auto sm:overflow-visible ${
+        className={`flex-1 w-full flex flex-col items-center justify-start p-2 sm:p-4 pb-[max(env(safe-area-inset-bottom,0px),1.5rem)] relative overflow-y-auto overscroll-y-contain ${
           uiState === 'VIEW_MEMORY_JAR' ? '!p-0 !pb-0 overflow-hidden w-full h-full' : ''
         }`}
       >
@@ -1342,6 +1342,27 @@ export default function HomePage() {
             />
           )}
         </AnimatePresence>
+
+        {/* 푸터 (스크롤 맨 아래로 내렸을 때만 자연스럽게 노출 - 하단 고정 바 아님) */}
+        <footer className="w-full mt-10 pt-6 pb-2 text-center text-[10px] sm:text-[11px] text-stone-400 font-serif-warm border-t border-[#EAE1D5]/40 flex flex-col items-center gap-1 select-none">
+          <p>온기 (Warmth) · 하루걸러 띄우는 우리 둘만의 아날로그 비밀 교환일기</p>
+          <p className="text-[10px] text-stone-400/90 font-sans-ui flex items-center justify-center gap-2 flex-wrap">
+            <span>제작자 문의:</span>
+            <a
+              href="mailto:yjh020701@gmail.com"
+              className="text-stone-500 hover:text-stone-800 underline underline-offset-2 transition-colors font-mono"
+            >
+              yjh020701@gmail.com
+            </a>
+            <span>·</span>
+            <a
+              href="/privacy"
+              className="text-stone-500 hover:text-stone-800 underline underline-offset-2 transition-colors font-semibold"
+            >
+              개인정보 처리방침 (Privacy Policy)
+            </a>
+          </p>
+        </footer>
       </main>
 
       {/* 실시간 인앱 노크 도착 알림 팝업 모달 */}
@@ -1628,20 +1649,6 @@ export default function HomePage() {
         currentBirthDate={userBirthDate}
         onSave={handleSaveProfile}
       />
-
-      {/* 푸터 (iOS 홈 인디케이터 제스처 여백 확보 및 제작자 문의) */}
-      <footer className="py-2.5 sm:py-3.5 pb-[calc(env(safe-area-inset-bottom,0px)+0.6rem)] text-center text-[10px] sm:text-[11px] text-stone-400 font-serif-warm border-t border-[#EAE1D5]/40 bg-[#FAF7F2]/50 px-3 shrink-0 flex flex-col items-center gap-1">
-        <p>온기 (Warmth) · 하루걸러 띄우는 우리 둘만의 아날로그 비밀 교환일기</p>
-        <p className="text-[10px] text-stone-400/90 font-sans-ui flex items-center justify-center gap-1.5 flex-wrap">
-          <span>제작자 문의 (Contact):</span>
-          <a
-            href="mailto:yjh020701@gmail.com"
-            className="text-stone-500 hover:text-stone-800 underline underline-offset-2 transition-colors font-mono"
-          >
-            yjh020701@gmail.com
-          </a>
-        </p>
-      </footer>
     </div>
   );
 }
