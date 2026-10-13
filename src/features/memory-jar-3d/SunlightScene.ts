@@ -18,16 +18,16 @@ export class SunlightSceneManager {
     // 1. 씬 생성
     this.scene = new THREE.Scene();
 
-    // 2. 카메라 설정 (병과 책상을 조금 더 멀리서 여유롭게 조망하는 하이앵글 시점)
+    // 2. 카메라 설정 (코르크 마개부터 책상까지 시야 중앙에 균형 있게 배치)
     this.camera = new THREE.PerspectiveCamera(
       36,
       containerWidth / containerHeight,
       0.1,
       100
     );
-    // 상단에서 조금 더 뒤로 물러나 병과 앤틱 책상 상판의 전체적인 실루엣이 한눈에 들어오도록 배치
-    this.camera.position.set(0, 4.0, 13.8);
-    this.camera.lookAt(0, -0.4, 0);
+    // 상단 여백(코르크 마개 잘림 방지)과 하단 원목 책상이 조화롭게 들어오도록 시점 최적화
+    this.camera.position.set(0, 2.8, 13.2);
+    this.camera.lookAt(0, 0.15, 0);
 
     // 3. 오른쪽 위에서 쏟아지는 따스한 햇빛 (Top-Right Directional Sunlight)
     this.sunLight = new THREE.DirectionalLight(0xFFF3D6, 3.2);

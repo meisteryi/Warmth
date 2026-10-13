@@ -413,7 +413,7 @@ export default function MemoryJarView({
           requestSensorPermission();
         }
       }}
-      className="relative w-full h-[calc(100dvh-4.25rem)] sm:h-[calc(100vh-4.5rem)] flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-[#F8F5EE] via-[#F3EDE2] to-[#EBE2D4] select-none"
+      className="relative w-full h-full min-h-[calc(100dvh-4.25rem)] sm:min-h-[calc(100vh-4.5rem)] flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-[#F8F5EE] via-[#F3EDE2] to-[#EBE2D4] select-none"
     >
       {/* 종이 결 감성 오버레이 */}
       <div className="absolute inset-0 pointer-events-none paper-texture opacity-60 z-0" />
