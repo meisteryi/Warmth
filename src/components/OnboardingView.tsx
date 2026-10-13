@@ -16,9 +16,12 @@ import {
   Clock,
   Loader2,
   Globe,
+  FileText,
+  ShieldCheck,
 } from 'lucide-react';
 import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
 import { useLanguage } from '@/lib/i18n';
+import EulaModal from '@/components/EulaModal';
 
 const PENDING_ROOM_KEY = 'warmth_pending_created_room';
 
@@ -37,6 +40,8 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
   const [isWaitingPartner, setIsWaitingPartner] = useState(false);
   const [joinError, setJoinError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [hasAgreedEula, setHasAgreedEula] = useState(true);
+  const [isEulaModalOpen, setIsEulaModalOpen] = useState(false);
 
   // [2번 요구사항] 앱 재실행 시 초대코드 발급 후 대기 중이던 방 상태 자동 복원
   useEffect(() => {
@@ -92,6 +97,10 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
 
   // 1. 6자리 난수 코드 발급 및 실제 Firestore에 방 저장 (대기 상태 임시 저장)
   const handleGenerateCode = async () => {
+    if (!hasAgreedEula) {
+      alert('온기 이용약관 및 커뮤니티 가이드라인에 동의해주세요.');
+      return;
+    }
     if (!myName.trim()) {
       alert('일기장에 사용할 나의 이름이나 별명을 먼저 입력해주세요.');
       return;
@@ -154,6 +163,11 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
   const handleJoinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setJoinError('');
+
+    if (!hasAgreedEula) {
+      setJoinError('온기 이용약관 및 커뮤니티 가이드라인에 동의해주세요.');
+      return;
+    }
 
     if (!myName.trim()) {
       setJoinError('일기장에 사용할 나의 이름이나 별명을 먼저 입력해주세요.');
@@ -326,6 +340,31 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
           />
         </div>
 
+        {/* 이용약관(EULA) 및 커뮤니티 가이드라인 동의 (Apple Guideline 1.2 UGC 필수) */}
+        <div className="mb-4 p-2.5 sm:p-3 rounded-xl bg-[#F6EFE5] border border-[#E8DDCC] flex items-center justify-between gap-2 text-xs font-sans-ui text-stone-700">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={hasAgreedEula}
+              onChange={(e) => setHasAgreedEula(e.target.checked)}
+              className="accent-[#6B1724] w-4 h-4 rounded-xs shrink-0 cursor-pointer"
+            />
+            <span className="font-medium text-stone-800 text-[11px] sm:text-xs">
+              {language === 'en' ? '[Required] Agree to Community Guidelines & EULA' : '[필수] 커뮤니티 가이드라인 및 EULA 동의'}
+            </span>
+          </label>
+          <button
+            type="button"
+            onClick={() => {
+              setIsEulaModalOpen(true);
+              soundEngine.playTileSlideSound();
+            }}
+            className="text-[11px] text-[#6B1724] hover:text-[#831D2D] underline font-semibold shrink-0 cursor-pointer"
+          >
+            {language === 'en' ? 'View Terms' : '약관 보기'}
+          </button>
+        </div>
+
         {/* 탭 1: 방 새로 만들기 */}
         {activeTab === 'CREATE' && (
           <div className="space-y-4">
@@ -460,8 +499,23 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
           </form>
         )}
 
+        {/* 🍎 심사위원 & 기능 검증용 둘러보기 방 (#777777) */}
+        <div className="mt-4 pt-3 border-t border-amber-900/10">
+          <button
+            type="button"
+            onClick={() => {
+              soundEngine.playStampThudSound();
+              onMatched('777777', '서연', '민우', 'PARTNER');
+            }}
+            className="w-full py-2.5 px-3 rounded-xl bg-amber-950/5 hover:bg-amber-950/10 border border-amber-900/20 active:scale-98 text-xs font-sans-ui font-semibold text-amber-950 flex items-center justify-center gap-2 transition-all cursor-pointer"
+          >
+            <span>🍎 심사위원 & 기능 검증용 둘러보기 방 (#777777)</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-900/10 font-mono">1초 입장</span>
+          </button>
+        </div>
+
         {/* iOS Safari 7일 미접속 초기화 방지 안내 & 홈 화면 추가 팁 */}
-        <div className="mt-5 p-3.5 sm:p-4 rounded-2xl bg-[#F4EFE6]/90 border border-[#E3D7C5] text-stone-700 shadow-2xs">
+        <div className="mt-4 p-3.5 sm:p-4 rounded-2xl bg-[#F4EFE6]/90 border border-[#E3D7C5] text-stone-700 shadow-2xs">
           <div className="flex items-start gap-2.5">
             <span className="text-base shrink-0 mt-0.5">💡</span>
             <div className="text-xs leading-relaxed font-sans-ui text-stone-600">
@@ -478,6 +532,9 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
           </div>
         </div>
       </motion.div>
+
+      {/* 이용약관 및 커뮤니티 가이드라인 모달 (Apple Review Guideline 1.2 UGC) */}
+      <EulaModal isOpen={isEulaModalOpen} onClose={() => setIsEulaModalOpen(false)} />
     </motion.div>
   );
 }

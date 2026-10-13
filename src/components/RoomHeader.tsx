@@ -19,10 +19,13 @@ import {
   Clock,
   User,
   Globe,
+  ShieldAlert,
+  FileText,
 } from 'lucide-react';
 import { getNotificationStatus, requestNotificationPermission } from '@/lib/notifications';
 import { soundEngine } from '@/lib/audio';
 import { useLanguage } from '@/lib/i18n';
+import EulaModal from '@/components/EulaModal';
 
 import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
 
@@ -88,6 +91,7 @@ export default function RoomHeader({
   const [copiedCode, setCopiedCode] = useState(false);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
   const [volume, setVolume] = useState<number>(0.8);
+  const [isEulaOpen, setIsEulaOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -452,7 +456,47 @@ export default function RoomHeader({
               💡 {t('menu.safariNotice')}
             </div>
 
-            {/* 6. 방 나가기 */}
+            {/* 6. 이용약관 및 커뮤니티 가이드라인 (Apple Guideline 1.2) */}
+            <div className="border-t border-[#E8DFD3]/80 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  setIsEulaOpen(true);
+                  soundEngine.playTileSlideSound();
+                }}
+                className="w-full px-3.5 py-2 text-left flex items-center gap-2 text-stone-600 hover:text-stone-900 hover:bg-stone-100/60 transition-colors text-xs cursor-pointer font-sans-ui"
+              >
+                <FileText className="w-3.5 h-3.5 text-stone-500" />
+                <span>{language === 'en' ? 'Community Guidelines & EULA' : '이용약관 및 가이드라인'}</span>
+              </button>
+            </div>
+
+            {/* 7. 상대방 차단 및 연결 해제 (Apple Review Guideline 1.2 UGC) */}
+            {onLeaveRoom && (
+              <div className="border-t border-[#E8DFD3]/80 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    const confirmed = window.confirm(
+                      language === 'en'
+                        ? 'Block partner and disconnect from this room? All partner content will be hidden and you will leave the room.'
+                        : '상대방을 차단하고 일기장 연결을 해제하시겠습니까?\n차단 시 상대방의 모든 글이 숨겨지며, 일기장에서 즉시 퇴장 처리됩니다.'
+                    );
+                    if (confirmed) {
+                      onLeaveRoom();
+                    }
+                  }}
+                  className="w-full px-3.5 py-2 text-left flex items-center gap-2 text-rose-600 hover:text-rose-800 hover:bg-rose-50/60 transition-colors text-xs cursor-pointer font-sans-ui font-semibold"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
+                  <span>{language === 'en' ? 'Block Partner & Disconnect' : '상대방 차단 및 연결 해제'}</span>
+                </button>
+              </div>
+            )}
+
+            {/* 8. 방 나가기 */}
             {onLeaveRoom && (
               <div className="border-t border-[#E8DFD3]/80 pt-1 mt-1">
                 <button
@@ -460,7 +504,7 @@ export default function RoomHeader({
                     setIsMenuOpen(false);
                     onLeaveRoom();
                   }}
-                  className="w-full px-3.5 py-2 text-left flex items-center gap-2 text-stone-400 hover:text-rose-600 hover:bg-rose-50/60 transition-colors text-xs cursor-pointer font-sans-ui"
+                  className="w-full px-3.5 py-2 text-left flex items-center gap-2 text-stone-400 hover:text-stone-700 hover:bg-stone-50/60 transition-colors text-xs cursor-pointer font-sans-ui"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   <span>{t('menu.leaveRoom')}</span>
@@ -470,6 +514,9 @@ export default function RoomHeader({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 이용약관 모달 */}
+      <EulaModal isOpen={isEulaOpen} onClose={() => setIsEulaOpen(false)} />
     </header>
   );
 }

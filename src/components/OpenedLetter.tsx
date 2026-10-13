@@ -4,11 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DiaryData, DiaryReaction, sanitizeDiaryReaction } from '@/types/diary';
 import { generateFallbackWarmth } from '@/lib/gemini';
-import { Feather, Calendar, Heart, MessageSquareQuote, PenLine, ThermometerSun, ThermometerSnowflake, Edit3, Check, X, Smile, Sparkles, Trash2 } from 'lucide-react';
+import { Feather, Calendar, Heart, MessageSquareQuote, PenLine, ThermometerSun, ThermometerSnowflake, Edit3, Check, X, Smile, Sparkles, Trash2, Flag, ShieldAlert } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { updateDiaryDateInFirestore, updateDiaryReactionInFirestore, getOrCreateUserId } from '@/lib/roomService';
 import { soundEngine } from '@/lib/audio';
 import { forceScrollToTop } from '@/lib/scrollUtils';
+import ReportModal from '@/components/ReportModal';
 
 interface OpenedLetterProps {
   diary: DiaryData;
@@ -18,6 +19,7 @@ interface OpenedLetterProps {
   roomCode?: string;
   onUpdateDiaryDate?: (diaryId: string, newIsoDate: string) => void;
   onUpdateDiaryReaction?: (diaryId: string, reaction: DiaryReaction | null, diaryTitle?: string) => void | Promise<void>;
+  onBlockPartner?: () => void;
 }
 
 export default function OpenedLetter({
@@ -28,6 +30,7 @@ export default function OpenedLetter({
   roomCode,
   onUpdateDiaryDate,
   onUpdateDiaryReaction,
+  onBlockPartner,
 }: OpenedLetterProps) {
   const { language, t } = useLanguage();
   const isAuthor = Boolean(userName && diary.authorName === userName);
@@ -60,6 +63,24 @@ export default function OpenedLetter({
   const [reactionEmoji, setReactionEmoji] = useState(() => diary.reaction?.emoji || '❤️');
   const [reactionComment, setReactionComment] = useState(() => diary.reaction?.comment || '');
   const [isSavingReaction, setIsSavingReaction] = useState(false);
+
+  // 애플 심사 지침 1.2(UGC): 콘텐츠 신고 및 가리기 상태
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportTargetType, setReportTargetType] = useState<'DIARY' | 'REACTION' | 'USER'>('DIARY');
+  const [reportTargetAuthorName, setReportTargetAuthorName] = useState('');
+  const [isContentHiddenAfterReport, setIsContentHiddenAfterReport] = useState(false);
+  const [isReactionHiddenAfterReport, setIsReactionHiddenAfterReport] = useState(false);
+
+  const handleConfirmReport = (reason: string, blockPartner: boolean) => {
+    if (reportTargetType === 'REACTION') {
+      setIsReactionHiddenAfterReport(true);
+    } else {
+      setIsContentHiddenAfterReport(true);
+    }
+    if (blockPartner) {
+      onBlockPartner?.();
+    }
+  };
 
   // 일기(편지) 화면 열람 시 외부/이전 화면의 스크롤 위치가 승계되지 않도록 상단(0px)으로 초기화
   useEffect(() => {
@@ -266,9 +287,27 @@ export default function OpenedLetter({
                     <span className="font-semibold text-[10px] tracking-wide">{diary.stamp.name}</span>
                   </div>
                 )}
-                <div className="flex items-center gap-1.5 text-stone-500 font-sans-ui text-xs">
-                  <Feather className="w-3.5 h-3.5 text-stone-600" />
-                  <span>{language === 'en' ? 'By ' : '작성자 '}<strong>{diary.authorName}</strong></span>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 text-stone-500 font-sans-ui text-xs">
+                    <Feather className="w-3.5 h-3.5 text-stone-600" />
+                    <span>{language === 'en' ? 'By ' : '작성자 '}<strong>{diary.authorName}</strong></span>
+                  </div>
+                  {!isAuthor && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReportTargetType('DIARY');
+                        setReportTargetAuthorName(diary.authorName || (language === 'en' ? 'Partner' : '상대방'));
+                        setIsReportModalOpen(true);
+                        soundEngine.playTileSlideSound();
+                      }}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] text-stone-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer border border-transparent hover:border-rose-200"
+                      title={language === 'en' ? 'Report inappropriate diary or photos' : '부적절한 일기 및 사진 신고'}
+                    >
+                      <Flag className="w-3 h-3 text-rose-500" />
+                      <span>{language === 'en' ? 'Report' : '신고'}</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -355,41 +394,56 @@ export default function OpenedLetter({
             </h1>
           </div>
 
-          {/* 사진 갤러리 (폴라로이드 스타일) */}
-          {diary.photos && diary.photos.length > 0 && (
-            <div className="my-6 flex flex-wrap gap-4 justify-center sm:justify-start">
-              {diary.photos.map((imgUrl, idx) => (
-                <motion.div
-                  key={idx}
-                  whileHover={{ scale: 1.03, rotate: 0 }}
-                  className={`polaroid-frame w-48 sm:w-56 transition-transform ${idx % 2 === 0 ? '-rotate-1' : 'rotate-2'
-                    }`}
-                >
-                  <div className="w-full aspect-[4/3] bg-stone-200 overflow-hidden rounded-xs relative">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={imgUrl}
-                      alt={`일기 사진 ${idx + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <p className="mt-2 text-center font-serif-warm text-[11px] text-stone-500">
-                    그날의 한 컷 #{idx + 1}
-                  </p>
-                </motion.div>
-              ))}
+          {/* 사진 갤러리 및 본문 (신고 시 즉시 가림 처리) */}
+          {isContentHiddenAfterReport ? (
+            <div className="my-8 p-6 rounded-2xl bg-stone-100/90 border border-stone-200 text-center space-y-2 font-serif-warm">
+              <ShieldAlert className="w-7 h-7 text-stone-400 mx-auto" />
+              <p className="text-sm font-bold text-stone-700">
+                {language === 'en' ? 'This diary has been reported and hidden.' : '신고가 접수되어 화면에서 가려진 일기입니다.'}
+              </p>
+              <p className="text-xs text-stone-500 font-sans-ui">
+                {language === 'en' ? 'Reviewed and actioned within 24 hours.' : '운영팀의 24시간 이내 검토를 거쳐 조치됩니다.'}
+              </p>
             </div>
-          )}
+          ) : (
+            <>
+              {/* 사진 갤러리 (폴라로이드 스타일) */}
+              {diary.photos && diary.photos.length > 0 && (
+                <div className="my-6 flex flex-wrap gap-4 justify-center sm:justify-start">
+                  {diary.photos.map((imgUrl, idx) => (
+                    <motion.div
+                      key={idx}
+                      whileHover={{ scale: 1.03, rotate: 0 }}
+                      className={`polaroid-frame w-48 sm:w-56 transition-transform ${idx % 2 === 0 ? '-rotate-1' : 'rotate-2'
+                        }`}
+                    >
+                      <div className="w-full aspect-[4/3] bg-stone-200 overflow-hidden rounded-xs relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={imgUrl}
+                          alt={`일기 사진 ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <p className="mt-2 text-center font-serif-warm text-[11px] text-stone-500">
+                        그날의 한 컷 #{idx + 1}
+                      </p>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
 
-          {/* 일기 본문 텍스트 (줄노트 감성) */}
-          <div className="my-6 text-stone-800 font-serif-warm text-base sm:text-lg leading-relaxed whitespace-pre-line tracking-normal">
-            {diary.content}
-          </div>
+              {/* 일기 본문 텍스트 (줄노트 감성) */}
+              <div className="my-6 text-stone-800 font-serif-warm text-base sm:text-lg leading-relaxed whitespace-pre-line tracking-normal">
+                {diary.content}
+              </div>
+            </>
+          )}
 
           {/* =============================================================== */}
           {/* 포스트잇 반응 표시 (일기 본문과 온기 온도 사이) */}
           {/* =============================================================== */}
-          {currentReaction && (
+          {currentReaction && !isReactionHiddenAfterReport && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95, rotate: -2 }}
               animate={{ opacity: 1, scale: 1, rotate: -1 }}
@@ -420,7 +474,7 @@ export default function OpenedLetter({
                       — {currentReaction.reactorName}
                       {currentReaction.reactedAt && ` · ${formatReactionTime(currentReaction.reactedAt)}`}
                     </span>
-                    {isReactionOwner && (
+                    {isReactionOwner ? (
                       <div className="flex items-center gap-2 shrink-0 ml-2">
                         <button
                           type="button"
@@ -438,6 +492,20 @@ export default function OpenedLetter({
                           {language === 'en' ? 'Remove' : '떼기'}
                         </button>
                       </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReportTargetType('REACTION');
+                          setReportTargetAuthorName(currentReaction.reactorName || (language === 'en' ? 'Partner' : '상대방'));
+                          setIsReportModalOpen(true);
+                          soundEngine.playTileSlideSound();
+                        }}
+                        className="text-[11px] text-stone-400 hover:text-rose-500 underline cursor-pointer shrink-0 ml-2"
+                        title={language === 'en' ? 'Report inappropriate note' : '부적절한 포스트잇 신고'}
+                      >
+                        {language === 'en' ? 'Report' : '신고'}
+                      </button>
                     )}
                   </div>
                 </div>
@@ -708,6 +776,15 @@ export default function OpenedLetter({
           </div>
         )}
       </AnimatePresence>
+
+      {/* 유해 콘텐츠 및 사용자 신고 모달 (Apple Review Guideline 1.2 UGC) */}
+      <ReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        targetType={reportTargetType}
+        targetAuthorName={reportTargetAuthorName}
+        onConfirmReport={handleConfirmReport}
+      />
     </motion.div>
   );
 }

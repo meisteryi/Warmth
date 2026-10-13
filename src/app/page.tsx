@@ -1309,6 +1309,7 @@ export default function HomePage() {
                 roomCode={roomCode}
                 onUpdateDiaryDate={handleUpdateDiaryDate}
                 onUpdateDiaryReaction={handleUpdateDiaryReaction}
+                onBlockPartner={handleLeaveRoom}
               />
             ) : (
               <EmptyDeskView
