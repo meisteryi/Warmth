@@ -22,8 +22,7 @@ export default function PrivacyPolicyPage() {
 
   return (
     <div className="h-full overflow-y-auto bg-[#FDFBF7] text-[#2C2A29] font-sans-ui selection:bg-[#6B1724]/20 selection:text-[#6B1724]">
-      {/* 상단 네비게이션 바 */}
-      <header className="sticky top-0 z-40 bg-[#FAF7F2]/95 backdrop-blur-md border-b border-[#E8DFD3] px-3.5 sm:px-8 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-3 flex items-center justify-between gap-2 shadow-2xs">
+      <header className="sticky top-0 z-40 bg-[#FAF7F2] border-b border-[#E8DFD3] px-3.5 sm:px-8 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-3 flex items-center justify-between gap-2 shadow-2xs">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <Link
             href="/"

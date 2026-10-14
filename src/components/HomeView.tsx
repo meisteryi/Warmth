@@ -206,10 +206,6 @@ export default function HomeView({
         transition={{ duration: 0.5, ease: 'easeOut' }}
         className="relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-[#FFFDF9] via-[#FAF6EE] to-[#F5ECE0] border border-[#E8DFD3] shadow-lg paper-texture"
       >
-        {/* 장식용 은은한 온기 배경 블러 */}
-        <div className="absolute -top-12 -right-12 w-40 h-40 bg-[#6B1724]/8 rounded-full blur-2xl pointer-events-none" />
-        <div className="absolute -bottom-10 -left-10 w-36 h-36 bg-amber-500/10 rounded-full blur-xl pointer-events-none" />
-
         <div className="relative z-10 flex flex-col items-center text-center">
           {/* 커플 닉네임 뱃지 */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/80 border border-[#E5DAC8] shadow-2xs mb-2">

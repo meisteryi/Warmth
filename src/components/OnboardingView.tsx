@@ -180,6 +180,13 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
       return;
     }
 
+    // 애플 앱스토어 심사관 전용 히든 데모룸 진입 코드 (#777777)
+    if (inputCode.trim() === '777777') {
+      soundEngine.playStampThudSound();
+      triggerMatchCelebration('777777', myName.trim() || '서연', '민우', 'PARTNER');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const res = await joinRoomInFirestore(inputCode.trim(), myName.trim());
@@ -509,20 +516,6 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
           </form>
         )}
 
-        {/* 🍎 심사위원 & 기능 검증용 둘러보기 방 (#777777) */}
-        <div className="mt-4 pt-3 border-t border-amber-900/10">
-          <button
-            type="button"
-            onClick={() => {
-              soundEngine.playStampThudSound();
-              onMatched('777777', '서연', '민우', 'PARTNER');
-            }}
-            className="w-full py-2.5 px-3 rounded-xl bg-amber-950/5 hover:bg-amber-950/10 border border-amber-900/20 active:scale-98 text-xs font-sans-ui font-semibold text-amber-950 flex items-center justify-center gap-2 transition-all cursor-pointer"
-          >
-            <span>🍎 심사위원 & 기능 검증용 둘러보기 방 (#777777)</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-900/10 font-mono">1초 입장</span>
-          </button>
-        </div>
 
         {/* iOS Safari 7일 미접속 초기화 방지 안내 & 홈 화면 추가 팁 */}
         <div className="mt-4 p-3.5 sm:p-4 rounded-2xl bg-[#F4EFE6]/90 border border-[#E3D7C5] text-stone-700 shadow-2xs">

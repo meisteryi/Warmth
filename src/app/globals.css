@@ -32,9 +32,6 @@ body {
   background-color: var(--bg-cream);
   color: var(--ink-charcoal);
   font-family: 'Gowun Batang', 'Noto Serif KR', serif;
-  background-image: 
-    radial-gradient(ellipse at 50% 10%, rgba(245, 235, 220, 0.6) 0%, rgba(244, 239, 234, 0) 70%),
-    radial-gradient(circle at 10% 20%, rgba(230, 220, 205, 0.4) 0%, transparent 40%);
   min-height: 100vh;
   min-height: -webkit-fill-available;
   min-height: 100dvh;
