@@ -6,6 +6,7 @@ import { DiaryData, WAX_COLORS, WEATHER_STAMPS } from '@/types/diary';
 import { getRoomDiariesFromFirestore, getCachedRoomDiaries } from '@/lib/roomService';
 import { WaxPieceData } from './types';
 import { MemoryJarCanvas, MemoryJarCanvasHandle } from './MemoryJarCanvas';
+import { hapticFeedback } from '@/lib/haptics';
 
 export const DEMO_FALLBACK_DIARIES: DiaryData[] = [
   {
@@ -299,11 +300,7 @@ export default function MemoryJarView({
       setTimeout(() => {
         setIsThrottled(false);
       }, 1000);
-      try {
-        if (typeof navigator !== 'undefined' && navigator.vibrate) {
-          navigator.vibrate(50);
-        }
-      } catch { }
+      hapticFeedback.medium();
       return true;
     }
     return false;
@@ -607,20 +604,7 @@ export default function MemoryJarView({
         </button>
       </div>
 
-      {/* 우측 상단: iOS 모션 센서 권한 허용 버튼 (필요 시에만 표시) */}
-      {needsMotionPermission && !motionPermissionGranted && (
-        <div className="absolute top-4 right-4 z-20">
-          <button
-            type="button"
-            onClick={requestSensorPermission}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 border border-[#831D2D] shadow-sm backdrop-blur-md text-xs font-serif-warm font-bold active:scale-95 transition-all cursor-pointer animate-pulse"
-            title="폰을 흔들어 왁스를 섞을 수 있도록 센서 접근을 허용합니다"
-          >
-            <span>📱</span>
-            <span>폰 흔들기 센서 켜기</span>
-          </button>
-        </div>
-      )}
+
 
 
 

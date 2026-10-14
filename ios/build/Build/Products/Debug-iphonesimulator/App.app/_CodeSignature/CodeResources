@@ -18,11 +18,11 @@
 		</data>
 		<key>Assets.car</key>
 		<data>
-		579R/wW8kFnsJI8pmWjZiHKr964=
+		qDDj3al4sq+7atiERP77YsyEkcs=
 		</data>
 		<key>Base.lproj/LaunchScreen.storyboardc/01J-lp-oVM-view-snD-IY-ifK.nib</key>
 		<data>
-		5emJg88/aRaaCu1sCE6i/jDJ+To=
+		UtMIoHw55kYE7lMB7DR3dCD6Ynw=
 		</data>
 		<key>Base.lproj/LaunchScreen.storyboardc/Info.plist</key>
 		<data>
@@ -90,7 +90,7 @@
 		</data>
 		<key>capacitor.config.json</key>
 		<data>
-		9+FoQ7Y7jL9xJRn0nEX3oLWPCQ4=
+		bvah8sQJxK3JvjJEuicsZOfzeT4=
 		</data>
 		<key>config.xml</key>
 		<data>
@@ -138,7 +138,7 @@
 		</data>
 		<key>public/sw.js</key>
 		<data>
-		PJ8Tak2NPMVoAuyxH5z4t+kjTcI=
+		VE8n1HfuZ6W+1kempZmxtD+DMio=
 		</data>
 	</dict>
 	<key>files2</key>
@@ -168,14 +168,14 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			UiAQ8niq7EqPh7xb3XqS5GEtn7ADP7BdrYY+n73mqM4=
+			+/SDkbahMq2sE6mMjmo+TVjbfJWDWKbTbrmgfkvcFS0=
 			</data>
 		</dict>
 		<key>Base.lproj/LaunchScreen.storyboardc/01J-lp-oVM-view-snD-IY-ifK.nib</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			qXtCTDLBsMpQ32PcZaV5PyXRuoY/jDjUUOba6gecXxM=
+			PxdDaL9ziaLgNVgWo88GiGRc2GoqCsSJMCTrF0gfkRw=
 			</data>
 		</dict>
 		<key>Base.lproj/LaunchScreen.storyboardc/Info.plist</key>
@@ -280,7 +280,7 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			+M+N/uGMwfaTP4ysA0RUZIlPz8C+asoEK0Ri/UMq6UY=
+			H/RCQSXvA+8meBChyfVtp/zfbFqjJ7rUhcZyJwbUYPg=
 			</data>
 		</dict>
 		<key>config.xml</key>
@@ -364,7 +364,7 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			t9CHr94E/rrIo85O8VIEeFZ2Bh4OAI1EbQaUqgIcCrQ=
+			+VgvBpwt6RvwKcqgMybrabe5pj8YZV91mOkSF3gl96E=
 			</data>
 		</dict>
 	</dict>

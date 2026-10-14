@@ -8,6 +8,8 @@ import { WaxColor } from '@/types/diary';
 import { Lock, Sparkles } from 'lucide-react';
 import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
 
+import { hapticFeedback } from '@/lib/haptics';
+
 interface WaxSealProps {
   color?: WaxColor;
   isLocked?: boolean;
@@ -30,13 +32,18 @@ export default function WaxSeal({
   const [isCracking, setIsCracking] = useState(false);
   const pressStartTime = useRef<number | null>(null);
   const animationFrameId = useRef<number | null>(null);
+  const lastHapticStepRef = useRef<number>(0);
 
   const REQUIRED_PRESS_DURATION = 3000; // 3초
 
-  // 왁스 파쇄 및 파티클 발사
+  // 왁스 파쇄 및 파티클 발사 + 강력한 파쇄 햅틱
   const triggerWaxCrack = useCallback(() => {
     setIsCracking(true);
     soundEngine.playWaxCrackSound();
+    hapticFeedback.heavy();
+    setTimeout(() => {
+      hapticFeedback.success();
+    }, 150);
 
     // Canvas Confetti를 이용한 왁스 파편 파티클 연출 (커스텀 컬러 대응)
     const colors = color === '#6B1724' 
@@ -65,13 +72,20 @@ export default function WaxSeal({
 
   const handleTickRef = useRef<() => void>(() => {});
 
-  // 프레스 진행 루프
+  // 프레스 진행 루프 (녹는 동안 점진적 햅틱 진동)
   const handleTick = useCallback(() => {
     if (!pressStartTime.current) return;
     const elapsed = Date.now() - pressStartTime.current;
     const currentProgress = Math.min(elapsed / REQUIRED_PRESS_DURATION, 1);
     setProgress(currentProgress);
     soundEngine.updateMeltProgress(currentProgress);
+
+    // 25%, 50%, 75%, 90% 구간마다 녹는 느낌의 햅틱 펄스 전달
+    const currentStep = Math.floor(currentProgress * 4);
+    if (currentStep > lastHapticStepRef.current) {
+      lastHapticStepRef.current = currentStep;
+      hapticFeedback.meltPulse();
+    }
 
     if (currentProgress >= 1) {
       // 3초 도달!
@@ -104,7 +118,9 @@ export default function WaxSeal({
     } catch {}
 
     setIsPressing(true);
+    lastHapticStepRef.current = 0;
     pressStartTime.current = Date.now();
+    hapticFeedback.light();
     soundEngine.startMeltHum();
     animationFrameId.current = requestAnimationFrame(handleTick);
   };
