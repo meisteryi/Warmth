@@ -217,3 +217,11 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     display: none !important;
   }
 }
+
+/* 📱 iOS PWA Standalone (홈 화면 추가) 상단 상태바 시스템 블러 완벽 제거 */
+@media (display-mode: standalone) {
+  body {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}

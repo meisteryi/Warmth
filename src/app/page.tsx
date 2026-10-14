@@ -245,6 +245,20 @@ export default function HomePage() {
   const isLeavingRef = useRef(false);
   const mainRef = useRef<HTMLElement>(null);
 
+  // iOS Safari 홈 화면 PWA 상단 바 시스템 블러 렌더링 글리치 강제 리페인트 (WebKit Compositing Reset)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && ((window.navigator as unknown as { standalone?: boolean }).standalone || window.matchMedia('(display-mode: standalone)').matches)) {
+      const timer = setTimeout(() => {
+        window.scrollTo(0, 0);
+        document.body.style.transform = 'translateZ(0)';
+        requestAnimationFrame(() => {
+          document.body.style.transform = '';
+        });
+      }, 60);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   // 화면 전환(홈 <-> 일기 열람, 서재에서 일기 선택 등) 시 이전 화면의 외부 스크롤 위치가 유지되는 문제 방지
   useEffect(() => {
     const cleanup = forceScrollToTop(mainRef.current);
@@ -1123,7 +1137,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="h-screen h-dvh max-h-dvh flex flex-col overflow-hidden bg-[#FDFBF7] text-[#2C2A29] selection:bg-[#6B1724]/20 selection:text-[#6B1724]">
+    <div className="h-screen h-dvh max-h-dvh flex flex-col overflow-hidden bg-[#FAF7F2] text-[#2C2A29] selection:bg-[#6B1724]/20 selection:text-[#6B1724]">
       {/* 앱 시작 시 온기 감성 스플래시 화면 (0.85초 유지 후 0.35초 페이드아웃) */}
       <AnimatePresence>
         {showSplash && (

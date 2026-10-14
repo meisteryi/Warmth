@@ -43,10 +43,20 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className="h-full overflow-hidden antialiased" suppressHydrationWarning>
+      <head>
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+      </head>
       <body
         suppressHydrationWarning
         className="h-full overflow-hidden flex flex-col font-serif-warm bg-[#FAF7F2] text-[#2C2A29] selection:bg-[#6B1724]/20 selection:text-[#6B1724]"
       >
+        {/* iOS PWA Standalone 상단 바 시스템 블러 완전 차단용 솔리드 세이프에어리어 필러 */}
+        <div
+          aria-hidden="true"
+          className="fixed top-0 left-0 right-0 z-[99999] pointer-events-none bg-[#FAF7F2]"
+          style={{ height: "env(safe-area-inset-top, 0px)" }}
+        />
         <LanguageProvider>
           {children}
         </LanguageProvider>
