@@ -24,6 +24,7 @@ import {
 import { soundEngine } from '@/lib/audio';
 import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
 import { useLanguage } from '@/lib/i18n';
+import { Capacitor } from '@capacitor/core';
 
 interface WarmthStats {
   totalDiaries: number;
@@ -87,6 +88,13 @@ export default function ArchiveModal({
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'LIST' | 'REPORT' | 'BOOKLET'>('LIST');
+  const [isIosApp, setIsIosApp] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && Capacitor.getPlatform() === 'ios') {
+      setIsIosApp(true);
+    }
+  }, []);
 
   // [요구사항] 10개씩 페이지네이션 및 달력 인터페이스 상태
   const PAGE_SIZE = 10;
@@ -469,14 +477,22 @@ export default function ArchiveModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] bg-stone-900/60 backdrop-blur-sm overscroll-contain"
+          className={`fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-stone-900/60 backdrop-blur-sm overscroll-contain ${
+            isIosApp
+              ? 'pt-[calc(env(safe-area-inset-top,0px)+1.75rem)] pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)]'
+              : 'pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]'
+          }`}
         >
           <motion.div 
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-            className="w-full max-w-2xl max-h-[92dvh] flex flex-col bg-[#FAF7F2] rounded-3xl shadow-2xl border border-[#E8DFD3] overflow-hidden"
+            className={`w-full max-w-2xl flex flex-col bg-[#FAF7F2] rounded-3xl shadow-2xl border border-[#E8DFD3] overflow-hidden ${
+              isIosApp
+                ? 'max-h-[calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-3.5rem)]'
+                : 'max-h-[92dvh]'
+            }`}
             onClick={(e) => e.stopPropagation()}
           >
         {/* 모달 상단 헤더 */}
