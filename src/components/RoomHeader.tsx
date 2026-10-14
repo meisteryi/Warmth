@@ -164,7 +164,7 @@ export default function RoomHeader({
   const isMatched = currentState !== 'VIEW_ONBOARDING';
 
   return (
-    <header className="w-full bg-[#FAF7F2] border-b border-[#E8DFD3] shrink-0 z-40 px-3.5 sm:px-6 pt-[calc(env(safe-area-inset-top,0px)+0.65rem)] pb-2.5 sm:pb-3 shadow-2xs select-none">
+    <header className="w-full bg-[#FAF7F2] border-b border-[#E8DFD3] shrink-0 z-40 px-3.5 sm:px-6 pt-[calc(env(safe-area-inset-top,0px)+0.65rem)] pb-2.5 sm:pb-3 select-none">
       <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
         {/* 좌측: 로고 및 다정한 커플 상태 (클릭 시 홈으로 이동) */}
         <div 

@@ -25,7 +25,6 @@ html {
 html, body {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
-  overscroll-behavior-y: none;
 }
 
 body {

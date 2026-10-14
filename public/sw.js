@@ -1,4 +1,5 @@
 // 온기 (Warmth) Service Worker for Web Push & Offline Support
+const SW_VERSION = '2026-10-14-v3';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
