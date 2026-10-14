@@ -33,8 +33,10 @@ export class SunlightSceneManager {
     this.sunLight = new THREE.DirectionalLight(0xFFF3D6, 3.2);
     this.sunLight.position.set(6.0, 8.0, 5.0);
     this.sunLight.castShadow = true;
-    this.sunLight.shadow.mapSize.width = 1024;
-    this.sunLight.shadow.mapSize.height = 1024;
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const shadowRes = isMobile ? 512 : 1024;
+    this.sunLight.shadow.mapSize.width = shadowRes;
+    this.sunLight.shadow.mapSize.height = shadowRes;
     this.sunLight.shadow.camera.near = 0.5;
     this.sunLight.shadow.camera.far = 25;
     this.sunLight.shadow.bias = -0.001;

@@ -242,19 +242,23 @@ export class JarPhysicsEngine {
       }
     }
 
-    // 3. 조각 간 충돌 및 겹침 이완 (부드러운 상호 분리 Relaxation)
+    // 3. 조각 간 충돌 및 겹침 이완 (활동 중인 조각만 정밀 검사하여 CPU 부하 제거)
     for (let i = 0; i < this.bodies.length; i++) {
+      const b1 = this.bodies[i];
       for (let j = i + 1; j < this.bodies.length; j++) {
-        const b1 = this.bodies[i];
         const b2 = this.bodies[j];
+        // 둘 다 이미 정지해 있는 조각끼리는 충돌 연산 스킵
+        if (b1.isResting && b2.isResting) continue;
 
         const dx = b2.mesh.position.x - b1.mesh.position.x;
         const dy = b2.mesh.position.y - b1.mesh.position.y;
         const dz = b2.mesh.position.z - b1.mesh.position.z;
-        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        const distSq = dx * dx + dy * dy + dz * dz;
         const minDist = (b1.radius + b2.radius) * 1.04;
+        const minDistSq = minDist * minDist;
 
-        if (dist < minDist && dist > 0.0001) {
+        if (distSq < minDistSq && distSq > 0.000001) {
+          const dist = Math.sqrt(distSq);
           const overlap = minDist - dist;
           const nx = dx / dist;
           const ny = dy / dist;

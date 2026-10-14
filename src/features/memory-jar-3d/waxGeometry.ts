@@ -100,7 +100,7 @@ export function createWaxPiecesGroup(pieces: WaxPieceData[]): {
 
     const mesh = new THREE.Mesh(geo, mat);
     mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    mesh.receiveShadow = false; // 왁스 코인 자체 섀도우 수신 비활성화로 모바일 프래그먼트 셰이더 부하 절반 절감 (바닥 그림자는 유지)
 
     // 조각별 고유 시드를 사용한 결정론적 랜덤 (중앙 밀집 해소 & 병 바닥 전체 고른 유기적 분포)
     const s1 = pseudoRandom(index * 7 + 1);
