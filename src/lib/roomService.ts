@@ -450,8 +450,8 @@ export async function saveDiaryToFirestore(
         }
       }
 
-      // 턴 일치 여부 검사: UID 또는 닉네임 일치 시 정상 턴으로 통과
-      let isAuthorTurn = false;
+      // 턴 일치 여부 검사: UID 또는 닉네임 일치 시 정상 턴으로 통과 (777777 심사위원 방은 항상 작성 가능)
+      let isAuthorTurn = roomCode === '777777';
       if (!roomData.currentTurn) {
         isAuthorTurn = true;
       } else if (roomData.currentTurn === authorUid || roomData.currentTurn === diary.authorId) {
@@ -811,6 +811,12 @@ export async function leaveRoomInFirestore(
   leaverNickname: string
 ): Promise<void> {
   try {
+    // 🍎 애플 심사위원 및 테스트 전용 방(#777777)은 영구적으로 MATCHED 및 데모 일기 보존
+    if (roomCode === '777777') {
+      roomDiariesCache.delete(roomCode);
+      return;
+    }
+
     const roomRef = doc(db, 'rooms', roomCode);
     const snap = await getDoc(roomRef);
     if (!snap.exists()) return;

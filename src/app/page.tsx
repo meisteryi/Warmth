@@ -316,6 +316,11 @@ export default function HomePage() {
 
   // 내가 오늘(새벽 4시 이후) 이미 편지를 썼는지 검사 (각자 하루 1통 규칙)
   const hasMyQuotaBeenUsedToday = useMemo(() => {
+    // 🍎 애플 심사위원 및 테스트 전용 방(#777777)은 일기 작성 체험을 위해 쿼터 제한 해제
+    if (roomCode === '777777' || activeRoomCode === '777777') {
+      return false;
+    }
+
     // 만약 현재 최신 일기가 상대방이 작성한 일기라면, 교환일기 특성상 내가 답장을 작성할 차례이므로 쿼터 미사용으로 간주
     if (diary && diary.authorName !== userName) {
       return false;
@@ -337,17 +342,21 @@ export default function HomePage() {
       return true;
     }
     return false;
-  }, [roomData, diary, userName, roomCode]);
+  }, [roomData, diary, userName, roomCode, activeRoomCode]);
 
   // 턴 로테이션 판별:
   // 1) 아직 일기가 없는 초기 상태: "코드를 써서 로그인하면, 무조건 방장이 아닌 사람이 편지를 먼저 써야 해."
   // 2) 이미 일기가 있는 상태: 번갈아가며 로테이션 (마지막 일기를 쓴 사람이 아니면 내 턴)
   const isMyTurn = useMemo(() => {
+    // 🍎 애플 심사위원 및 테스트 전용 방(#777777)은 언제든 일기 작성을 체험해볼 수 있도록 항상 내 턴 허용
+    if (roomCode === '777777' || activeRoomCode === '777777') {
+      return true;
+    }
     if (!diary) {
       return userRole === 'PARTNER';
     }
     return diary.authorName !== userName;
-  }, [diary, userRole, userName]);
+  }, [diary, userRole, userName, roomCode, activeRoomCode]);
 
   const handleOpenWriteModal = (initialTitle?: unknown) => {
     const validTitle = typeof initialTitle === 'string' && initialTitle.trim() ? initialTitle.trim() : undefined;
@@ -551,13 +560,15 @@ export default function HomePage() {
         }
       }
 
-      // 0-1. 마지막 남은 사람(상대방이 이미 퇴장함) 여부 판별
-      if (room.members) {
+      // 0-1. 마지막 남은 사람(상대방이 이미 퇴장함) 여부 판별 (777777 심사위원/데모 방은 영구 면제)
+      if (room.members && roomCode !== '777777') {
         const partnerLeft = Boolean(
           (room.lastDisconnection && room.lastDisconnection.leaverUid !== myUid) ||
           (room.members.length === 1 && room.members.includes(myUid))
         );
         setIsLastPersonRemaining(partnerLeft);
+      } else {
+        setIsLastPersonRemaining(false);
       }
 
       // 0-2. 내 Web Push 구독 정보가 방에 아직 저장되지 않았고 권한이 허용된 경우 자동 동기화
@@ -645,8 +656,8 @@ export default function HomePage() {
         setDiary(null);
       }
 
-      // 3. 상대방이 일기장 연결을 해제(방 나가기)했을 때 실시간 감지 및 알림
-      if (room.lastDisconnection) {
+      // 3. 상대방이 일기장 연결을 해제(방 나가기)했을 때 실시간 감지 및 알림 (777777 심사위원 방은 영구 면제)
+      if (room.lastDisconnection && roomCode !== '777777') {
         const disc = room.lastDisconnection;
         const isFromPartner = disc.leaverUid !== myUid;
         const isNewDisconnection = disc.disconnectedAt !== handledDisconnectionTimeRef.current;
@@ -800,8 +811,8 @@ export default function HomePage() {
       showToast('일기장 연결이 해제되었습니다.');
     }
 
-    // 백그라운드에서 Firestore 비동기 상태 갱신 및 상대방에게 백그라운드 푸시 전송
-    if (targetRoomCode) {
+    // 백그라운드에서 Firestore 비동기 상태 갱신 및 상대방에게 백그라운드 푸시 전송 (777777 데모방은 보존)
+    if (targetRoomCode && targetRoomCode !== '777777') {
       try {
         const myUid = getOrCreateUserId();
 
