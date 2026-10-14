@@ -476,23 +476,16 @@ export default function ArchiveModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-          className={`fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-stone-900/60 backdrop-blur-sm overscroll-contain ${
-            isIosApp
-              ? 'pt-[calc(env(safe-area-inset-top,0px)+1.75rem)] pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)]'
-              : 'pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]'
-          }`}
+          transition={{ duration: 0.25 }}
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center p-3 sm:p-4 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] bg-stone-900/60 backdrop-blur-sm overflow-y-auto overscroll-contain"
+          onClick={onClose}
         >
           <motion.div 
-            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            initial={{ opacity: 0, y: 20, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-            className={`w-full max-w-2xl flex flex-col bg-[#FAF7F2] rounded-3xl shadow-2xl border border-[#E8DFD3] overflow-hidden ${
-              isIosApp
-                ? 'max-h-[calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-3.5rem)]'
-                : 'max-h-[92dvh]'
-            }`}
+            exit={{ opacity: 0, y: 15, scale: 0.96 }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            className="w-full max-w-2xl my-auto flex flex-col bg-[#FAF7F2] rounded-3xl shadow-2xl border border-[#E8DFD3] overflow-hidden max-h-[calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-1.75rem)] sm:max-h-[88vh]"
             onClick={(e) => e.stopPropagation()}
           >
         {/* 모달 상단 헤더 */}
