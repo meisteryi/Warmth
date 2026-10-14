@@ -5,9 +5,9 @@ const config: CapacitorConfig = {
   appName: '온기',
   webDir: 'public',
   server: {
-    // iOS 시뮬레이터에서 로컬 Next.js 서버의 모든 API(Gemini, Push 등) 및 실시간 핫리로드 지원
-    url: 'http://localhost:3000',
-    cleartext: true,
+    // 상용 Vercel 서버 도메인 연결 (앱스토어 출시 및 실사용 환경)
+    url: 'https://warmth-swart.vercel.app',
+    cleartext: false,
   },
   ios: {
     contentInset: 'never',
