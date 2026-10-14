@@ -50,6 +50,61 @@ interface HomeViewProps {
   onOpenDiary: () => void;
 }
 
+/**
+ * 1초 주기 카운트다운을 독립 컴포넌트로 격리하여 HomeView 전체의 초당 리렌더링 방지
+ */
+function ResetCountdownText({
+  hasMyQuotaBeenUsedToday,
+}: {
+  hasMyQuotaBeenUsedToday?: boolean;
+}) {
+  const { language, t } = useLanguage();
+  const [countdown, setCountdown] = useState<ResetCountdownInfo>(() =>
+    getTimeUntilNextReset(new Date(), language)
+  );
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown(getTimeUntilNextReset(new Date(), language));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [language]);
+
+  if (hasMyQuotaBeenUsedToday) {
+    return (
+      <>
+        <span className="hidden sm:inline">{t('home.quotaUsedFull', { time: countdown.formatted })}</span>
+        <span className="sm:hidden">{t('home.quotaUsedShort', { time: countdown.formatted })}</span>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <span className="hidden sm:inline">{t('home.quotaAvailableFull', { time: countdown.formatted })}</span>
+      <span className="sm:hidden">{t('home.quotaAvailableShort', { time: countdown.formatted })}</span>
+    </>
+  );
+}
+
+function ResetButtonCountdown() {
+  const { language } = useLanguage();
+  const [time, setTime] = useState(() => getTimeUntilNextReset(new Date(), language).formatted);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTime(getTimeUntilNextReset(new Date(), language).formatted);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [language]);
+
+  return (
+    <span className="truncate">
+      {language === 'en' ? `Reset 04:00 (${time})` : `04시 리셋 (${time})`}
+    </span>
+  );
+}
+
 export default function HomeView({
   partnerName,
   userName,
@@ -74,16 +129,6 @@ export default function HomeView({
   const [isDateModalOpen, setIsDateModalOpen] = useState(false);
   const [customStartDate, setCustomStartDate] = useState('');
   const [isSavingDate, setIsSavingDate] = useState(false);
-
-  // 매일 새벽 04:00 초기화 실시간 카운트다운 타이머 (1초 주기 갱신)
-  const [countdown, setCountdown] = useState<ResetCountdownInfo>(() => getTimeUntilNextReset(new Date(), language));
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown(getTimeUntilNextReset(new Date(), language));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [language]);
 
   // 둘만의 교환일기 중 가장 최근 일기 작성 일시 추적 ("우리의 마지막 일기")
   const [lastDiaryDate, setLastDiaryDate] = useState<string | null>(null);
@@ -278,17 +323,7 @@ export default function HomeView({
             <span className="shrink-0 font-medium">{t('home.dailyReset')}</span>
             <span className="text-stone-300 shrink-0">·</span>
             <span className="font-mono font-bold text-[#6B1724] truncate">
-              {hasMyQuotaBeenUsedToday ? (
-                <>
-                  <span className="hidden sm:inline">{t('home.quotaUsedFull', { time: countdown.formatted })}</span>
-                  <span className="sm:hidden">{t('home.quotaUsedShort', { time: countdown.formatted })}</span>
-                </>
-              ) : (
-                <>
-                  <span className="hidden sm:inline">{t('home.quotaAvailableFull', { time: countdown.formatted })}</span>
-                  <span className="sm:hidden">{t('home.quotaAvailableShort', { time: countdown.formatted })}</span>
-                </>
-              )}
+              <ResetCountdownText hasMyQuotaBeenUsedToday={hasMyQuotaBeenUsedToday} />
             </span>
           </div>
         </div>
@@ -550,11 +585,11 @@ export default function HomeView({
               </button>
               {hasMyQuotaBeenUsedToday ? (
                 <div
-                  title={language === 'en' ? `Written today (1 per day each). You can write a reply tomorrow after 04:00 AM. (${countdown.formatted} left)` : `오늘 일기는 이미 작성하셨습니다 (하루 각자 1통). 내일 새벽 04:00 이후에 답장을 쓸 수 있습니다. (남은 시간: ${countdown.formatted})`}
+                  title={language === 'en' ? 'Written today (1 per day each). You can write a reply tomorrow after 04:00 AM.' : '오늘 일기는 이미 작성하셨습니다 (하루 각자 1통). 내일 새벽 04:00 이후에 답장을 쓸 수 있습니다.'}
                   className="flex-1 py-2 px-2.5 rounded-xl bg-stone-100 border border-stone-200 text-stone-500 text-xs font-serif-warm font-medium flex items-center justify-center gap-1.5 shadow-2xs select-none whitespace-nowrap"
                 >
                   <Clock className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-                  <span className="truncate">{language === 'en' ? `Reset 04:00 (${countdown.formatted})` : `04시 리셋 (${countdown.formatted})`}</span>
+                  <ResetButtonCountdown />
                 </div>
               ) : isMyTurn ? (
                 <button

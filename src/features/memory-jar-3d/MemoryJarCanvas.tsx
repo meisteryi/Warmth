@@ -264,7 +264,9 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
 
         setWebglUnavailable(false);
         renderer.setSize(width, height);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        // 모바일 사파리 과열 및 프레임드랍 방지: 모바일은 1.5x 캡으로 GPU 부하 44% 감소 (육안 화질 동일)
+        const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2));
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFShadowMap;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -293,9 +295,14 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
 
         let lastTime = performance.now();
 
-        // 애니메이션 렌더 루프
+        // 애니메이션 렌더 루프 (백그라운드 탭 또는 비가시 상태일 때 연산 스킵하여 GPU/배터리 절약)
         const animate = (currentTime: number) => {
           animationFrameId = requestAnimationFrame(animate);
+
+          if (typeof document !== 'undefined' && document.hidden) {
+            lastTime = currentTime;
+            return;
+          }
 
           const deltaTime = (currentTime - lastTime) * 0.001;
           lastTime = currentTime;
