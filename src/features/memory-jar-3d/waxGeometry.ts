@@ -79,10 +79,10 @@ export function createWaxPiecesGroup(pieces: WaxPieceData[]): {
   // 사용자 요청: 실링 왁스 크기를 기존의 0.7배로 축소
   const WAX_SCALE = 0.7;
 
-  // 병 안쪽 반경과 안전 경계 계산
-  const safeMaxR = 0.88; // 병 유리 벽면과 충돌하지 않는 최대 중심 반경 (innerRadius 1.35 고려)
-  const floorLimit = 0.38; // 병 바닥 아래로 뚫고 나가지 않는 최하단 Y
-  const baseHeight = 0.40;
+  // 병 안쪽 반경과 안전 경계 계산 (유리병 내부 바닥 Y=0.08 밀착)
+  const safeMaxR = 0.86; // 병 유리 벽면과 충돌하지 않는 최대 중심 반경 (innerRadius 1.35 고려)
+  const floorLimit = 0.14; // 병 바닥 바로 위에 닿는 실질적 최하단 중심 Y (두께 0.11 고려)
+  const baseHeight = 0.14;
 
   pieces.forEach((piece, index) => {
     // 사용자의 요청에 따라 모든 왁스를 온전하고 매끄러운 원형 실링 왁스 인장 코인으로 통일 (0.7배 크기)
@@ -108,38 +108,37 @@ export function createWaxPiecesGroup(pieces: WaxPieceData[]): {
     const s3 = pseudoRandom(index * 7 + 3);
     const s4 = pseudoRandom(index * 7 + 4);
 
-    // 4개 단위 층 분할 (1개 층이 바닥 전체 면적에 자연스럽게 퍼짐)
-    const piecesPerLayer = 4;
+    // 바닥부터 차곡차곡 쌓이는 3~4개 단위 층 분할 (1개 층이 바닥면에 평평하게 깔린 뒤 그 위에 포개짐)
+    const piecesPerLayer = 3;
     const layer = Math.floor(index / piecesPerLayer);
     const slotInLayer = index % piecesPerLayer;
 
-    // 황금각(Golden Angle) 기반 자연스러운 회전 각도 + 개별 유기적 미세 각도 편차
+    // 황금각 기반 회전 + 층마다 서로 다른 방향으로 어긋나며 포개짐
     const angleStep = (Math.PI * 2) / piecesPerLayer;
-    const layerTwist = layer * 1.15; // 층마다 서로 다른 방향으로 어긋나며 적재
-    const angleJitter = (s1 - 0.5) * 0.45;
+    const layerTwist = layer * 1.35;
+    const angleJitter = (s1 - 0.5) * 0.4;
     const angle = slotInLayer * angleStep + layerTwist + angleJitter;
 
-    // 중앙 밀집 원천 제거: 중심 부근(0.25R)부터 외곽 유리벽 근처(0.85R)까지 다양하게 랜덤 분산
-    const baseRatios = [0.72, 0.38, 0.82, 0.48];
+    // 바닥면에 자연스럽게 분산 (중심 0.18R ~ 외곽 0.78R)
+    const baseRatios = [0.65, 0.28, 0.72];
     const baseRatio = baseRatios[slotInLayer];
-    const ratioJitter = (s2 - 0.5) * 0.22;
-    const distRatio = Math.max(0.22, Math.min(0.88, baseRatio + ratioJitter));
+    const ratioJitter = (s2 - 0.5) * 0.18;
+    const distRatio = Math.max(0.18, Math.min(0.82, baseRatio + ratioJitter));
     const distance = distRatio * safeMaxR;
 
     const x = Math.cos(angle) * distance;
     const z = Math.sin(angle) * distance;
-    const yJitter = (s3 - 0.5) * 0.05;
-    const y = baseHeight + layer * 0.19 + yJitter;
+    const yJitter = (s3 - 0.5) * 0.03;
+    // 층당 코인 두께(약 0.11)만큼 차곡차곡 겹쳐 쌓임
+    const y = baseHeight + layer * 0.115 + yJitter;
 
     mesh.position.set(x, y, z);
 
-    // 실제 바닥에 자연스럽게 떨어져 눕혀진 실링 왁스 인장의 유기적 3D 회전
-    // 1) 바닥에 안착된 기본 수평 눕힘 각도 (Math.PI / 2) + 약간의 불규칙한 기울기
-    const pitch = (Math.PI / 2) + (s1 - 0.5) * 0.35;
-    // 2) 전방향(0 ~ 360도) 자유롭고 자연스러운 인장 요(Yaw) 회전
+    // 바닥(0층)은 거의 수평에 가깝게 납작하게 눕히고, 윗층은 아래 코인에 기대어 살짝 기움
+    const tiltAmount = layer === 0 ? 0.12 : 0.28;
+    const pitch = (Math.PI / 2) + (s1 - 0.5) * tiltAmount;
     const yaw = s4 * Math.PI * 2;
-    // 3) 미세한 롤(Roll) 틸트
-    const roll = (s3 - 0.5) * 0.32;
+    const roll = (s3 - 0.5) * (tiltAmount * 0.8);
 
     mesh.rotation.set(pitch, yaw, roll);
 
@@ -151,11 +150,11 @@ export function createWaxPiecesGroup(pieces: WaxPieceData[]): {
   const coinRadius = 0.55 * WAX_SCALE;
   const minDist = coinRadius * 1.65; // 두 코인 사이 안전 비관통 최소 거리
 
-  for (let pass = 0; pass < 25; pass++) {
+  for (let pass = 0; pass < 30; pass++) {
     for (let i = 0; i < waxMeshes.length; i++) {
       const m1 = waxMeshes[i];
 
-      // 바닥 및 외벽 경계 보정
+      // 바닥 및 외벽 경계 보정 (바닥면 0.14 밑으로 내려가지 않음)
       if (m1.position.y < floorLimit) {
         m1.position.y = floorLimit;
       }

@@ -23,9 +23,9 @@ export class JarPhysicsEngine {
   public shakeOffset: THREE.Vector3 = new THREE.Vector3();
   public shakeAngle: THREE.Euler = new THREE.Euler();
 
-  // 유리병 내부 치수
+  // 유리병 내부 치수 (바닥면 Y=0.08 밀착)
   private readonly innerRadius = 1.35;
-  private readonly floorY = 0.32;
+  private readonly floorY = 0.08;
   private readonly ceilingY = 4.25;
   private readonly gravity = -22.0;
   private simTime: number = 0;
@@ -61,7 +61,7 @@ export class JarPhysicsEngine {
         const b1 = this.bodies[i];
 
         // 바닥 및 벽면 경계 보정
-        const floorLimit = this.floorY + b1.height * 0.6;
+        const floorLimit = this.floorY + b1.height * 0.5;
         if (b1.mesh.position.y < floorLimit) {
           b1.mesh.position.y = floorLimit;
         }
@@ -200,7 +200,7 @@ export class JarPhysicsEngine {
       }
 
       // 바닥 충돌 및 쫀득한 왁스 탄성
-      const floorLimit = this.floorY + b.height * 0.6;
+      const floorLimit = this.floorY + b.height * 0.5;
       if (b.mesh.position.y < floorLimit) {
         const penetrationY = floorLimit - b.mesh.position.y;
         b.mesh.position.y += penetrationY * 0.6; // 순간 고정 대신 부드러운 이완
