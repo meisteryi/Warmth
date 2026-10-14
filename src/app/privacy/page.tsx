@@ -233,7 +233,7 @@ export default function PrivacyPolicyPage() {
                 <div className="space-y-1.5 text-stone-800 font-mono">
                   <p>• <strong>서비스명:</strong> 온기 (Warmth)</p>
                   <p>• <strong>개발 및 개인정보 보호책임자:</strong> 이주형 (Developer)</p>
-                  <p>• <strong>문의 이메일:</strong> <a href="mailto:yjh020701@gmail.com" className="text-[#6B1724] underline font-bold">yjh020701@gmail.com</a> / <a href="mailto:support@warmth.app" className="text-[#6B1724] underline font-bold">support@warmth.app</a></p>
+                  <p>• <strong>문의 이메일:</strong> <a href="mailto:yjh020701@gmail.com" className="text-[#6B1724] underline font-bold">yjh020701@gmail.com</a></p>
                   <p>• <strong>응답 시간:</strong> 영업일 기준 24시간 이내 신속 대응</p>
                 </div>
               </div>
@@ -359,7 +359,7 @@ export default function PrivacyPolicyPage() {
                 <div className="space-y-1.5 text-stone-800 font-mono">
                   <p>• <strong>Service:</strong> Warmth (온기)</p>
                   <p>• <strong>Developer / Lead:</strong> Joohyoung Yi</p>
-                  <p>• <strong>Inquiry Email:</strong> <a href="mailto:yjh020701@gmail.com" className="text-[#6B1724] underline font-bold">yjh020701@gmail.com</a> / <a href="mailto:support@warmth.app" className="text-[#6B1724] underline font-bold">support@warmth.app</a></p>
+                  <p>• <strong>Inquiry Email:</strong> <a href="mailto:yjh020701@gmail.com" className="text-[#6B1724] underline font-bold">yjh020701@gmail.com</a></p>
                   <p>• <strong>Support Response SLA:</strong> Within 24 business hours</p>
                 </div>
               </div>

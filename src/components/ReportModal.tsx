@@ -178,7 +178,7 @@ export default function ReportModal({
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
                 <span>
                   온기는 악의적이거나 불쾌감을 주는 콘텐츠에 대해 <strong>무관용(Zero-tolerance) 원칙</strong>을 적용합니다. 
-                  신고된 내용은 24시간 내 검토되며 위반 시 영구 제재됩니다. (문의: support@warmth.app)
+                  신고된 내용은 24시간 내 검토되며 위반 시 영구 제재됩니다. (문의: yjh020701@gmail.com)
                 </span>
               </div>
 

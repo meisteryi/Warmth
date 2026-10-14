@@ -41,5 +41,5 @@
 ## 7. 개인정보 보호책임자 및 고객지원 연락처
 * **서비스명**: 온기 (Warmth)
 * **개발 및 개인정보 보호책임자**: 이주형 (Developer)
-* **문의 및 데이터 삭제 요청 이메일**: [yjh020701@gmail.com](mailto:yjh020701@gmail.com) / [support@warmth.app](mailto:support@warmth.app)
+* **문의 및 데이터 삭제 요청 이메일**: [yjh020701@gmail.com](mailto:yjh020701@gmail.com)
 * **응답 시간**: 영업일 기준 24시간 이내 신속 대응

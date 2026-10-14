@@ -116,7 +116,7 @@ export default function EulaModal({ isOpen, onClose }: EulaModalProps) {
               </p>
               <div className="p-2.5 rounded-lg bg-stone-100 flex items-center gap-2 text-stone-700">
                 <Mail className="w-4 h-4 text-[#6B1724]" />
-                <span>운영 및 고객지원: <strong>yjh020701@gmail.com</strong> (support@warmth.app)</span>
+                <span>운영 및 고객지원: <strong>yjh020701@gmail.com</strong></span>
               </div>
             </div>
           </div>
