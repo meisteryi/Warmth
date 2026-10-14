@@ -2,10 +2,170 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { ArrowLeft, Shuffle, ChevronLeft, ChevronRight, ChevronDown, Calendar } from 'lucide-react';
-import { DiaryData, WAX_COLORS } from '@/types/diary';
+import { DiaryData, WAX_COLORS, WEATHER_STAMPS } from '@/types/diary';
 import { getRoomDiariesFromFirestore, getCachedRoomDiaries } from '@/lib/roomService';
 import { WaxPieceData } from './types';
 import { MemoryJarCanvas, MemoryJarCanvasHandle } from './MemoryJarCanvas';
+
+export const DEMO_FALLBACK_DIARIES: DiaryData[] = [
+  {
+    diaryId: 'diary_777777_05',
+    authorId: 'uid_demo_minwoo_01',
+    authorName: '민우',
+    recipientId: 'uid_demo_seoyeon_02',
+    recipientName: '서연',
+    title: '서로에게 건네는 따뜻한 온기',
+    content: '우리가 이 일기장을 함께 채워온 지도 벌써 닷새째네. 작은 단어 하나, 무심코 적은 감사의 말들이 우리 사이를 더욱 단단하게 묶어주는 것 같아. 내일도 너의 하루가 따뜻하기를.',
+    photos: [],
+    waxColor: '#6B1724',
+    createdAt: new Date(Date.now() - 1 * 86400000).toISOString(),
+    mission: {
+      type: 'TEXT',
+      prompt: '서로에게 힘이 되는 따뜻한 세 글자 적기',
+      isCustom: false,
+      isPassed: true,
+    },
+    isWaxBroken: true,
+    openedAt: new Date(Date.now() - 1 * 86400000 + 1800000).toISOString(),
+    warmthScore: {
+      temperature: 37.8,
+      comment: '찬란한 가을날 서로를 꼭 안아주는 다정하고 포근한 온기',
+      keywords: ['#온기기록', '#닷새째', '#사랑해'],
+    },
+    stamp: WEATHER_STAMPS[0],
+    reaction: {
+      emoji: '💖',
+      reactorName: '서연',
+      reactorId: 'uid_demo_seoyeon_02',
+      reactedAt: new Date(Date.now() - 1 * 86400000 + 3600000).toISOString(),
+      comment: '매일 읽을 때마다 마음이 몽글몽글해져. 고마워 민우야!',
+    },
+  },
+  {
+    diaryId: 'diary_777777_04',
+    authorId: 'uid_demo_seoyeon_02',
+    authorName: '서연',
+    recipientId: 'uid_demo_minwoo_01',
+    recipientName: '민우',
+    title: '작은 베이커리에서 마주친 행복',
+    content: '주말 아침 골목길 작은 빵집에서 갓 구운 바게트 향기가 가득했어. 네가 좋아하는 크루아상을 골라 담으면서 네 생각에 혼자 미소 지었어. 주말 아침마다 이렇게 소소하고 따스한 행복을 함께 나눌 수 있어서 감사해.',
+    photos: [
+      'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80',
+    ],
+    waxColor: '#8C4B64',
+    createdAt: new Date(Date.now() - 2 * 86400000).toISOString(),
+    mission: {
+      type: 'TEXT',
+      prompt: '오늘 상대방 덕분에 웃었던 기억',
+      isCustom: false,
+      isPassed: true,
+    },
+    isWaxBroken: true,
+    openedAt: new Date(Date.now() - 2 * 86400000 + 1800000).toISOString(),
+    warmthScore: {
+      temperature: 37.1,
+      comment: '따끈한 빵 냄새처럼 고소하고 달콤한 사랑의 온기',
+      keywords: ['#크루아상', '#주말아침', '#소소한행복'],
+    },
+    stamp: WEATHER_STAMPS[6],
+  },
+  {
+    diaryId: 'diary_777777_03',
+    authorId: 'uid_demo_minwoo_01',
+    authorName: '민우',
+    recipientId: 'uid_demo_seoyeon_02',
+    recipientName: '서연',
+    title: '밤하늘 별을 보며 나눈 약속',
+    content: '야근을 마치고 지친 몸으로 집에 돌아왔는데, 네가 남겨준 편지 한 줄에 모든 피로가 사르르 녹아내렸어. 언제나 내 편이 되어주고 곁에서 웃어줘서 든든해. 우리 다음 주말에는 교외로 별 보러 드라이브 가자. 편안한 밤 보내.',
+    photos: [],
+    waxColor: '#2E473B',
+    createdAt: new Date(Date.now() - 3 * 86400000).toISOString(),
+    mission: {
+      type: 'TEXT',
+      prompt: '하루를 마무리하며 내게 하고 싶은 말',
+      isCustom: false,
+      isPassed: true,
+    },
+    isWaxBroken: true,
+    openedAt: new Date(Date.now() - 3 * 86400000 + 1800000).toISOString(),
+    warmthScore: {
+      temperature: 37.5,
+      comment: '지친 하루의 끝을 따스한 별빛처럼 비춰주는 온기',
+      keywords: ['#별빛약속', '#야근위로', '#밤편지'],
+    },
+    stamp: WEATHER_STAMPS[2],
+  },
+  {
+    diaryId: 'diary_777777_02',
+    authorId: 'uid_demo_seoyeon_02',
+    authorName: '서연',
+    recipientId: 'uid_demo_minwoo_01',
+    recipientName: '민우',
+    title: '가을비 내리던 날의 돌담길 산책',
+    content: '비가 보슬보슬 내리는 서촌 돌담길을 우산 하나 쓰고 나란히 걸었던 날. 네 어깨가 젖지 않게 우산을 기울여주던 네 다정함에 가슴이 뭉클했어. 따뜻한 차 한 잔 마시며 나눈 이야기들이 마음에 오래 남을 것 같아. 고마워 항상.',
+    photos: [
+      'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80',
+    ],
+    waxColor: '#B8860B',
+    createdAt: new Date(Date.now() - 4 * 86400000).toISOString(),
+    mission: {
+      type: 'TEXT',
+      prompt: '오늘 가장 기억에 남는 순간 한 줄 적기',
+      isCustom: false,
+      isPassed: true,
+    },
+    isWaxBroken: true,
+    openedAt: new Date(Date.now() - 4 * 86400000 + 1800000).toISOString(),
+    warmthScore: {
+      temperature: 36.9,
+      comment: '비 내리는 돌담길을 포근하게 감싸주는 다정한 온기',
+      keywords: ['#가을비', '#돌담길산책', '#고마워'],
+    },
+    stamp: WEATHER_STAMPS[3],
+    reaction: {
+      emoji: '☕',
+      reactorName: '민우',
+      reactorId: 'uid_demo_minwoo_01',
+      reactedAt: new Date(Date.now() - 4 * 86400000 + 3600000).toISOString(),
+      comment: '그 찻집 빗소리 참 좋았지. 다음 비 오는 날에도 또 가자.',
+    },
+  },
+  {
+    diaryId: 'diary_777777_01',
+    authorId: 'uid_demo_minwoo_01',
+    authorName: '민우',
+    recipientId: 'uid_demo_seoyeon_02',
+    recipientName: '서연',
+    title: '서재 책상 위에 놓인 다이어리를 보며',
+    content: '처음 이 교환일기를 시작했을 때 우리가 나눴던 다정한 눈빛이 아직도 생생해. 오늘 퇴근길에 네 생각이 문득 나서 작은 꽃 한 송이를 샀어. 내일 만나면 건네줄게. 오늘도 고생 많았어 사랑해.',
+    photos: [
+      'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=800&q=80',
+    ],
+    waxColor: '#6B1724',
+    createdAt: new Date(Date.now() - 6 * 86400000).toISOString(),
+    mission: {
+      type: 'TEXT',
+      prompt: '오늘 고생한 서로에게 다정한 한 줄 응원 남기기',
+      isCustom: false,
+      isPassed: true,
+    },
+    isWaxBroken: true,
+    openedAt: new Date(Date.now() - 6 * 86400000 + 1800000).toISOString(),
+    warmthScore: {
+      temperature: 38.2,
+      comment: '심장이 두근거리는 다정하고 뜨거운 사랑의 온기',
+      keywords: ['#첫일기', '#퇴근길꽃한송이', '#사랑해'],
+    },
+    stamp: WEATHER_STAMPS[1],
+    reaction: {
+      emoji: '💐',
+      reactorName: '서연',
+      reactorId: 'uid_demo_seoyeon_02',
+      reactedAt: new Date(Date.now() - 6 * 86400000 + 3600000).toISOString(),
+      comment: '퇴근길에 꽃이라니 감동이야 고마워 민우야! 내일 만나요 :)',
+    },
+  },
+];
 
 interface MemoryJarViewProps {
   roomCode: string;
@@ -72,10 +232,11 @@ export default function MemoryJarView({
     if (typeof window !== 'undefined' && roomCode) {
       const cached = getCachedRoomDiaries(roomCode);
       if (cached && cached.length > 0) return cached;
+      if (roomCode === '777777') return DEMO_FALLBACK_DIARIES;
     }
-    return [];
+    return roomCode === '777777' ? DEMO_FALLBACK_DIARIES : [];
   });
-  const [isLoading, setIsLoading] = useState<boolean>(roomDiaries.length === 0);
+  const [isLoading, setIsLoading] = useState<boolean>(roomDiaries.length === 0 && roomCode !== '777777');
 
   // 병 흔들기 속도 제한 (1초에 1번만 가능하도록 쿨다운 적용)
   const lastShakeTimeRef = useRef<number>(0);
@@ -203,19 +364,29 @@ export default function MemoryJarView({
   }, [motionPermissionGranted, triggerShake]);
 
   useEffect(() => {
-    if (!roomCode) return;
     let isMounted = true;
+    if (!roomCode) {
+      setIsLoading(false);
+      return;
+    }
+
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) setIsLoading(false);
+    }, 4000);
 
     async function loadDiaries() {
       try {
         const list = await getRoomDiariesFromFirestore(roomCode);
         if (isMounted) {
+          clearTimeout(safetyTimer);
           if (list && list.length > 0) {
             setRoomDiaries(list);
           } else {
             const cached = getCachedRoomDiaries(roomCode);
             if (cached && cached.length > 0) {
               setRoomDiaries(cached);
+            } else if (roomCode === '777777') {
+              setRoomDiaries(DEMO_FALLBACK_DIARIES);
             }
           }
           setIsLoading(false);
@@ -223,8 +394,13 @@ export default function MemoryJarView({
       } catch (err) {
         console.warn('Failed to load diaries for MemoryJarView:', err);
         if (isMounted) {
+          clearTimeout(safetyTimer);
           const cached = getCachedRoomDiaries(roomCode);
-          if (cached && cached.length > 0) setRoomDiaries(cached);
+          if (cached && cached.length > 0) {
+            setRoomDiaries(cached);
+          } else if (roomCode === '777777') {
+            setRoomDiaries(DEMO_FALLBACK_DIARIES);
+          }
           setIsLoading(false);
         }
       }
@@ -233,6 +409,7 @@ export default function MemoryJarView({
     loadDiaries();
     return () => {
       isMounted = false;
+      clearTimeout(safetyTimer);
     };
   }, [roomCode]);
 
@@ -413,7 +590,7 @@ export default function MemoryJarView({
           requestSensorPermission();
         }
       }}
-      className="relative w-full h-full min-h-[calc(100dvh-4.25rem)] sm:min-h-[calc(100vh-4.5rem)] flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-[#F8F5EE] via-[#F3EDE2] to-[#EBE2D4] select-none"
+      className="relative w-full flex-1 h-[calc(100dvh-4.25rem)] sm:h-[calc(100vh-4.5rem)] min-h-[480px] flex flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-[#F8F5EE] via-[#F3EDE2] to-[#EBE2D4] select-none"
     >
       {/* 종이 결 감성 오버레이 */}
       <div className="absolute inset-0 pointer-events-none paper-texture opacity-60 z-0" />
@@ -448,16 +625,16 @@ export default function MemoryJarView({
 
 
       {/* 중앙 메인: 3D 온기 유리병 캔버스 (책상은 고정, 병만 좌우로 스르륵 미끄러짐) */}
-      <div className="relative w-full max-w-xl h-full flex items-center justify-center z-10">
+      <div className="relative w-full max-w-xl flex-1 h-full min-h-[460px] flex items-center justify-center z-10">
         {isLoading && waxPieces.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 text-stone-500">
             <div className="w-8 h-8 border-2 border-[#6B1724] border-t-transparent rounded-full animate-spin" />
             <span className="text-xs font-serif-warm font-medium">유리병 안의 온기 조각을 모으는 중...</span>
           </div>
         ) : monthJars.length === 0 || waxPieces.length === 0 ? (
-          <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-full h-full min-h-[460px] flex flex-col items-center justify-center p-6 text-center">
             {/* 빈 병 렌더링 */}
-            <div className="w-full h-[70%] max-h-[460px]">
+            <div className="w-full h-[70%] max-h-[460px] min-h-[320px]">
               <MemoryJarCanvas
                 ref={jarCanvasRef}
                 pieces={[]}
@@ -477,7 +654,7 @@ export default function MemoryJarView({
             </div>
           </div>
         ) : (
-          <div className="w-full h-full relative">
+          <div className="w-full h-full min-h-[460px] relative flex items-center justify-center">
             <MemoryJarCanvas
               ref={jarCanvasRef}
               pieces={waxPieces}

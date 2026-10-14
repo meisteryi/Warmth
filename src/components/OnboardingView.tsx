@@ -180,10 +180,13 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
       return;
     }
 
-    // 애플 앱스토어 심사관 전용 히든 데모룸 진입 코드 (#777777)
+    // 애플 앱스토어 심사관 및 테스트 전용 히든 데모룸 진입 코드 (#777777)
     if (inputCode.trim() === '777777') {
       soundEngine.playStampThudSound();
-      triggerMatchCelebration('777777', myName.trim() || '서연', '민우', 'PARTNER');
+      const enteredName = myName.trim();
+      const me = enteredName || '서연';
+      const partner = me === '민우' ? '서연' : '민우';
+      triggerMatchCelebration('777777', me, partner, 'PARTNER');
       return;
     }
 

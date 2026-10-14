@@ -240,8 +240,10 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
       const canvas = canvasRef.current;
       if (!container || !canvas) return;
 
-      let width = container.clientWidth || 360;
-      let height = container.clientHeight || 480;
+      let width = container.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 360);
+      let height = container.clientHeight || (typeof window !== 'undefined' ? Math.max(window.innerHeight - 100, 480) : 480);
+      if (width <= 0) width = 360;
+      if (height <= 0) height = 480;
 
       let renderer: THREE.WebGLRenderer | null = null;
       let sceneManager: SunlightSceneManager | null = null;
@@ -386,12 +388,12 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
         // 창 크기 반응형 리사이즈 핸들러
         const handleResize = () => {
           if (!container || !renderer || !sceneManager) return;
-          width = container.clientWidth;
-          height = container.clientHeight;
-          if (width === 0 || height === 0) return;
+          const newWidth = container.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 360);
+          const newHeight = container.clientHeight || (typeof window !== 'undefined' ? Math.max(window.innerHeight - 100, 480) : 480);
+          if (newWidth <= 0 || newHeight <= 0) return;
 
-          renderer.setSize(width, height);
-          sceneManager.resize(width, height);
+          renderer.setSize(newWidth, newHeight);
+          sceneManager.resize(newWidth, newHeight);
         };
 
         resizeObserver = new ResizeObserver(handleResize);
@@ -560,7 +562,7 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
     return (
       <div
         ref={containerRef}
-        className={`relative w-full h-full flex flex-col items-center justify-center select-none touch-none ${className}`}
+        className={`relative w-full h-full min-h-[460px] flex flex-col items-center justify-center select-none touch-none ${className}`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

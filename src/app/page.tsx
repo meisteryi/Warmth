@@ -187,6 +187,26 @@ export default function HomePage() {
   const [diary, setDiary] = useState<DiaryData | null>(null);
   const [selectedArchiveDiary, setSelectedArchiveDiary] = useState<DiaryData | null>(null);
   const [roomData, setRoomData] = useState<RoomData | null>(null);
+
+  // activeRoomCode: 항상 유효한 방 코드를 보장 (roomCode, roomData.roomCode, roomData.roomId, sessionStore 순으로 fallback)
+  const activeRoomCode = useMemo(() => {
+    if (roomCode && roomCode.trim()) return roomCode.trim();
+    if (roomData?.roomCode && roomData.roomCode.trim()) return roomData.roomCode.trim();
+    if (roomData?.roomId && roomData.roomId.trim()) return roomData.roomId.trim();
+    if (typeof window !== 'undefined') {
+      const stored = sessionStore.get(STORAGE_KEYS.ROOM_CODE);
+      if (stored && stored.trim()) return stored.trim();
+    }
+    return '';
+  }, [roomCode, roomData]);
+
+  // 방 코드가 state에 동기화되지 않은 경우 즉시 동기화
+  useEffect(() => {
+    if (activeRoomCode && roomCode !== activeRoomCode) {
+      setRoomCode(activeRoomCode);
+    }
+  }, [activeRoomCode, roomCode]);
+
   const [writeModalInitialTitle, setWriteModalInitialTitle] = useState<string | undefined>(undefined);
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false);
   const [isWriteModalOpen, setIsWriteModalOpen] = useState(false);
@@ -417,8 +437,13 @@ export default function HomePage() {
                   }
                 }
 
-                // 상대방 정보 동기화 (상대방이 닉네임을 변경한 경우 자동 반영)
-                const partnerEntry = Object.entries(loadedRoomData.memberInfo).find(([uid]) => uid !== myUid);
+                // 상대방 정보 동기화 (상대방이 닉네임을 변경한 경우 자동 반영, 본인 닉네임과 중복 방지)
+                const currentMe = savedUser || userName;
+                const partnerEntry = Object.entries(loadedRoomData.memberInfo).find(([uid, info]: any) => {
+                  const isNotMeByUid = uid !== myUid;
+                  const isNotMeByName = !currentMe || (info?.nickname && info.nickname.trim().toLowerCase() !== currentMe.trim().toLowerCase());
+                  return isNotMeByUid && isNotMeByName;
+                }) || Object.entries(loadedRoomData.memberInfo).find(([uid]) => uid !== myUid);
                 if (partnerEntry && (partnerEntry[1] as any)?.nickname) {
                   const pName = (partnerEntry[1] as any).nickname;
                   setPartnerName(pName);
@@ -1156,7 +1181,7 @@ export default function HomePage() {
           forceScrollToTop(mainRef.current);
         }}
         onOpenProfile={() => setIsProfileModalOpen(true)}
-        roomCode={roomCode}
+        roomCode={activeRoomCode}
         userName={userName}
         partnerName={partnerName}
         isMyTurn={isMyTurn}
@@ -1198,7 +1223,7 @@ export default function HomePage() {
               key="view-home"
               partnerName={partnerName}
               userName={userName}
-              roomCode={roomCode}
+              roomCode={activeRoomCode}
               roomData={roomData}
               diary={diary}
               isMyTurn={isMyTurn}
@@ -1318,7 +1343,7 @@ export default function HomePage() {
                 userName={userName}
                 onOpenWriteModal={handleOpenWriteModal}
                 onSendKnock={() => handleSendKnock('첫 번째 교환일기장을 기다리고 있어요 ✉️')}
-                roomCode={roomCode}
+                roomCode={activeRoomCode}
                 isMyTurn={isMyTurn}
                 userRole={userRole}
               />
@@ -1329,7 +1354,7 @@ export default function HomePage() {
           {uiState === 'VIEW_MEMORY_JAR' && (
             <MemoryJarView
               key="view-memory-jar"
-              roomCode={roomCode}
+              roomCode={activeRoomCode}
               currentUserName={userName}
               partnerName={partnerName}
               onGoHome={handleGoHome}
@@ -1395,7 +1420,7 @@ export default function HomePage() {
         onSaveDiary={handleSaveDiary}
         currentUserName={userName}
         partnerName={partnerName}
-        roomCode={roomCode}
+        roomCode={activeRoomCode}
         fallbackPreviousDiary={diary}
         initialTitle={writeModalInitialTitle}
       />
@@ -1404,7 +1429,7 @@ export default function HomePage() {
       <ArchiveModal
         isOpen={isArchiveOpen}
         onClose={() => setIsArchiveOpen(false)}
-        roomCode={roomCode}
+        roomCode={activeRoomCode}
         currentUserName={userName}
         partnerName={partnerName}
         onSelectDiary={(selectedDiary) => {
@@ -1513,19 +1538,19 @@ export default function HomePage() {
                 </p>
 
                 {/* 방 코드 복사 카드 */}
-                {roomCode && (
+                {activeRoomCode && (
                   <div className="mt-2 p-2.5 rounded-xl bg-amber-50/90 border border-amber-300/80 flex items-center justify-between shadow-inner">
                     <div className="text-left">
                       <div className="text-[10px] text-amber-800 font-sans-ui font-medium">우리 둘만의 초대코드</div>
                       <div className="text-lg font-mono font-bold tracking-widest text-[#6B1724]">
-                        #{roomCode}
+                        #{activeRoomCode}
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => {
                         if (navigator.clipboard) {
-                          navigator.clipboard.writeText(roomCode);
+                          navigator.clipboard.writeText(activeRoomCode);
                           setHasCopiedLeaveCode(true);
                           showToast('초대코드가 클립보드에 복사되었습니다.');
                           setTimeout(() => setHasCopiedLeaveCode(false), 3000);
@@ -1590,14 +1615,14 @@ export default function HomePage() {
                   <div className="text-left">
                     <div className="text-[10px] text-amber-800 font-sans-ui font-medium">우리 둘만의 초대코드</div>
                     <div className="text-xl font-mono font-bold tracking-widest text-[#6B1724]">
-                      #{roomCode}
+                      #{activeRoomCode}
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => {
                       if (navigator.clipboard) {
-                        navigator.clipboard.writeText(roomCode);
+                        navigator.clipboard.writeText(activeRoomCode);
                         setHasCopiedLeaveCode(true);
                         showToast('초대코드가 클립보드에 복사되었습니다.');
                         setTimeout(() => setHasCopiedLeaveCode(false), 3000);
@@ -1615,7 +1640,7 @@ export default function HomePage() {
                   type="button"
                   onClick={() => {
                     if (navigator.clipboard) {
-                      navigator.clipboard.writeText(roomCode);
+                      navigator.clipboard.writeText(activeRoomCode);
                     }
                     executeLeaveRoom(true);
                   }}
