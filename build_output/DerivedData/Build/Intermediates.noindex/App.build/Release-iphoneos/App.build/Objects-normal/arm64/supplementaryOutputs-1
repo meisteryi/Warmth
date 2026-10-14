@@ -1,0 +1,12 @@
+{
+  "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/ios/App/App/AppDelegate.swift" : {
+    "abi-baseline-json" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/App.build/Release-iphoneos/App.build/Objects-normal/arm64/App.abi.json",
+    "const-values" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/App.build/Release-iphoneos/App.build/Objects-normal/arm64/App-primary.swiftconstvalues",
+    "dependencies" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/App.build/Release-iphoneos/App.build/Objects-normal/arm64/App-primary.d",
+    "diagnostics" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/App.build/Release-iphoneos/App.build/Objects-normal/arm64/App-primary.dia",
+    "objc-header" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/App.build/Release-iphoneos/App.build/Objects-normal/arm64/App-Swift.h",
+    "swiftdoc" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/App.build/Release-iphoneos/App.build/Objects-normal/arm64/App.swiftdoc",
+    "swiftmodule" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/App.build/Release-iphoneos/App.build/Objects-normal/arm64/App.swiftmodule",
+    "swiftsourceinfo" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/App.build/Release-iphoneos/App.build/Objects-normal/arm64/App.swiftsourceinfo"
+  }
+}

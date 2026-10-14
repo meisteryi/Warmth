@@ -1,0 +1,26 @@
+{
+  "" : {
+    "const-values" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/App.build/Release-iphoneos/App.build/Objects-normal/arm64/App-primary.swiftconstvalues",
+    "dependencies" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/App.build/Release-iphoneos/App.build/Objects-normal/arm64/App-primary.d",
+    "diagnostics" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/App.build/Release-iphoneos/App.build/Objects-normal/arm64/App-primary.dia",
+    "emit-module-dependencies" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/App.build/Release-iphoneos/App.build/Objects-normal/arm64/App-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/App.build/Release-iphoneos/App.build/Objects-normal/arm64/App-primary-emit-module.dia",
+    "pch" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/App.build/Release-iphoneos/App.build/Objects-normal/arm64/App-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/App.build/Release-iphoneos/App.build/Objects-normal/arm64/App-primary.swiftdeps"
+  },
+  "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/App.build/Release-iphoneos/App.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "index-unit-output-path" : "/App.build/Release-iphoneos/App.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/App.build/Release-iphoneos/App.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/App.build/Release-iphoneos/App.build/Objects-normal/arm64/GeneratedAssetSymbols.o"
+  },
+  "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/ios/App/App/AppDelegate.swift" : {
+    "index-unit-output-path" : "/App.build/Release-iphoneos/App.build/Objects-normal/arm64/AppDelegate.o",
+    "llvm-bc" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/App.build/Release-iphoneos/App.build/Objects-normal/arm64/AppDelegate.bc",
+    "object" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/App.build/Release-iphoneos/App.build/Objects-normal/arm64/AppDelegate.o"
+  },
+  "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/ios/App/App/SceneDelegate.swift" : {
+    "index-unit-output-path" : "/App.build/Release-iphoneos/App.build/Objects-normal/arm64/SceneDelegate.o",
+    "llvm-bc" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/App.build/Release-iphoneos/App.build/Objects-normal/arm64/SceneDelegate.bc",
+    "object" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/App.build/Release-iphoneos/App.build/Objects-normal/arm64/SceneDelegate.o"
+  }
+}

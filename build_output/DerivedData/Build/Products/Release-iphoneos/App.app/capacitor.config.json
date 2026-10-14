@@ -1,0 +1,16 @@
+{
+	"appId": "com.warmth.app",
+	"appName": "온기",
+	"webDir": "public",
+	"server": {
+		"url": "https://warmth-swart.vercel.app",
+		"cleartext": false
+	},
+	"ios": {
+		"contentInset": "never",
+		"backgroundColor": "#FDFBF7"
+	},
+	"packageClassList": [
+		"HapticsPlugin"
+	]
+}

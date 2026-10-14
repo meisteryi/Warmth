@@ -1,0 +1,21 @@
+{
+  "" : {
+    "const-values" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/CapacitorHaptics.build/Release-iphoneos/HapticsPlugin-t.build/Objects-normal/arm64/HapticsPlugin-primary.swiftconstvalues",
+    "dependencies" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/CapacitorHaptics.build/Release-iphoneos/HapticsPlugin-t.build/Objects-normal/arm64/HapticsPlugin-primary.d",
+    "diagnostics" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/CapacitorHaptics.build/Release-iphoneos/HapticsPlugin-t.build/Objects-normal/arm64/HapticsPlugin-primary.dia",
+    "emit-module-dependencies" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/CapacitorHaptics.build/Release-iphoneos/HapticsPlugin-t.build/Objects-normal/arm64/HapticsPlugin-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/CapacitorHaptics.build/Release-iphoneos/HapticsPlugin-t.build/Objects-normal/arm64/HapticsPlugin-primary-emit-module.dia",
+    "pch" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/CapacitorHaptics.build/Release-iphoneos/HapticsPlugin-t.build/Objects-normal/arm64/HapticsPlugin-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/CapacitorHaptics.build/Release-iphoneos/HapticsPlugin-t.build/Objects-normal/arm64/HapticsPlugin-primary.swiftdeps"
+  },
+  "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/node_modules/@capacitor/haptics/ios/Sources/HapticsPlugin/Haptics.swift" : {
+    "index-unit-output-path" : "/CapacitorHaptics.build/Release-iphoneos/HapticsPlugin-t.build/Objects-normal/arm64/Haptics.o",
+    "llvm-bc" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/CapacitorHaptics.build/Release-iphoneos/HapticsPlugin-t.build/Objects-normal/arm64/Haptics.bc",
+    "object" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/CapacitorHaptics.build/Release-iphoneos/HapticsPlugin-t.build/Objects-normal/arm64/Haptics.o"
+  },
+  "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/node_modules/@capacitor/haptics/ios/Sources/HapticsPlugin/HapticsPlugin.swift" : {
+    "index-unit-output-path" : "/CapacitorHaptics.build/Release-iphoneos/HapticsPlugin-t.build/Objects-normal/arm64/HapticsPlugin.o",
+    "llvm-bc" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/CapacitorHaptics.build/Release-iphoneos/HapticsPlugin-t.build/Objects-normal/arm64/HapticsPlugin.bc",
+    "object" : "/Users/yijoohyoung/Documents/Python_Workspace/Warmth/build_output/DerivedData/Build/Intermediates.noindex/CapacitorHaptics.build/Release-iphoneos/HapticsPlugin-t.build/Objects-normal/arm64/HapticsPlugin.o"
+  }
+}
