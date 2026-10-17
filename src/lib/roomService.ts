@@ -859,22 +859,80 @@ export async function updateAnniversaryDateInFirestore(
 }
 
 // 12. 웹 푸시 구독 정보 저장 (백그라운드 Web Push 알림용)
+// 닉네임과 UID 복합 매칭을 통해 세션 재접속/LocalStorage 파티셔닝 후에도 정확한 멤버 슬롯에 저장합니다.
 export async function savePushSubscriptionToRoom(
   roomCode: string,
   uid: string,
-  subscription: PushSubscription | null
+  subscription: PushSubscription | null,
+  userNickname?: string
 ): Promise<void> {
   if (!roomCode || !uid || !subscription) return;
   try {
     const roomRef = doc(db, 'rooms', roomCode);
-    await updateDoc(roomRef, {
-      [`memberInfo.${uid}.pushSubscription`]: JSON.stringify(subscription),
+    const snap = await getDoc(roomRef);
+    if (!snap.exists()) return;
+    const room = snap.data() as RoomData;
+    const subString = JSON.stringify(subscription);
+    const updates: Record<string, any> = {
+      [`memberInfo.${uid}.pushSubscription`]: subString,
       updatedAt: serverTimestamp(),
-    });
+    };
+
+    // 닉네임이 전달된 경우, 해당 닉네임을 가진 방 멤버 슬롯에도 동시에 저장하여 UID 불일치 방지
+    if (userNickname && room.memberInfo) {
+      const cleanNick = userNickname.trim().toLowerCase();
+      const matchedEntry = Object.entries(room.memberInfo).find(
+        ([_, info]) => (info?.nickname || '').trim().toLowerCase() === cleanNick
+      );
+      if (matchedEntry && matchedEntry[0] !== uid) {
+        updates[`memberInfo.${matchedEntry[0]}.pushSubscription`] = subString;
+      }
+    }
+
+    await updateDoc(roomRef, updates);
   } catch (e) {
     console.warn('Failed to save push subscription to room:', e);
   }
 }
+
+/**
+ * 방 데이터에서 내 정보를 제외한 실제 상대방(파트너)의 memberInfo 엔트리를 정확히 조회
+ */
+export function getPartnerMemberInfo(
+  room: RoomData,
+  myUid: string,
+  myNickname?: string
+): { uid: string; info: NonNullable<RoomData['memberInfo']>[string] } | null {
+  if (!room.memberInfo) return null;
+  const entries = Object.entries(room.memberInfo);
+  const normalizedMyNick = (myNickname || '').trim().toLowerCase();
+
+  // 1. 닉네임이 다른 엔트리 우선 탐색 (가장 정확)
+  if (normalizedMyNick) {
+    const partnerByNick = entries.find(([_, info]) => {
+      const nick = (info?.nickname || '').trim().toLowerCase();
+      return Boolean(nick) && nick !== normalizedMyNick;
+    });
+    if (partnerByNick) {
+      return { uid: partnerByNick[0], info: partnerByNick[1] };
+    }
+  }
+
+  // 2. UID가 다른 엔트리 탐색
+  const partnerByUid = entries.find(([uid, info]) => {
+    const isMe =
+      uid === myUid ||
+      (Boolean(info?.nickname && normalizedMyNick) &&
+        info.nickname.trim().toLowerCase() === normalizedMyNick);
+    return !isMe;
+  });
+  if (partnerByUid) {
+    return { uid: partnerByUid[0], info: partnerByUid[1] };
+  }
+
+  return null;
+}
+
 
 // 13. 방 내 사용자 프로필 (이름, 생년월일) 실시간 업데이트
 export async function updateUserProfileInFirestore(

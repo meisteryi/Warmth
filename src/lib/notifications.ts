@@ -40,6 +40,13 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
     const registration = await navigator.serviceWorker.register('/sw.js', {
       scope: '/',
     });
+    // 서비스 워커가 정상적으로 활성화될 때까지 ready 대기 (최대 2초 타임아웃)
+    if ('ready' in navigator.serviceWorker) {
+      await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise((resolve) => setTimeout(resolve, 2000)),
+      ]);
+    }
     return registration;
   } catch (error) {
     console.warn('Service Worker registration failed:', error);
@@ -64,6 +71,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 
 /**
  * 브라우저 백그라운드 웹 푸시(Web Push) 구독 등록 및 PushSubscription 객체 반환
+ * iOS Safari PWA 및 Chrome에서 Service Worker가 완전히 활성화된 상태(ready)에서만 안전하게 구독을 요청합니다.
  */
 export async function subscribeToWebPush(): Promise<PushSubscription | null> {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -71,8 +79,9 @@ export async function subscribeToWebPush(): Promise<PushSubscription | null> {
   }
 
   try {
-    const reg = await registerServiceWorker();
-    if (!reg) return null;
+    await registerServiceWorker();
+    const reg = await navigator.serviceWorker.ready;
+    if (!reg || !reg.pushManager) return null;
 
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
@@ -130,7 +139,7 @@ export async function sendServerWebPush(
         subscription: subObj,
         title,
         body,
-        tag: tag || 'warmth-notification',
+        tag: tag || `warmth-${Date.now()}`,
         icon: '/icon-192.png',
         url: '/',
       }),
@@ -143,9 +152,14 @@ export async function sendServerWebPush(
 }
 
 /**
- * 로컬 시스템 알림 발송 (새 일기 도착, 노크 등)
+ * 로컬 시스템 알림 발송 (새 일기 도착, 실링 개봉, 포스트잇 반응, 노크 등)
+ * iOS 16.4+ PWA에서는 new Notification()이 지원되지 않으므로 반드시 ServiceWorkerRegistration.showNotification()을 사용합니다.
  */
-export async function sendLocalNotification(title: string, body: string): Promise<boolean> {
+export async function sendLocalNotification(
+  title: string,
+  body: string,
+  tag?: string
+): Promise<boolean> {
   if (typeof window === 'undefined' || !('Notification' in window)) {
     return false;
   }
@@ -154,30 +168,47 @@ export async function sendLocalNotification(title: string, body: string): Promis
     return false;
   }
 
+  const notificationTag = tag || `warmth-${Date.now()}`;
+
   try {
-    // 1. Service Worker 등록 객체를 통해 알림 띄우기 (PWA 및 모바일 권장)
+    // 1. Service Worker 등록 객체를 통해 알림 띄우기 (PWA 및 모바일 표준)
     if ('serviceWorker' in navigator) {
-      const reg = await navigator.serviceWorker.getRegistration();
-      if (reg) {
+      let reg: ServiceWorkerRegistration | null | undefined = null;
+      try {
+        reg = await navigator.serviceWorker.ready;
+      } catch {
+        reg = await navigator.serviceWorker.getRegistration();
+      }
+
+      if (reg && 'showNotification' in reg) {
         await reg.showNotification(title, {
           body,
           icon: '/icon-192.png',
           badge: '/icon-192.png',
-          tag: 'warmth-event',
-        });
+          tag: notificationTag,
+          renotify: true,
+          data: {
+            url: '/',
+          },
+        } as NotificationOptions & { renotify?: boolean });
         return true;
       }
     }
 
-    // 2. 데스크톱 일반 알림 폴백
-    new Notification(title, {
-      body,
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-    });
-    return true;
+    // 2. 데스크톱 브라우저 일반 Notification 생성자 폴백 (iOS는 Notification 생성자가 없어 TypeError 방지)
+    try {
+      new Notification(title, {
+        body,
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        tag: notificationTag,
+      });
+      return true;
+    } catch {
+      return false;
+    }
   } catch (e) {
-    console.warn('Failed to display notification:', e);
+    console.warn('Failed to display local notification:', e);
     return false;
   }
 }

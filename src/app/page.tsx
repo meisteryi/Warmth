@@ -45,6 +45,7 @@ import {
   getOrCreateUserId,
   setExplicitUserId,
   savePushSubscriptionToRoom,
+  getPartnerMemberInfo,
   updateUserProfileInFirestore
 } from '@/lib/roomService';
 import { decryptDiaryData, decryptKnockData } from '@/lib/crypto';
@@ -53,7 +54,9 @@ import { db } from '@/lib/firebase';
 import {
   registerServiceWorker,
   subscribeToWebPush,
-  sendServerWebPush
+  sendServerWebPush,
+  sendLocalNotification,
+  requestNotificationPermission,
 } from '@/lib/notifications';
 
 // 초기 PRD 스펙 기반 샘플 일기 데이터 (데모 전환 및 폴백용)
@@ -388,6 +391,8 @@ export default function HomePage() {
     }, 3500);
   }, []);
 
+  const [showNotifPromptBanner, setShowNotifPromptBanner] = useState(false);
+
   // 백그라운드 Web Push 구독 정보 Firestore 동기화
   const syncPushSubscription = useCallback(async (targetCode?: string) => {
     const code = targetCode || roomCode;
@@ -397,13 +402,13 @@ export default function HomePage() {
         const sub = await subscribeToWebPush();
         if (sub) {
           const myUid = getOrCreateUserId();
-          await savePushSubscriptionToRoom(code, myUid, sub);
+          await savePushSubscriptionToRoom(code, myUid, sub, userName);
         }
       }
     } catch (e) {
       console.warn('Push subscription sync error:', e);
     }
-  }, [roomCode]);
+  }, [roomCode, userName]);
 
   // 알림 권한 허용 이벤트 수신 시 구독 동기화
   useEffect(() => {
@@ -415,6 +420,48 @@ export default function HomePage() {
       window.removeEventListener('warmth-notification-permission-granted', handlePermissionGranted);
     };
   }, [syncPushSubscription]);
+
+  // 알림 유도 배너 권한 요청 핸들러
+  const handleEnableNotificationsFromBanner = async () => {
+    try {
+      const res = await requestNotificationPermission();
+      if (res === 'granted') {
+        setShowNotifPromptBanner(false);
+        showToast('🔔 알림이 켜졌습니다! 상대방의 편지와 반응을 실시간으로 알려드릴게요.');
+        syncPushSubscription();
+      } else if (res === 'denied') {
+        setShowNotifPromptBanner(false);
+        showToast('알림 권한이 차단되어 있습니다. 브라우저 설정에서 알림을 허용해주세요.');
+      }
+    } catch {
+      setShowNotifPromptBanner(false);
+    }
+  };
+
+  const handleDismissNotifBanner = () => {
+    setShowNotifPromptBanner(false);
+    try {
+      sessionStorage.setItem('warmth_dismiss_notif_banner', 'true');
+    } catch {}
+  };
+
+  // 알림 권한이 아직 'default'인 경우 상단 배너 노출 체크
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const isDismissed = sessionStorage.getItem('warmth_dismiss_notif_banner') === 'true';
+      if (
+        !isDismissed &&
+        'Notification' in window &&
+        Notification.permission === 'default' &&
+        uiState !== 'VIEW_ONBOARDING'
+      ) {
+        setShowNotifPromptBanner(true);
+      } else {
+        setShowNotifPromptBanner(false);
+      }
+    } catch {}
+  }, [uiState]);
 
   // 1. 앱 마운트 시 저장된 세션(방 코드 및 닉네임) 자동 복구 & 재접속 및 서비스 워커 등록
   useEffect(() => {
@@ -574,7 +621,9 @@ export default function HomePage() {
       // 0-2. 내 Web Push 구독 정보가 방에 아직 저장되지 않았고 권한이 허용된 경우 자동 동기화
       if (room.memberInfo) {
         const myUid = getOrCreateUserId();
-        const myInfo = room.memberInfo[myUid];
+        const myInfo =
+          room.memberInfo[myUid] ||
+          Object.values(room.memberInfo).find((info) => info?.nickname === userName);
         if (!myInfo?.pushSubscription && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
           syncPushSubscription(roomCode);
         }
@@ -593,6 +642,9 @@ export default function HomePage() {
           const decryptedKnock = await decryptKnockData(roomCode, rawKnock, room.roomSalt);
           setReceivedKnock(decryptedKnock);
           setIsKnockModalOpen(true);
+          const knockSender = decryptedKnock?.senderName || partnerName || '상대방';
+          const knockMsg = decryptedKnock?.message || '똑똑, 교환일기 왔어요!';
+          sendLocalNotification('🔔 노크가 도착했습니다!', `${knockSender}: "${knockMsg}"`, 'warmth-knock');
         }
       }
 
@@ -608,7 +660,7 @@ export default function HomePage() {
           diaryUnsubRef.current = subscribeDiary(roomCode, room.latestDiaryId, (latestDiary) => {
             const prev = currentDiaryRef.current;
 
-            // 1) 내가 보낸 편지를 상대방이 개봉했을 때 실시간 감지 & 차임벨 & 축하 토스트
+            // 1) 내가 보낸 편지를 상대방이 개봉했을 때 실시간 감지 & 차임벨 & 축하 토스트 & 로컬 시스템 알림
             if (
               prev &&
               prev.diaryId === latestDiary.diaryId &&
@@ -617,20 +669,36 @@ export default function HomePage() {
               latestDiary.authorName === userName
             ) {
               soundEngine.playWaxCrackSound();
-              showToast(`💌 ${partnerName} 님이 내가 보낸 편지의 실링 왁스를 개봉했습니다! 💖`);
+              const toastMsg = `💌 ${partnerName} 님이 내가 보낸 편지의 실링 왁스를 개봉했습니다! 💖`;
+              showToast(toastMsg);
+              sendLocalNotification(
+                '💌 편지 개봉 알림',
+                `${partnerName} 님이 내가 보낸 편지의 실링 왁스를 개봉했습니다!`,
+                `warmth-unseal-${latestDiary.diaryId}`
+              );
             }
 
             // 2) 상대방이 작성한 새 편지가 도착했을 때
             if (
               (!prev || prev.diaryId !== latestDiary.diaryId) &&
-              latestDiary.authorName !== userName
+              latestDiary.authorName !== userName &&
+              !latestDiary.isWaxBroken
             ) {
-              soundEngine.playPaperRustle();
-              showToast(`📬 ${latestDiary.authorName} 님에게서 새 일기가 도착했습니다!`);
+              const isRecent = Date.now() - new Date(latestDiary.createdAt).getTime() < 10 * 60 * 1000;
+              if (prev || isRecent) {
+                soundEngine.playPaperRustle();
+                const toastMsg = `📬 ${latestDiary.authorName} 님에게서 새 일기가 도착했습니다!`;
+                showToast(toastMsg);
+                sendLocalNotification(
+                  '📬 새 일기가 도착했습니다!',
+                  `${latestDiary.authorName} 님이 비밀 편지를 봉인하여 보냈습니다.`,
+                  `warmth-diary-${latestDiary.diaryId}`
+                );
+              }
               setUiState((p) => (p === 'VIEW_WAITING' || p === 'VIEW_EMPTY' ? 'VIEW_HOME' : p));
             }
 
-            // 3) 내가 쓴 일기에 상대방이 이모티콘 마음 반응을 남겼거나 변경했을 때 실시간 감지
+            // 3) 내가 쓴 일기에 상대방이 이모티콘 마음 반응(포스트잇)을 남겼거나 변경했을 때 실시간 감지
             if (
               prev &&
               prev.diaryId === latestDiary.diaryId &&
@@ -639,7 +707,15 @@ export default function HomePage() {
               latestDiary.authorName === userName
             ) {
               soundEngine.playMissionPassChime();
-              showToast(`💌 ${latestDiary.reaction.reactorName || partnerName} 님이 일기에 ${latestDiary.reaction.emoji} 반응을 남겼습니다! ✨`);
+              const reactor = latestDiary.reaction.reactorName || partnerName;
+              const cleanComment = latestDiary.reaction.comment ? `: "${latestDiary.reaction.comment.trim()}"` : '';
+              const toastMsg = `💌 ${reactor} 님이 일기에 ${latestDiary.reaction.emoji} 반응을 남겼습니다! ✨${cleanComment}`;
+              showToast(toastMsg);
+              sendLocalNotification(
+                '📌 포스트잇 마음 알림',
+                `${reactor} 님이 일기에 ${latestDiary.reaction.emoji} 포스트잇을 남겼어요${cleanComment}`,
+                `warmth-reaction-${latestDiary.diaryId}`
+              );
             }
 
             currentDiaryRef.current = latestDiary;
@@ -821,15 +897,14 @@ export default function HomePage() {
           const roomSnap = await getDoc(doc(db, 'rooms', targetRoomCode));
           if (roomSnap.exists()) {
             const freshRoom = roomSnap.data() as RoomData;
-            if (freshRoom.memberInfo) {
-              const partnerEntry = Object.entries(freshRoom.memberInfo).find(([uid]) => uid !== myUid);
-              if (partnerEntry?.[1]?.pushSubscription) {
-                await sendServerWebPush(
-                  partnerEntry[1].pushSubscription,
-                  '💔 일기장 연결 해제 알림',
-                  `${userName} 님이 일기장 연결을 해제했습니다.`
-                );
-              }
+            const partner = getPartnerMemberInfo(freshRoom, myUid, userName);
+            if (partner?.info?.pushSubscription) {
+              await sendServerWebPush(
+                partner.info.pushSubscription,
+                '💔 일기장 연결 해제 알림',
+                `${userName} 님이 일기장 연결을 해제했습니다.`,
+                `warmth-leave-${Date.now()}`
+              );
             }
           }
         } catch (pushErr) {
@@ -900,17 +975,14 @@ export default function HomePage() {
         const roomSnap = await getDoc(doc(db, 'rooms', roomCode));
         if (roomSnap.exists()) {
           const freshRoom = roomSnap.data() as RoomData;
-          if (freshRoom.memberInfo) {
-            const authorEntry = Object.entries(freshRoom.memberInfo).find(([uid, info]) => {
-              return uid === diary.authorId || info.nickname === diary.authorName || uid !== myUid;
-            });
-            if (authorEntry?.[1]?.pushSubscription) {
-              await sendServerWebPush(
-                authorEntry[1].pushSubscription,
-                '💌 편지 개봉 알림',
-                `${userName} 님이 내가 보낸 편지의 실링 왁스를 개봉했습니다! 💖`
-              );
-            }
+          const partner = getPartnerMemberInfo(freshRoom, myUid, userName);
+          if (partner?.info?.pushSubscription) {
+            await sendServerWebPush(
+              partner.info.pushSubscription,
+              '💌 편지 개봉 알림',
+              `${userName} 님이 내가 보낸 편지의 실링 왁스를 개봉했습니다! 💖`,
+              `warmth-unseal-${diary.diaryId}`
+            );
           }
         }
       } catch (pushErr) {
@@ -955,15 +1027,14 @@ export default function HomePage() {
         const roomSnap = await getDoc(doc(db, 'rooms', roomCode));
         if (roomSnap.exists()) {
           const freshRoom = roomSnap.data() as RoomData;
-          if (freshRoom.memberInfo) {
-            const partnerEntry = Object.entries(freshRoom.memberInfo).find(([uid]) => uid !== myUid);
-            if (partnerEntry?.[1]?.pushSubscription) {
-              await sendServerWebPush(
-                partnerEntry[1].pushSubscription,
-                '📬 새 일기가 도착했습니다!',
-                `${userName} 님이 비밀 편지를 봉인하여 보냈습니다.`
-              );
-            }
+          const partner = getPartnerMemberInfo(freshRoom, myUid, userName);
+          if (partner?.info?.pushSubscription) {
+            await sendServerWebPush(
+              partner.info.pushSubscription,
+              '📬 새 일기가 도착했습니다!',
+              `${userName} 님이 비밀 편지를 봉인하여 보냈습니다.`,
+              `warmth-diary-${updated.diaryId}`
+            );
           }
         }
       } catch (pushErr) {
@@ -1026,25 +1097,19 @@ export default function HomePage() {
           const roomSnap = await getDoc(doc(db, 'rooms', roomCode));
           if (roomSnap.exists()) {
             const freshRoom = roomSnap.data() as RoomData;
-            if (freshRoom.memberInfo) {
-              // 닉네임과 UID 복합 판별로 본인이 아닌 실제 상대방(파트너)을 안전하고 정확하게 특정
-              const partnerEntry = Object.entries(freshRoom.memberInfo).find(([uid, info]) => {
-                const isMe = uid === myUid || (Boolean(info?.nickname && userName) && info.nickname.trim().toLowerCase() === userName.trim().toLowerCase());
-                return !isMe;
-              });
+            const partner = getPartnerMemberInfo(freshRoom, myUid, userName);
 
-              if (partnerEntry?.[1]?.pushSubscription) {
-                const trimmedTitle = (diaryTitle || '').trim();
-                const targetTitle = trimmedTitle ? `「${trimmedTitle}」 ` : '';
-                const cleanComment = reaction.comment ? reaction.comment.trim().replace(/\s+/g, ' ') : '';
-                const commentPreview = cleanComment ? `: "${cleanComment}"` : '';
-                await sendServerWebPush(
-                  partnerEntry[1].pushSubscription,
-                  '📌 포스트잇 마음 알림',
-                  `${userName} 님이 ${targetTitle}일기에 ${reaction.emoji} 포스트잇을 남겼어요${commentPreview}`,
-                  'warmth-reaction'
-                );
-              }
+            if (partner?.info?.pushSubscription) {
+              const trimmedTitle = (diaryTitle || '').trim();
+              const targetTitle = trimmedTitle ? `「${trimmedTitle}」 ` : '';
+              const cleanComment = reaction.comment ? reaction.comment.trim().replace(/\s+/g, ' ') : '';
+              const commentPreview = cleanComment ? `: "${cleanComment}"` : '';
+              await sendServerWebPush(
+                partner.info.pushSubscription,
+                '📌 포스트잇 마음 알림',
+                `${userName} 님이 ${targetTitle}일기에 ${reaction.emoji} 포스트잇을 남겼어요${commentPreview}`,
+                `warmth-reaction-${diaryId}`
+              );
             }
           }
         } catch (pushErr) {
@@ -1068,15 +1133,14 @@ export default function HomePage() {
         const roomSnap = await getDoc(doc(db, 'rooms', roomCode));
         if (roomSnap.exists()) {
           const freshRoom = roomSnap.data() as RoomData;
-          if (freshRoom.memberInfo) {
-            const partnerEntry = Object.entries(freshRoom.memberInfo).find(([uid]) => uid !== myUid);
-            if (partnerEntry?.[1]?.pushSubscription) {
-              await sendServerWebPush(
-                partnerEntry[1].pushSubscription,
-                '🔔 똑똑, 노크가 도착했습니다!',
-                `${userName} 님이 일기장 문을 두드렸어요: "${message}"`
-              );
-            }
+          const partner = getPartnerMemberInfo(freshRoom, myUid, userName);
+          if (partner?.info?.pushSubscription) {
+            await sendServerWebPush(
+              partner.info.pushSubscription,
+              '🔔 똑똑, 노크가 도착했습니다!',
+              `${userName} 님이 일기장 문을 두드렸어요: "${message}"`,
+              `warmth-knock-${Date.now()}`
+            );
           }
         }
       } catch (pushErr) {
@@ -1235,6 +1299,33 @@ export default function HomePage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* 웹 앱 알림 권한 유도 배너 (권한이 아직 'default'일 때 노출) */}
+        {showNotifPromptBanner && uiState !== 'VIEW_ONBOARDING' && uiState !== 'VIEW_MEMORY_JAR' && (
+          <div className="w-full max-w-sm sm:max-w-md mx-auto mb-3 px-3.5 py-2.5 rounded-xl bg-[#FAF5EC] border border-[#E8DFC8] shadow-sm flex items-center justify-between gap-2.5 text-xs text-stone-700 z-10 transition-all">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <span className="text-base flex-shrink-0">🔔</span>
+              <span className="truncate text-[12px] sm:text-[13px] font-sans-ui text-stone-700">
+                새 편지와 개봉 소식을 알림으로 받으시겠어요?
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <button
+                onClick={handleEnableNotificationsFromBanner}
+                className="px-2.5 py-1 rounded-md bg-[#6B1724] hover:bg-[#831F2E] text-white text-[11px] font-medium transition-colors shadow-xs active:scale-95"
+              >
+                알림 켜기
+              </button>
+              <button
+                onClick={handleDismissNotifBanner}
+                className="p-1 text-stone-400 hover:text-stone-600 transition-colors text-[13px]"
+                aria-label="닫기"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
 
         <AnimatePresence mode="wait">
           {/* 0. VIEW_ONBOARDING: 방 생성(6자리 코드 발급) 및 1:1 초대코드 매칭 */}
