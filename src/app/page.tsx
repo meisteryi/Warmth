@@ -633,18 +633,27 @@ export default function HomePage() {
       if (room.latestKnock) {
         const rawKnock = room.latestKnock;
         const isFromPartner = rawKnock.senderUid !== myUid;
-        const isNewKnock = rawKnock.knockedAt !== handledKnockTimeRef.current;
-        const isRecent = Date.now() - new Date(rawKnock.knockedAt).getTime() < 10 * 60 * 1000;
 
-        if (isFromPartner && isNewKnock && isRecent) {
+        // 최초 마운트 시에는 기존 노크 타임스탬프만 기억하고 중복 알림은 울리지 않음
+        if (!handledKnockTimeRef.current) {
           handledKnockTimeRef.current = rawKnock.knockedAt;
-          soundEngine.playWindChimeKnock();
-          const decryptedKnock = await decryptKnockData(roomCode, rawKnock, room.roomSalt);
-          setReceivedKnock(decryptedKnock);
-          setIsKnockModalOpen(true);
-          const knockSender = decryptedKnock?.senderName || partnerName || '상대방';
-          const knockMsg = decryptedKnock?.message || '똑똑, 교환일기 왔어요!';
-          sendLocalNotification('🔔 노크가 도착했습니다!', `${knockSender}: "${knockMsg}"`, 'warmth-knock');
+        } else {
+          const isNewKnock = rawKnock.knockedAt !== handledKnockTimeRef.current;
+          const isRecent = Date.now() - new Date(rawKnock.knockedAt).getTime() < 10 * 60 * 1000;
+
+          if (isFromPartner && isNewKnock && isRecent) {
+            handledKnockTimeRef.current = rawKnock.knockedAt;
+            soundEngine.playWindChimeKnock();
+            const decryptedKnock = await decryptKnockData(roomCode, rawKnock, room.roomSalt);
+            setReceivedKnock(decryptedKnock);
+            setIsKnockModalOpen(true);
+            const knockSender = decryptedKnock?.senderName || partnerName || '상대방';
+            const knockMsg = decryptedKnock?.message || '똑똑, 교환일기 왔어요!';
+            // 사용자가 화면을 보고 있지 않을 때(백그라운드 탭)에만 로컬 시스템 알림 발송
+            if (typeof document !== 'undefined' && document.hidden) {
+              sendLocalNotification('🔔 노크가 도착했습니다!', `${knockSender}: "${knockMsg}"`, 'warmth-knock');
+            }
+          }
         }
       }
 
@@ -659,10 +668,17 @@ export default function HomePage() {
 
           diaryUnsubRef.current = subscribeDiary(roomCode, room.latestDiaryId, (latestDiary) => {
             const prev = currentDiaryRef.current;
+            const isTabHidden = typeof document !== 'undefined' && document.hidden;
 
-            // 1) 내가 보낸 편지를 상대방이 개봉했을 때 실시간 감지 & 차임벨 & 축하 토스트 & 로컬 시스템 알림
+            // 최초 로드 시점(prev === null)에는 현재 상태만 저장하고 중복 알림은 절대 발송하지 않음
+            if (!prev) {
+              currentDiaryRef.current = latestDiary;
+              setDiary(latestDiary);
+              return;
+            }
+
+            // 1) 내가 보낸 편지를 상대방이 개봉했을 때 실시간 감지 & 차임벨 & 축하 토스트
             if (
-              prev &&
               prev.diaryId === latestDiary.diaryId &&
               !prev.isWaxBroken &&
               latestDiary.isWaxBroken &&
@@ -671,24 +687,27 @@ export default function HomePage() {
               soundEngine.playWaxCrackSound();
               const toastMsg = `💌 ${partnerName} 님이 내가 보낸 편지의 실링 왁스를 개봉했습니다! 💖`;
               showToast(toastMsg);
-              sendLocalNotification(
-                '💌 편지 개봉 알림',
-                `${partnerName} 님이 내가 보낸 편지의 실링 왁스를 개봉했습니다!`,
-                `warmth-unseal-${latestDiary.diaryId}`
-              );
+              // 앱 화면이 백그라운드에 숨겨져 있을 때만 OS 알림 배너 전달
+              if (isTabHidden) {
+                sendLocalNotification(
+                  '💌 편지 개봉 알림',
+                  `${partnerName} 님이 내가 보낸 편지의 실링 왁스를 개봉했습니다!`,
+                  `warmth-unseal-${latestDiary.diaryId}`
+                );
+              }
             }
 
-            // 2) 상대방이 작성한 새 편지가 도착했을 때
+            // 2) 상대방이 작성한 새 편지가 실시간 도착했을 때
             if (
-              (!prev || prev.diaryId !== latestDiary.diaryId) &&
+              prev.diaryId !== latestDiary.diaryId &&
               latestDiary.authorName !== userName &&
               !latestDiary.isWaxBroken
             ) {
-              const isRecent = Date.now() - new Date(latestDiary.createdAt).getTime() < 10 * 60 * 1000;
-              if (prev || isRecent) {
-                soundEngine.playPaperRustle();
-                const toastMsg = `📬 ${latestDiary.authorName} 님에게서 새 일기가 도착했습니다!`;
-                showToast(toastMsg);
+              soundEngine.playPaperRustle();
+              const toastMsg = `📬 ${latestDiary.authorName} 님에게서 새 일기가 도착했습니다!`;
+              showToast(toastMsg);
+              // 앱 화면이 백그라운드에 숨겨져 있을 때만 OS 알림 배너 전달
+              if (isTabHidden) {
                 sendLocalNotification(
                   '📬 새 일기가 도착했습니다!',
                   `${latestDiary.authorName} 님이 비밀 편지를 봉인하여 보냈습니다.`,
@@ -700,7 +719,6 @@ export default function HomePage() {
 
             // 3) 내가 쓴 일기에 상대방이 이모티콘 마음 반응(포스트잇)을 남겼거나 변경했을 때 실시간 감지
             if (
-              prev &&
               prev.diaryId === latestDiary.diaryId &&
               latestDiary.reaction &&
               prev.reaction?.emoji !== latestDiary.reaction.emoji &&
@@ -711,11 +729,14 @@ export default function HomePage() {
               const cleanComment = latestDiary.reaction.comment ? `: "${latestDiary.reaction.comment.trim()}"` : '';
               const toastMsg = `💌 ${reactor} 님이 일기에 ${latestDiary.reaction.emoji} 반응을 남겼습니다! ✨${cleanComment}`;
               showToast(toastMsg);
-              sendLocalNotification(
-                '📌 포스트잇 마음 알림',
-                `${reactor} 님이 일기에 ${latestDiary.reaction.emoji} 포스트잇을 남겼어요${cleanComment}`,
-                `warmth-reaction-${latestDiary.diaryId}`
-              );
+              // 앱 화면이 백그라운드에 숨겨져 있을 때만 OS 알림 배너 전달
+              if (isTabHidden) {
+                sendLocalNotification(
+                  '📌 포스트잇 마음 알림',
+                  `${reactor} 님이 일기에 ${latestDiary.reaction.emoji} 포스트잇을 남겼어요${cleanComment}`,
+                  `warmth-reaction-${latestDiary.diaryId}`
+                );
+              }
             }
 
             currentDiaryRef.current = latestDiary;

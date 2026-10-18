@@ -1,5 +1,5 @@
 // 온기 (Warmth) Service Worker for Web Push & Offline Support
-const SW_VERSION = '2026-10-14-v5';
+const SW_VERSION = '2026-10-18-v6';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -40,7 +40,19 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title, options)
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // 사용자가 이미 앱 창을 열어두고 활성화(포커스 또는 보이는 상태)되어 있는 경우,
+      // 앱 내부에서 직접 실시간 반응/효과음/토스트를 처리하므로 OS 레벨의 중복 푸시 배너는 띄우지 않습니다.
+      const isForeground = clientList.some(
+        (client) => client.focused || client.visibilityState === 'visible'
+      );
+
+      if (isForeground) {
+        return;
+      }
+
+      return self.registration.showNotification(data.title, options);
+    })
   );
 });
 
