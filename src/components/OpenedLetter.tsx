@@ -235,7 +235,7 @@ export default function OpenedLetter({
                         soundEngine.playTileSlideSound();
                       }}
                       className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] text-stone-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer border border-transparent hover:border-rose-200"
-                      title={language === 'en' ? 'Report inappropriate diary or photos' : '부적절한 일기 및 사진 신고'}
+                      title={language === 'en' ? 'Report inappropriate diary or photos' : '부적절한 편지 및 사진 신고'}
                     >
                       <Flag className="w-3 h-3 text-rose-500" />
                       <span>{language === 'en' ? 'Report' : '신고'}</span>
@@ -270,7 +270,7 @@ export default function OpenedLetter({
             <div className="my-8 p-6 rounded-2xl bg-stone-100/90 border border-stone-200 text-center space-y-2 font-serif-warm">
               <ShieldAlert className="w-7 h-7 text-stone-400 mx-auto" />
               <p className="text-sm font-bold text-stone-700">
-                {language === 'en' ? 'This diary has been reported and hidden.' : '신고가 접수되어 화면에서 가려진 일기입니다.'}
+                {language === 'en' ? 'This diary has been reported and hidden.' : '신고가 접수되어 화면에서 가려진 편지입니다.'}
               </p>
               <p className="text-xs text-stone-500 font-sans-ui">
                 {language === 'en' ? 'Reviewed and actioned within 24 hours.' : '운영팀의 24시간 이내 검토를 거쳐 조치됩니다.'}
@@ -292,7 +292,7 @@ export default function OpenedLetter({
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={imgUrl}
-                          alt={`일기 사진 ${idx + 1}`}
+                          alt={`편지 사진 ${idx + 1}`}
                           className="w-full h-full object-cover"
                         />
                       </div>

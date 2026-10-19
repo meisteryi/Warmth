@@ -56,7 +56,7 @@ export default function EmptyDeskView({
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-900/10 border border-amber-900/20 text-stone-800 text-xs font-sans-ui mb-2 shadow-2xs">
           <Sparkles className="w-3.5 h-3.5 text-amber-700 animate-pulse" />
           <span className="font-semibold text-amber-900">
-            {isMyTurn ? '첫 편지 작성 차례' : '첫 일기 도착 대기 중'}
+            {isMyTurn ? '첫 편지 작성 차례' : '첫 편지 도착 대기 중'}
           </span>
           <span className="text-stone-400">·</span>
           <span className="font-mono text-stone-600">#{roomCode}</span>
@@ -168,7 +168,7 @@ export default function EmptyDeskView({
             <p className="text-[10.5px] text-stone-400">
               {isMyTurn
                 ? 'Tip: 첫 편지를 전송하면 상대방에게 턴이 넘어가며 매일 번갈아 작성하게 됩니다.'
-                : '온기 규칙: 초대코드로 입장한 파트너가 첫 일기를 작성한 후, 번갈아가며 로테이션으로 교환일기가 진행됩니다.'}
+                : '온기 규칙: 초대코드로 입장한 파트너가 첫 편지를 작성한 후, 번갈아가며 로테이션으로 교환일기가 진행됩니다.'}
             </p>
           </div>
         </div>

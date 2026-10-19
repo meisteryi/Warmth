@@ -144,7 +144,7 @@ export default function RoomHeader({
 
   const handleToggleNotification = async () => {
     if (notifPermission === 'granted') {
-      alert('이미 알림 권한이 허용되어 있습니다. 새로운 일기나 노크가 올 때 알림이 전달됩니다.');
+      alert('이미 알림 권한이 허용되어 있습니다. 새로운 편지나 노크가 올 때 알림이 전달됩니다.');
       return;
     }
     const status = getNotificationStatus();
@@ -155,7 +155,7 @@ export default function RoomHeader({
     const result = await requestNotificationPermission();
     setNotifPermission(result);
     if (result === 'granted') {
-      alert('🔔 알림이 켜졌습니다! 상대방이 보낸 새 일기와 노크를 백그라운드에서도 받아보실 수 있습니다.');
+      alert('🔔 알림이 켜졌습니다! 상대방이 보낸 새 편지와 노크를 백그라운드에서도 받아보실 수 있습니다.');
     } else if (result === 'denied') {
       alert('기기 설정에서 알림 권한이 차단되어 있습니다. 브라우저 설정에서 알림 권한을 허용해주세요.');
     }
@@ -258,7 +258,7 @@ export default function RoomHeader({
                   : isTodayDiaryWritten
                   ? language === 'en'
                     ? `Today's letter is already written. Resets at 04:00 AM (${countdownFormatted || ''})`
-                    : `오늘의 일기는 이미 작성되었습니다. 내일 새벽 04:00에 리셋됩니다 (남은 시간: ${countdownFormatted || ''})`
+                    : `오늘의 편지는 이미 작성되었습니다. 내일 새벽 04:00에 리셋됩니다 (남은 시간: ${countdownFormatted || ''})`
                   : t('nav.write')
               }
               className={`h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-xs font-serif-warm font-bold shadow-xs flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap active:scale-95 transition-all cursor-pointer ${

@@ -84,7 +84,7 @@ export default function KnockNotificationModal({
           </div>
 
           <p className="mt-2 sm:mt-3 text-[11px] sm:text-xs text-stone-500 font-sans-ui leading-tight">
-            기다리고 있는 {knock.senderName} 님에게 오늘의 다정한 일기를 선물해보세요.
+            기다리고 있는 {knock.senderName} 님에게 오늘의 다정한 편지를 선물해보세요.
           </p>
 
           {/* 하단 액션 버튼 */}
@@ -97,7 +97,7 @@ export default function KnockNotificationModal({
               className="w-full py-2.5 sm:py-3 rounded-xl bg-[#6B1724] hover:bg-[#58131e] active:scale-98 text-[#FFFDF9] text-xs sm:text-sm font-sans-ui font-medium shadow-md transition-all flex items-center justify-center gap-1.5"
             >
               <Feather className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-200" />
-              <span>지금 답장 일기 쓰기</span>
+              <span>지금 답장 쓰기</span>
             </button>
 
             <button

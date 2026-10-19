@@ -583,7 +583,7 @@ export default function ArchiveModal({
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-[#6B1724]" />
                   <span>
-                    <strong>{selectedDateFilter}</strong>에 작성된 일기 ({filteredDiaries.length}편)
+                    <strong>{selectedDateFilter}</strong>에 작성된 편지 ({filteredDiaries.length}편)
                   </span>
                 </div>
                 <button
@@ -595,7 +595,7 @@ export default function ArchiveModal({
                   }}
                   className="px-2.5 py-1 rounded-lg bg-white hover:bg-stone-100 border border-stone-200 text-stone-700 font-semibold cursor-pointer text-[11px] transition-colors"
                 >
-                  전체 일기 보기 ✕
+                  전체 편지 보기 ✕
                 </button>
               </div>
             )}
@@ -643,7 +643,7 @@ export default function ArchiveModal({
                   <Calendar className="w-8 h-8 opacity-80" />
                 </div>
                 <h3 className="font-serif-warm font-bold text-stone-800 text-base mb-1">
-                  선택하신 날짜에 작성된 일기가 없습니다
+                  선택하신 날짜에 작성된 편지가 없습니다
                 </h3>
                 <p className="text-xs text-stone-500 max-w-sm mx-auto leading-relaxed mb-4">
                   달력에서 표시(●)가 있는 날짜를 선택하시거나 전체 목록을 확인해보세요.
@@ -657,7 +657,7 @@ export default function ArchiveModal({
                   }}
                   className="px-4 py-2 bg-[#6B1724] text-white rounded-xl text-xs font-serif-warm font-semibold shadow hover:bg-[#851E2E] transition-all cursor-pointer"
                 >
-                  모든 일기 보기
+                  모든 편지 보기
                 </button>
               </div>
             ) : (
@@ -1139,7 +1139,7 @@ export default function ArchiveModal({
                             <div key={pIdx} className="w-48 bg-stone-100 border border-stone-300 rounded overflow-hidden shadow-2xs">
                               <div className="w-full aspect-[4/3]">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={p} alt="일기 사진" className="w-full h-full object-cover" />
+                                <img src={p} alt="편지 사진" className="w-full h-full object-cover" />
                               </div>
                               <p className="px-2 py-1 text-[11px] text-stone-600 font-serif-warm text-center truncate">
                                 {caption}
@@ -1247,7 +1247,7 @@ export default function ArchiveModal({
                             ? 'bg-stone-100 text-stone-800 font-semibold'
                             : 'text-stone-400 hover:bg-stone-100'
                         }`}
-                        title={hasDiary ? `${dateKey} (${diaryCount}편의 일기)` : dateKey}
+                        title={hasDiary ? `${dateKey} (${diaryCount}편의 편지)` : dateKey}
                       >
                         <span className="leading-none">{day}</span>
                         {hasDiary && (
@@ -1266,7 +1266,7 @@ export default function ArchiveModal({
                 <div className="mt-3 pt-2 border-t border-[#EFE7DC] flex items-center justify-between text-[11px] text-stone-500">
                   <div className="flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#6B1724]" />
-                    <span>일기 작성된 날</span>
+                    <span>편지 작성된 날</span>
                   </div>
 
                   <div className="flex items-center gap-2">

@@ -368,14 +368,14 @@ export default function HomePage() {
       if (!diary) {
         showToast(`초대받은 ${partnerName} 님이 첫 번째 편지를 먼저 작성할 차례입니다.`);
       } else if (diary.authorName === userName && !diary.isWaxBroken) {
-        showToast(`${partnerName} 님이 아직 편지를 읽지 않았습니다. 상대방이 편지를 읽고 답장을 보낸 후에 새 일기를 쓸 수 있습니다.`);
+        showToast(`${partnerName} 님이 아직 편지를 읽지 않았습니다. 상대방이 편지를 읽고 답장을 보낸 후에 새 편지를 쓸 수 있습니다.`);
       } else {
-        showToast(`지금은 ${partnerName} 님의 답장 차례입니다. 답장이 도착하면 새 일기를 쓸 수 있습니다.`);
+        showToast(`지금은 ${partnerName} 님의 답장 차례입니다. 답장이 도착하면 새 편지를 쓸 수 있습니다.`);
       }
       return;
     }
     if (hasMyQuotaBeenUsedToday) {
-      showToast(`오늘의 일기는 이미 작성하셨습니다 (하루 각자 1통). 다음 편지는 내일 새벽 04:00(남은 시간: ${countdown.formattedKorean})에 열립니다.`);
+      showToast(`오늘의 편지는 이미 작성하셨습니다 (하루 각자 1통). 다음 편지는 내일 새벽 04:00(남은 시간: ${countdown.formattedKorean})에 열립니다.`);
       return;
     }
     setWriteModalInitialTitle(validTitle);
@@ -705,12 +705,12 @@ export default function HomePage() {
               !latestDiary.isWaxBroken
             ) {
               soundEngine.playPaperRustle();
-              const toastMsg = `📬 ${latestDiary.authorName} 님에게서 새 일기가 도착했습니다!`;
+              const toastMsg = `📬 ${latestDiary.authorName} 님에게서 새 편지가 도착했습니다!`;
               showToast(toastMsg);
               // 앱 화면이 백그라운드에 숨겨져 있을 때만 OS 알림 배너 전달
               if (isTabHidden) {
                 sendLocalNotification(
-                  '📬 새 일기가 도착했습니다!',
+                  '📬 새 편지가 도착했습니다!',
                   `${latestDiary.authorName} 님이 비밀 편지를 봉인하여 보냈습니다.`,
                   `warmth-diary-${latestDiary.diaryId}`
                 );
@@ -718,7 +718,7 @@ export default function HomePage() {
               setUiState((p) => (p === 'VIEW_WAITING' || p === 'VIEW_EMPTY' ? 'VIEW_HOME' : p));
             }
 
-            // 3) 내가 쓴 일기에 상대방이 이모티콘 마음 반응(포스트잇)을 남겼거나 변경했을 때 실시간 감지
+            // 3) 내가 쓴 편지에 상대방이 이모티콘 마음 반응(포스트잇)을 남겼거나 변경했을 때 실시간 감지
             if (
               prev.diaryId === latestDiary.diaryId &&
               latestDiary.reaction &&
@@ -728,13 +728,13 @@ export default function HomePage() {
               soundEngine.playMissionPassChime();
               const reactor = latestDiary.reaction.reactorName || partnerName;
               const cleanComment = latestDiary.reaction.comment ? `: "${latestDiary.reaction.comment.trim()}"` : '';
-              const toastMsg = `💌 ${reactor} 님이 일기에 ${latestDiary.reaction.emoji} 반응을 남겼습니다! ✨${cleanComment}`;
+              const toastMsg = `💌 ${reactor} 님이 편지에 ${latestDiary.reaction.emoji} 반응을 남겼습니다! ✨${cleanComment}`;
               showToast(toastMsg);
               // 앱 화면이 백그라운드에 숨겨져 있을 때만 OS 알림 배너 전달
               if (isTabHidden) {
                 sendLocalNotification(
                   '📌 포스트잇 마음 알림',
-                  `${reactor} 님이 일기에 ${latestDiary.reaction.emoji} 포스트잇을 남겼어요${cleanComment}`,
+                  `${reactor} 님이 편지에 ${latestDiary.reaction.emoji} 포스트잇을 남겼어요${cleanComment}`,
                   `warmth-reaction-${latestDiary.diaryId}`
                 );
               }
@@ -986,7 +986,7 @@ export default function HomePage() {
     setSelectedArchiveDiary(null);
     setUiState('VIEW_OPENED_DIARY');
     forceScrollToTop(mainRef.current);
-    showToast('📬 편지 봉인이 해제되었습니다. 정성스레 적은 일기를 읽어보세요.');
+    showToast('📬 편지 봉인이 해제되었습니다. 정성스레 적은 편지를 읽어보세요.');
 
     try {
       await unsealDiaryInFirestore(roomCode, diary.diaryId);
@@ -1055,7 +1055,7 @@ export default function HomePage() {
           if (partner?.info?.pushSubscription) {
             await sendServerWebPush(
               partner.info.pushSubscription,
-              '📬 새 일기가 도착했습니다!',
+              '📬 새 편지가 도착했습니다!',
               `${userName} 님이 비밀 편지를 봉인하여 보냈습니다.`,
               `warmth-diary-${updated.diaryId}`
             );
@@ -1070,15 +1070,15 @@ export default function HomePage() {
       sessionStore.set(`warmth_last_written_${roomCode}_${userName}`, updated.createdAt || nowIso);
       setDiary(updated);
       setUiState('VIEW_WAITING');
-      showToast(`📮 일기가 왁스로 단단히 봉인되어 ${partnerName} 님에게 전달되었습니다!`);
+      showToast(`📮 편지가 왁스로 단단히 봉인되어 ${partnerName} 님에게 전달되었습니다!`);
       return true;
     } catch (e: unknown) {
       console.warn('Firestore save diary sync:', e);
       const errMsg = e instanceof Error ? e.message : '알 수 없는 오류';
       if (errMsg.includes('턴') || errMsg.includes('전송')) {
-        showToast('⚠️ 현재 상대방의 작성 턴이거나 이미 상대방의 새 일기가 도착하여 전송되지 않았습니다.');
+        showToast('⚠️ 현재 상대방의 작성 턴이거나 이미 상대방의 새 편지가 도착하여 전송되지 않았습니다.');
       } else {
-        showToast(`⚠️ 일기 전송에 실패했습니다: ${errMsg}`);
+        showToast(`⚠️ 편지 전송에 실패했습니다: ${errMsg}`);
       }
       return false;
     }
@@ -1100,7 +1100,7 @@ export default function HomePage() {
       setSelectedArchiveDiary((prev) => (prev ? { ...prev, reaction } : null));
     }
     if (reaction) {
-      showToast(`💌 일기에 ${reaction.emoji} 포스트잇으로 마음을 남겼습니다.`);
+      showToast(`💌 편지에 ${reaction.emoji} 포스트잇으로 마음을 남겼습니다.`);
 
       // 상대방에게 백그라운드 Web Push 발송 (앱이 꺼져 있어도 OS 잠금 화면에 알림 표시)
       if (roomCode) {
@@ -1119,7 +1119,7 @@ export default function HomePage() {
               await sendServerWebPush(
                 partner.info.pushSubscription,
                 '📌 포스트잇 마음 알림',
-                `${userName} 님이 ${targetTitle}일기에 ${reaction.emoji} 포스트잇을 남겼어요${commentPreview}`,
+                `${userName} 님이 ${targetTitle}편지에 ${reaction.emoji} 포스트잇을 남겼어요${commentPreview}`,
                 `warmth-reaction-${diaryId}`
               );
             }
@@ -1360,7 +1360,7 @@ export default function HomePage() {
               userBirthDate={userBirthDate}
               onOpenWriteModal={handleOpenWriteModal}
               onOpenArchive={() => setIsArchiveOpen(true)}
-              onSendKnock={() => handleSendKnock('오늘의 교환일기를 기다리고 있어요 ✉️')}
+              onSendKnock={() => handleSendKnock('오늘의 편지를 기다리고 있어요 ✉️')}
               onOpenSealedLetter={() => {
                 if (!diary) return;
                 setSelectedArchiveDiary(null);
@@ -1383,7 +1383,7 @@ export default function HomePage() {
               partnerName={partnerName}
               userName={userName}
               onOpenWriteModal={handleOpenWriteModal}
-              onSendKnock={() => handleSendKnock('첫 번째 교환일기장을 기다리고 있어요 ✉️')}
+              onSendKnock={() => handleSendKnock('첫 번째 편지를 기다리고 있어요 ✉️')}
               roomCode={roomCode}
               isMyTurn={isMyTurn}
               userRole={userRole}
@@ -1417,7 +1417,7 @@ export default function HomePage() {
                 partnerName={partnerName}
                 userName={userName}
                 onOpenWriteModal={handleOpenWriteModal}
-                onSendKnock={() => handleSendKnock('첫 번째 교환일기장을 기다리고 있어요 ✉️')}
+                onSendKnock={() => handleSendKnock('첫 번째 편지를 기다리고 있어요 ✉️')}
                 roomCode={roomCode}
                 isMyTurn={isMyTurn}
                 userRole={userRole}
@@ -1442,7 +1442,7 @@ export default function HomePage() {
                 partnerName={partnerName}
                 userName={userName}
                 onOpenWriteModal={handleOpenWriteModal}
-                onSendKnock={() => handleSendKnock('첫 번째 교환일기장을 기다리고 있어요 ✉️')}
+                onSendKnock={() => handleSendKnock('첫 번째 편지를 기다리고 있어요 ✉️')}
                 roomCode={roomCode}
                 isMyTurn={isMyTurn}
                 userRole={userRole}

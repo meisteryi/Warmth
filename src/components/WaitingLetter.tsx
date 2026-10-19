@@ -7,7 +7,7 @@ import { soundEngine } from '@/lib/audio';
 import { formatTodayKorean } from '@/lib/dateUtils';
 
 const KNOCK_PRESETS = [
-  '오늘의 교환일기를 기다리고 있어요 ✉️',
+  '오늘의 편지를 기다리고 있어요 ✉️',
   '오늘 하루는 어땠어? 네 이야기가 궁금해 ✨',
   '차 한잔 마시며 편안한 시간에 적어줘 🍵',
 ];
@@ -100,7 +100,7 @@ export default function WaitingLetter({
 
         <h3 className="font-serif-warm text-xl sm:text-2xl font-bold text-stone-900 leading-tight">
           {partnerName} 님이<br />
-          일기를 적고 있어요
+          편지를 적고 있어요
         </h3>
 
         <p className="mt-2 text-stone-600 text-sm sm:text-base font-serif-warm leading-snug font-medium">

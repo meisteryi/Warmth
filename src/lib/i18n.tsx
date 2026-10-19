@@ -11,7 +11,7 @@ export const translations = {
     'app.subtitle': '둘만의 다정한 아날로그 교환일기',
     'nav.home': '홈',
     'nav.archive': '서재',
-    'nav.write': '일기 쓰기',
+    'nav.write': '편지 쓰기',
     'nav.waiting': '답장 대기',
     'nav.reset': '04시 리셋',
     'nav.more': '더보기 설정',
@@ -21,7 +21,7 @@ export const translations = {
     'menu.roomCode': '연결된 일기장 방 코드',
     'menu.copy': '복사',
     'menu.copied': '복사됨',
-    'menu.pushNotification': '새 일기/노크 알림',
+    'menu.pushNotification': '새 편지/노크 알림',
     'menu.notificationOn': '켜짐',
     'menu.notificationEnable': '알림 켜기',
     'menu.volume': '효과음 볼륨',
@@ -75,19 +75,19 @@ export const translations = {
     'action.letterDesc.unopenedSub': '내가 보낸 편지가 안전하게 봉인되어 상대방의 확인을 기다리고 있습니다.',
     'action.letterDesc.waitingReply': '{partner} 님이 편지를 열어보았어요! 답장을 기다려주세요.',
     'action.letterDesc.waitingReplySub': '상대방이 답장을 보내면 다음 편지를 작성할 수 있습니다.',
-    'action.notice.lock': '상대방이 편지를 확인하고 답장을 보내기 전까지는 새 일기를 작성할 수 없습니다.',
+    'action.notice.lock': '상대방이 편지를 확인하고 답장을 보내기 전까지는 새 편지를 작성할 수 없습니다.',
 
     // 홈 화면: 글감 및 서재 카드
     'topic.title': '오늘의 다정한 글감',
-    'topic.writeWithTopic': '이 글감으로 일기 쓰기',
+    'topic.writeWithTopic': '이 글감으로 편지 쓰기',
     'topic.refresh': '다른 글감 뽑기',
     'archiveCard.title': '둘만의 비밀 서재',
     'archiveCard.sub': '주고받은 지난 편지들을 언제든 꺼내볼 수 있어요.',
     'archiveCard.btn': '지난 편지 모아보기',
 
-    // 일기 작성 모달
-    'write.title': '새 교환일기 쓰기',
-    'write.titlePlaceholder': '오늘의 일기 제목...',
+    // 편지 작성 모달
+    'write.title': '새 편지 쓰기',
+    'write.titlePlaceholder': '오늘의 편지 제목...',
     'write.contentPlaceholder': '오늘 하루 서로에게 건네고 싶은 다정한 이야기를 적어보세요...',
     'write.selectWax': '실링 왁스 인장 색상',
     'write.selectStamp': '오늘의 우표 스탬프',

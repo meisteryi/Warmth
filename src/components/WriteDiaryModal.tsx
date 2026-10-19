@@ -741,7 +741,7 @@ export default function WriteDiaryModal({
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-xs font-semibold text-stone-700 font-sans-ui flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5 text-[#6B1724]" />
-                    <span>일기 날짜</span>
+                    <span>편지 날짜</span>
                   </label>
                   <div className="flex items-center gap-1.5 text-[11px] font-sans-ui">
                     <button
@@ -796,7 +796,7 @@ export default function WriteDiaryModal({
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-xs font-sans-ui text-stone-600">
-                    {language === 'en' ? 'Letter Title' : '일기 제목'}
+                    {language === 'en' ? 'Letter Title' : '편지 제목'}
                   </label>
                   {stampStyle === 'EMOJI_TITLE' && (
                     <span className="text-[11px] font-serif-warm text-[#6B1724] flex items-center gap-1">
@@ -831,7 +831,7 @@ export default function WriteDiaryModal({
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-xs font-sans-ui text-stone-600">
-                    {language === 'en' ? 'Letter Content' : '일기 내용'}
+                    {language === 'en' ? 'Letter Content' : '편지 내용'}
                   </label>
                   <span className="text-[11px] font-sans-ui text-stone-400">
                     <span className={content.length >= 1300 ? 'text-rose-600 font-bold' : 'text-stone-600'}>
@@ -1088,13 +1088,13 @@ export default function WriteDiaryModal({
 
                 {missionType === 'PUZZLE_PHOTO' && (
                   <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs font-serif-warm text-stone-700">
-                    🧩 <strong>사진 조각 퍼즐</strong>: 내가 첨부한 사진이 3×3 슬라이딩 조각으로 분리되어, {partnerName} 님이 조각을 맞추면 일기가 개봉됩니다.
+                    🧩 <strong>사진 조각 퍼즐</strong>: 내가 첨부한 사진이 3×3 슬라이딩 조각으로 분리되어, {partnerName} 님이 조각을 맞추면 편지가 개봉됩니다.
                   </div>
                 )}
 
                 {missionType === 'PUZZLE_STAMP' && (
                   <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs font-serif-warm text-stone-700">
-                    📮 <strong>나만의 우표 맞추기</strong>: 첨부한 사진이 들어간 빈티지 우표 조각 4개를 순서대로 맞춰 소인 도장을 찍으면 일기가 개봉됩니다.
+                    📮 <strong>나만의 우표 맞추기</strong>: 첨부한 사진이 들어간 빈티지 우표 조각 4개를 순서대로 맞춰 소인 도장을 찍으면 편지가 개봉됩니다.
                   </div>
                 )}
 
@@ -1174,7 +1174,7 @@ export default function WriteDiaryModal({
                   {isSubmitting ? (
                     <>
                       <Loader2 className="w-4 h-4 text-amber-200 animate-spin" />
-                      <span>{language === 'en' ? 'Sealing Letter...' : '일기 봉인 중...'}</span>
+                      <span>{language === 'en' ? 'Sealing Letter...' : '편지 봉인 중...'}</span>
                     </>
                   ) : (
                     <>

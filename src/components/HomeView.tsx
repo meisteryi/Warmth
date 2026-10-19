@@ -512,7 +512,7 @@ export default function HomeView({
 
             <div className="p-2.5 rounded-xl bg-white/80 border border-stone-200/80 text-[11px] font-serif-warm text-stone-600 flex items-center gap-1.5">
               <span>✉️</span>
-              <span>{language === 'en' ? 'You can write your next letter after your partner replies.' : '교환일기 특성상 상대방의 답장이 서재에 도착한 후에 새 일기를 쓸 수 있습니다.'}</span>
+              <span>{language === 'en' ? 'You can write your next letter after your partner replies.' : '교환일기 특성상 상대방의 답장이 서재에 도착한 후에 새 편지를 쓸 수 있습니다.'}</span>
             </div>
 
             <div className="flex items-center gap-2 pt-1">
@@ -585,7 +585,7 @@ export default function HomeView({
               </button>
               {hasMyQuotaBeenUsedToday ? (
                 <div
-                  title={language === 'en' ? 'Written today (1 per day each). You can write a reply tomorrow after 04:00 AM.' : '오늘 일기는 이미 작성하셨습니다 (하루 각자 1통). 내일 새벽 04:00 이후에 답장을 쓸 수 있습니다.'}
+                  title={language === 'en' ? 'Written today (1 per day each). You can write a reply tomorrow after 04:00 AM.' : '오늘 편지는 이미 작성하셨습니다 (하루 각자 1통). 내일 새벽 04:00 이후에 다음 편지를 쓸 수 있습니다.'}
                   className="flex-1 py-2 px-2.5 rounded-xl bg-stone-100 border border-stone-200 text-stone-500 text-xs font-serif-warm font-medium flex items-center justify-center gap-1.5 shadow-2xs select-none whitespace-nowrap"
                 >
                   <Clock className="w-3.5 h-3.5 text-amber-800 shrink-0" />
