@@ -113,7 +113,7 @@ body {
   animation: wax-pulse 2.2s ease-in-out infinite;
 }
 
-/* 편지지 줄노트 배경 */
+/* 편지지 줄노트 배경 (기본) */
 .lined-paper {
   background-color: #FFFDF9;
   background-image: repeating-linear-gradient(
@@ -123,6 +123,105 @@ body {
     #EFE7DD 32px
   );
   line-height: 32px;
+}
+
+/* 편지지 스킨 테마 (Paper Themes) */
+
+/* 1. IVORY (아이보리 클래식 줄노트) */
+.paper-theme-ivory {
+  background-color: #FFFDF9 !important;
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 31px,
+    #EFE7DD 31px,
+    #EFE7DD 32px
+  ) !important;
+  line-height: 32px;
+  color: #2C2A29;
+  border-color: #E8DFC8 !important;
+}
+
+/* 2. KRAFT (빈티지 앤틱 크라프트지) */
+.paper-theme-kraft {
+  background-color: #F4E7D3 !important;
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 31px,
+    rgba(168, 130, 92, 0.22) 31px,
+    rgba(168, 130, 92, 0.22) 32px
+  ) !important;
+  line-height: 32px;
+  color: #3E2718 !important;
+  border-color: #C8A882 !important;
+}
+
+/* 3. GRID (문학 감성 원고지 모눈격자) */
+.paper-theme-grid {
+  background-color: #FAFBF7 !important;
+  background-image: 
+    linear-gradient(to right, rgba(162, 185, 168, 0.25) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(162, 185, 168, 0.25) 1px, transparent 1px) !important;
+  background-size: 24px 24px !important;
+  line-height: 28px;
+  color: #243329 !important;
+  border-color: #BFD3C1 !important;
+}
+
+/* 4. AIRMAIL (클래식 항공우편) */
+.paper-theme-airmail {
+  background-color: #FDFCF9 !important;
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 31px,
+    #E8EDF5 31px,
+    #E8EDF5 32px
+  ) !important;
+  line-height: 32px;
+  color: #1A2536 !important;
+  border: 4px solid transparent !important;
+  border-image: repeating-linear-gradient(
+    -45deg,
+    #B92B27 0,
+    #B92B27 10px,
+    transparent 10px,
+    transparent 14px,
+    #1E5799 14px,
+    #1E5799 24px,
+    transparent 24px,
+    transparent 28px
+  ) 10 !important;
+}
+
+/* 5. MIDNIGHT (깊은 밤하늘 별밤 네이비) */
+.paper-theme-midnight {
+  background-color: #181F2B !important;
+  background-image: 
+    radial-gradient(1.5px 1.5px at 20px 30px, #E8DFD3, transparent),
+    radial-gradient(1px 1px at 80px 70px, rgba(232, 223, 211, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 150px 140px, #E8DFD3, transparent),
+    radial-gradient(1px 1px at 220px 60px, rgba(232, 223, 211, 0.6), transparent),
+    repeating-linear-gradient(
+      transparent,
+      transparent 31px,
+      rgba(74, 90, 117, 0.35) 31px,
+      rgba(74, 90, 117, 0.35) 32px
+    ) !important;
+  line-height: 32px;
+  color: #F4EDE2 !important;
+  border-color: #324058 !important;
+}
+
+.paper-theme-midnight .text-stone-900,
+.paper-theme-midnight .text-stone-800 {
+  color: #F4EDE2 !important;
+}
+.paper-theme-midnight .text-stone-700,
+.paper-theme-midnight .text-stone-600 {
+  color: #D5CEBE !important;
+}
+.paper-theme-midnight .text-stone-500,
+.paper-theme-midnight .text-stone-400 {
+  color: #9DA6B8 !important;
 }
 
 /* 폴라로이드 사진 프레임 */

@@ -769,6 +769,20 @@ export default function ArchiveModal({
                           </span>
                         )}
 
+                        {item.paperTheme && item.paperTheme !== 'IVORY' && (
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-serif-warm font-semibold border whitespace-nowrap ${
+                            item.paperTheme === 'MIDNIGHT'
+                              ? 'bg-slate-900 text-amber-200 border-slate-700'
+                              : item.paperTheme === 'KRAFT'
+                              ? 'bg-[#E8D6BF] text-[#4A2E1B] border-[#C8A882]'
+                              : item.paperTheme === 'GRID'
+                              ? 'bg-[#EDF3ED] text-[#243329] border-[#BFD3C1]'
+                              : 'bg-blue-50 text-blue-900 border-blue-200'
+                          }`}>
+                            {item.paperTheme === 'KRAFT' ? '크라프트' : item.paperTheme === 'GRID' ? '원고지' : item.paperTheme === 'AIRMAIL' ? '에어메일' : '별밤'}
+                          </span>
+                        )}
+
 
                         {itemWarmth && typeof itemWarmth.temperature === 'number' && (
                           <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-bold inline-flex items-center gap-1 whitespace-nowrap ${

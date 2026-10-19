@@ -42,6 +42,66 @@ export const WAX_COLORS: WaxOption[] = [
   },
 ];
 
+export type PaperTheme = 'IVORY' | 'KRAFT' | 'GRID' | 'AIRMAIL' | 'MIDNIGHT';
+
+export interface PaperThemeOption {
+  id: PaperTheme;
+  name: string;
+  desc: string;
+  badge: string;
+  previewColor: string;
+  previewBorder: string;
+  className: string;
+}
+
+export const PAPER_THEMES: PaperThemeOption[] = [
+  {
+    id: 'IVORY',
+    name: '아이보리 줄노트',
+    desc: '포근하고 단정한 클래식 줄노트',
+    badge: '클래식',
+    previewColor: '#FFFDF9',
+    previewBorder: '#DECDBB',
+    className: 'paper-theme-ivory',
+  },
+  {
+    id: 'KRAFT',
+    name: '빈티지 크라프트',
+    desc: '따뜻한 감성의 앤틱 갈색지',
+    badge: '앤틱',
+    previewColor: '#F4E7D3',
+    previewBorder: '#C8A882',
+    className: 'paper-theme-kraft',
+  },
+  {
+    id: 'GRID',
+    name: '문학 원고지',
+    desc: '정갈한 원고지 모눈격자',
+    badge: '문학',
+    previewColor: '#FAFBF7',
+    previewBorder: '#BFD3C1',
+    className: 'paper-theme-grid',
+  },
+  {
+    id: 'AIRMAIL',
+    name: '항공우편 (에어메일)',
+    desc: '클래식 줄무늬 테두리 편지지',
+    badge: '빈티지',
+    previewColor: '#FDFCF9',
+    previewBorder: '#8BA5C4',
+    className: 'paper-theme-airmail',
+  },
+  {
+    id: 'MIDNIGHT',
+    name: '별밤 네이비',
+    desc: '달빛과 은은한 별빛이 내리는 밤',
+    badge: '야간',
+    previewColor: '#181F2B',
+    previewBorder: '#324058',
+    className: 'paper-theme-midnight',
+  },
+];
+
 export interface MissionData {
   type: 'TEXT' | 'PHOTO' | 'QUIZ' | 'VOICE' | 'PUZZLE_PHOTO' | 'PUZZLE_STAMP';
   prompt: string;
@@ -102,6 +162,7 @@ export interface DiaryData {
   photoCaption?: string | null;
   photoCaptions?: string[];
   waxColor: WaxColor;
+  paperTheme?: PaperTheme;
   createdAt: string;
   mission: MissionData;
   isWaxBroken: boolean;

@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { WaxColor, WAX_COLORS, MissionData, DiaryData, WarmthScore, WEATHER_STAMPS, WeatherStamp, StampStyle } from '@/types/diary';
+import { WaxColor, WAX_COLORS, MissionData, DiaryData, WarmthScore, WEATHER_STAMPS, WeatherStamp, StampStyle, PaperTheme, PAPER_THEMES } from '@/types/diary';
 import { soundEngine } from '@/lib/audio';
 import { compressImage, uploadPhotoIfPossible, CompressedImageResult } from '@/lib/imageUtils';
 import { fetchAiQuiz, fetchWarmthScore, fetchDailyPrompt, getCachedDailyPrompt } from '@/lib/aiClient';
@@ -24,6 +24,7 @@ import {
   Save,
   Calendar,
   PenLine,
+  Palette,
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 
@@ -73,6 +74,7 @@ export default function WriteDiaryModal({
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [uploadedPhotoInfo, setUploadedPhotoInfo] = useState<CompressedImageResult | null>(null);
   const [photoCaption, setPhotoCaption] = useState('');
+  const [paperTheme, setPaperTheme] = useState<PaperTheme>('IVORY');
   const [isCompressing, setIsCompressing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [photoError, setPhotoError] = useState('');
@@ -108,6 +110,7 @@ export default function WriteDiaryModal({
     setSelectedPhoto(null);
     setUploadedPhotoInfo(null);
     setPhotoCaption('');
+    setPaperTheme('IVORY');
     setPhotoError('');
     setMissionType('PUZZLE_PHOTO');
     setCustomPrompt('');
@@ -219,6 +222,7 @@ export default function WriteDiaryModal({
           selectedPhoto,
           uploadedPhotoInfo,
           photoCaption,
+          paperTheme,
           missionType,
           customPrompt,
           customQuizAnswer,
@@ -233,7 +237,7 @@ export default function WriteDiaryModal({
     }, 600);
 
     return () => clearTimeout(timer);
-  }, [isOpen, title, content, diaryDate, selectedColor, customColor, selectedPhoto, uploadedPhotoInfo, photoCaption, missionType, customPrompt, customQuizAnswer, customQuizHint, selectedStamp, stampStyle, draftKey, currentTurnId]);
+  }, [isOpen, title, content, diaryDate, selectedColor, customColor, selectedPhoto, uploadedPhotoInfo, photoCaption, paperTheme, missionType, customPrompt, customQuizAnswer, customQuizHint, selectedStamp, stampStyle, draftKey, currentTurnId]);
 
   // 임시 저장본 불러와 이어쓰기
   const handleRestoreDraft = () => {
@@ -249,6 +253,9 @@ export default function WriteDiaryModal({
       if (parsed.selectedPhoto) setSelectedPhoto(parsed.selectedPhoto);
       if (parsed.uploadedPhotoInfo) setUploadedPhotoInfo(parsed.uploadedPhotoInfo);
       if (typeof parsed.photoCaption === 'string') setPhotoCaption(parsed.photoCaption);
+      if (parsed.paperTheme && ['IVORY', 'KRAFT', 'GRID', 'AIRMAIL', 'MIDNIGHT'].includes(parsed.paperTheme)) {
+        setPaperTheme(parsed.paperTheme);
+      }
       if (parsed.missionType) setMissionType(parsed.missionType);
       if (parsed.customPrompt) setCustomPrompt(parsed.customPrompt);
       if (parsed.customQuizAnswer) setCustomQuizAnswer(parsed.customQuizAnswer);
@@ -299,6 +306,7 @@ export default function WriteDiaryModal({
           selectedPhoto,
           uploadedPhotoInfo,
           photoCaption,
+          paperTheme,
           missionType,
           customPrompt,
           customQuizAnswer,
@@ -515,6 +523,7 @@ export default function WriteDiaryModal({
         photoCaption: finalPhotoUrl && trimmedCaption ? trimmedCaption : null,
         photoCaptions: finalPhotoUrl && trimmedCaption ? [trimmedCaption] : [],
         waxColor: selectedColor,
+        paperTheme,
         mission,
         authorName: currentUserName,
         recipientName: partnerName,
@@ -792,6 +801,70 @@ export default function WriteDiaryModal({
                 </div>
               </div>
 
+              {/* 편지지 스킨 테마 선택 */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-semibold text-stone-700 font-sans-ui flex items-center gap-1.5">
+                    <Palette className="w-3.5 h-3.5 text-[#6B1724]" />
+                    <span>{language === 'en' ? 'Stationery Paper Skin' : '편지지 스킨 테마'}</span>
+                  </label>
+                  <span className="text-[11px] font-serif-warm text-stone-500 font-medium">
+                    {PAPER_THEMES.find((p) => p.id === paperTheme)?.name}
+                  </span>
+                </div>
+                <div className="grid grid-cols-5 gap-2">
+                  {PAPER_THEMES.map((theme) => {
+                    const isSelected = paperTheme === theme.id;
+                    return (
+                      <button
+                        key={theme.id}
+                        type="button"
+                        onClick={() => {
+                          setPaperTheme(theme.id);
+                          soundEngine.playPaperRustle();
+                        }}
+                        className={`relative p-2 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                          isSelected
+                            ? 'ring-2 ring-[#6B1724] border-[#6B1724] shadow-sm scale-[1.02] bg-white'
+                            : 'border-stone-200 hover:border-stone-300 bg-white/70 hover:bg-white'
+                        }`}
+                        title={theme.desc}
+                      >
+                        {/* 미니 종이 스와치 미리보기 */}
+                        <div
+                          className="w-full aspect-[4/3] rounded-md border flex items-center justify-center shadow-2xs relative overflow-hidden"
+                          style={{
+                            backgroundColor: theme.previewColor,
+                            borderColor: theme.previewBorder,
+                          }}
+                        >
+                          {theme.id === 'AIRMAIL' && (
+                            <div className="absolute inset-0 border-2 border-dashed border-red-500/30" />
+                          )}
+                          {theme.id === 'MIDNIGHT' && (
+                            <span className="text-[10px]">✨</span>
+                          )}
+                          {theme.id === 'GRID' && (
+                            <div className="w-3 h-3 border border-emerald-600/30 grid grid-cols-2 grid-rows-2" />
+                          )}
+                          {theme.id === 'KRAFT' && (
+                            <div className="w-4 h-0.5 bg-amber-900/30 rounded" />
+                          )}
+                          {theme.id === 'IVORY' && (
+                            <div className="w-4 h-0.5 bg-stone-400/40 rounded" />
+                          )}
+                        </div>
+                        <span className={`text-[10.5px] font-serif-warm truncate w-full text-center ${
+                          isSelected ? 'text-[#6B1724] font-bold' : 'text-stone-700 font-medium'
+                        }`}>
+                          {theme.name.split(' ')[0]}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* 제목 입력 */}
               <div>
                 <div className="flex items-center justify-between mb-1">
@@ -847,7 +920,17 @@ export default function WriteDiaryModal({
                   value={content}
                   onChange={(e) => setContent(e.target.value.slice(0, 1300))}
                   placeholder={t('write.contentPlaceholder')}
-                  className="w-full p-3.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-base sm:text-sm leading-relaxed text-stone-900 placeholder:text-stone-400 resize-none"
+                  className={`w-full p-3.5 rounded-xl border focus:outline-none focus:ring-2 font-serif-warm text-base sm:text-sm leading-relaxed resize-none transition-colors ${
+                    paperTheme === 'MIDNIGHT'
+                      ? 'bg-[#181F2B] text-[#F4EDE2] border-[#324058] focus:ring-amber-200/30 placeholder:text-stone-500'
+                      : paperTheme === 'KRAFT'
+                      ? 'bg-[#F4E7D3] text-[#3E2718] border-[#C8A882] focus:ring-[#6B1724]/20 placeholder:text-stone-500'
+                      : paperTheme === 'GRID'
+                      ? 'bg-[#FAFBF7] text-[#243329] border-[#BFD3C1] focus:ring-emerald-700/20 placeholder:text-stone-400'
+                      : paperTheme === 'AIRMAIL'
+                      ? 'bg-[#FDFCF9] text-[#1A2536] border-[#8BA5C4] focus:ring-blue-600/20 placeholder:text-stone-400'
+                      : 'bg-white/90 text-stone-900 border-stone-300 focus:ring-[#6B1724]/20 placeholder:text-stone-400'
+                  }`}
                 />
               </div>
 

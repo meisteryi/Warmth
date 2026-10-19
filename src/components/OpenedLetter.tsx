@@ -171,6 +171,8 @@ export default function OpenedLetter({
   const warmth = (diary.warmthScore && typeof diary.warmthScore.temperature === 'number')
     ? diary.warmthScore
     : generateFallbackWarmth(diary.title, diary.content);
+  const theme = diary.paperTheme || 'IVORY';
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 30, scale: 0.96 }}
@@ -179,19 +181,43 @@ export default function OpenedLetter({
       transition={{ duration: 0.4, ease: 'easeOut' }}
       className="w-full max-w-2xl mx-auto px-4 py-6"
     >
-      {/* 양장 다이어리 내지 카드 */}
-      <div className="relative bg-[#FFFDF9] rounded-2xl p-6 sm:p-10 paper-texture border border-[#E8DFC8] shadow-2xl overflow-hidden">
+      {/* 양장 다이어리 내지 카드 (선택된 편지지 스킨 테마 적용) */}
+      <div className={`relative rounded-2xl p-6 sm:p-10 shadow-2xl overflow-hidden transition-all ${
+        theme === 'KRAFT'
+          ? 'paper-theme-kraft border border-[#C8A882]'
+          : theme === 'GRID'
+          ? 'paper-theme-grid border border-[#BFD3C1]'
+          : theme === 'AIRMAIL'
+          ? 'paper-theme-airmail'
+          : theme === 'MIDNIGHT'
+          ? 'paper-theme-midnight border border-[#324058]'
+          : 'paper-theme-ivory paper-texture border border-[#E8DFC8]'
+      }`}>
         {/* 장식용 종이 가장자리 바인딩 라인 (좌측 가죽 스티치) */}
-        <div className="absolute top-0 bottom-0 left-0 w-3 bg-[#EFE6DA] border-r border-[#DECDBB] flex flex-col justify-around py-4">
-          <div className="w-1.5 h-1.5 rounded-full bg-[#B8A692] mx-auto" />
-          <div className="w-1.5 h-1.5 rounded-full bg-[#B8A692] mx-auto" />
-          <div className="w-1.5 h-1.5 rounded-full bg-[#B8A692] mx-auto" />
-          <div className="w-1.5 h-1.5 rounded-full bg-[#B8A692] mx-auto" />
-        </div>
+        {theme !== 'AIRMAIL' && (
+          <div className={`absolute top-0 bottom-0 left-0 w-3 border-r flex flex-col justify-around py-4 ${
+            theme === 'MIDNIGHT'
+              ? 'bg-[#121720] border-[#2A3548]'
+              : theme === 'KRAFT'
+              ? 'bg-[#E5D4BE] border-[#C8A882]'
+              : theme === 'GRID'
+              ? 'bg-[#EAF0EB] border-[#BFD3C1]'
+              : 'bg-[#EFE6DA] border-[#DECDBB]'
+          }`}>
+            <div className={`w-1.5 h-1.5 rounded-full mx-auto ${theme === 'MIDNIGHT' ? 'bg-[#3A4A62]' : 'bg-[#B8A692]'}`} />
+            <div className={`w-1.5 h-1.5 rounded-full mx-auto ${theme === 'MIDNIGHT' ? 'bg-[#3A4A62]' : 'bg-[#B8A692]'}`} />
+            <div className={`w-1.5 h-1.5 rounded-full mx-auto ${theme === 'MIDNIGHT' ? 'bg-[#3A4A62]' : 'bg-[#B8A692]'}`} />
+            <div className={`w-1.5 h-1.5 rounded-full mx-auto ${theme === 'MIDNIGHT' ? 'bg-[#3A4A62]' : 'bg-[#B8A692]'}`} />
+          </div>
+        )}
 
         <div className="pl-4 sm:pl-6">
           {/* 헤더: 날짜와 작성자 */}
-          <div className="pb-4 border-b border-[#EADCCB] text-stone-600 text-xs sm:text-sm font-serif-warm">
+          <div className={`pb-4 border-b text-xs sm:text-sm font-serif-warm ${
+            theme === 'MIDNIGHT'
+              ? 'border-stone-700/60 text-[#D5CEBE]'
+              : 'border-[#EADCCB] text-stone-600'
+          }`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex items-center gap-1.5">
@@ -203,6 +229,19 @@ export default function OpenedLetter({
                     weekday: 'long',
                   })}</span>
                 </div>
+                {theme !== 'IVORY' && (
+                  <span className={`text-[10.5px] px-2 py-0.5 rounded-full font-serif-warm font-semibold border ${
+                    theme === 'MIDNIGHT'
+                      ? 'bg-indigo-950/80 text-amber-200 border-indigo-700/60'
+                      : theme === 'KRAFT'
+                      ? 'bg-[#E8D6BF] text-[#4A2E1B] border-[#C8A882]'
+                      : theme === 'GRID'
+                      ? 'bg-[#EDF3ED] text-[#243329] border-[#BFD3C1]'
+                      : 'bg-blue-50 text-blue-900 border-blue-200'
+                  }`}>
+                    {theme === 'KRAFT' ? '크라프트' : theme === 'GRID' ? '원고지' : theme === 'AIRMAIL' ? '에어메일' : '별밤'}
+                  </span>
+                )}
               </div>
 
               <div className="flex items-center gap-3">
@@ -259,8 +298,8 @@ export default function OpenedLetter({
                 <span>{diary.stamp.symbol}</span>
               </motion.div>
             )}
-            <h1 className={`font-serif-warm text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight leading-snug ${diary.stamp?.style === 'EMOJI_TITLE' ? 'pt-2 sm:pt-1 pl-8 sm:pl-9' : ''
-              }`}>
+            <h1 className={`font-serif-warm text-2xl sm:text-3xl font-bold tracking-tight leading-snug ${diary.stamp?.style === 'EMOJI_TITLE' ? 'pt-2 sm:pt-1 pl-8 sm:pl-9' : ''
+              } ${theme === 'MIDNIGHT' ? 'text-[#F4EDE2]' : 'text-stone-900'}`}>
               {diary.title}
             </h1>
           </div>
@@ -306,8 +345,10 @@ export default function OpenedLetter({
                 </div>
               )}
 
-              {/* 일기 본문 텍스트 (줄노트 감성) */}
-              <div className="my-6 text-stone-800 font-serif-warm text-base sm:text-lg leading-relaxed whitespace-pre-line tracking-normal">
+              {/* 편지 본문 텍스트 (줄노트/테마 감성) */}
+              <div className={`my-6 font-serif-warm text-base sm:text-lg leading-relaxed whitespace-pre-line tracking-normal ${
+                theme === 'MIDNIGHT' ? 'text-[#F4EDE2]' : 'text-stone-800'
+              }`}>
                 {diary.content}
               </div>
             </>

@@ -80,6 +80,7 @@ const INITIAL_DIARY: DiaryData = {
   ],
   photoCaption: '서촌 골목길에서 문득 마주친 시집 한 권',
   waxColor: '#6B1724' as WaxColor,
+  paperTheme: 'IVORY',
   createdAt: '2026-09-28T21:00:00.000Z',
   mission: {
     type: 'QUIZ',
@@ -1033,6 +1034,7 @@ export default function HomePage() {
       photoCaption: newDiaryPart.photoCaption || null,
       photoCaptions: newDiaryPart.photoCaptions || [],
       waxColor: newDiaryPart.waxColor || (diary?.waxColor || '#6B1724'),
+      paperTheme: newDiaryPart.paperTheme || (diary?.paperTheme || 'IVORY'),
       createdAt: newDiaryPart.createdAt || nowIso,
       mission: newDiaryPart.mission || INITIAL_DIARY.mission,
       isWaxBroken: false,
