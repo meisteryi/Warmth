@@ -78,6 +78,7 @@ const INITIAL_DIARY: DiaryData = {
   photos: [
     'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=800&q=80',
   ],
+  photoCaption: '서촌 골목길에서 문득 마주친 시집 한 권',
   waxColor: '#6B1724' as WaxColor,
   createdAt: '2026-09-28T21:00:00.000Z',
   mission: {
@@ -1029,6 +1030,8 @@ export default function HomePage() {
       title: newDiaryPart.title || '',
       content: newDiaryPart.content || '',
       photos: newDiaryPart.photos || [],
+      photoCaption: newDiaryPart.photoCaption || null,
+      photoCaptions: newDiaryPart.photoCaptions || [],
       waxColor: newDiaryPart.waxColor || (diary?.waxColor || '#6B1724'),
       createdAt: newDiaryPart.createdAt || nowIso,
       mission: newDiaryPart.mission || INITIAL_DIARY.mission,
@@ -1081,18 +1084,6 @@ export default function HomePage() {
     }
   };
 
-  // 3-1. 내가 작성한 일기의 날짜 사후 수정 처리 (로컬 상태 및 토스트 알림)
-  const handleUpdateDiaryDate = (diaryId: string, newIsoDate: string) => {
-    if (diary && diary.diaryId === diaryId) {
-      const updated = { ...diary, createdAt: newIsoDate };
-      setDiary(updated);
-      currentDiaryRef.current = updated;
-    }
-    if (selectedArchiveDiary && selectedArchiveDiary.diaryId === diaryId) {
-      setSelectedArchiveDiary((prev) => (prev ? { ...prev, createdAt: newIsoDate } : null));
-    }
-    showToast('📅 일기 날짜가 성공적으로 수정되었습니다.');
-  };
 
   // 3-2. 상대방의 일기에 이모티콘 및 포스트잇 마음 반응 등록 / 수정 / 삭제 처리
   const handleUpdateDiaryReaction = async (
@@ -1469,7 +1460,6 @@ export default function HomePage() {
                 onResetView={handleGoHome}
                 userName={userName}
                 roomCode={roomCode}
-                onUpdateDiaryDate={handleUpdateDiaryDate}
                 onUpdateDiaryReaction={handleUpdateDiaryReaction}
                 onBlockPartner={handleLeaveRoom}
               />

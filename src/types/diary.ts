@@ -99,6 +99,8 @@ export interface DiaryData {
   title: string;
   content: string;
   photos: string[];
+  photoCaption?: string | null;
+  photoCaptions?: string[];
   waxColor: WaxColor;
   createdAt: string;
   mission: MissionData;

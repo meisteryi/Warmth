@@ -161,10 +161,16 @@ export async function encryptDiaryData(
     const encryptedTitle = await encryptText(roomCode, diary.title, roomSalt);
     const encryptedContent = await encryptText(roomCode, diary.content, roomSalt);
 
-    // 사진(이미지 데이터URL) 암호화
+    // 사진(이미지 데이터URL) 및 캡션 암호화
     const encryptedPhotos = await Promise.all(
       (diary.photos || []).map((p) => encryptText(roomCode, p, roomSalt))
     );
+    const encryptedPhotoCaption = diary.photoCaption
+      ? await encryptText(roomCode, diary.photoCaption, roomSalt)
+      : (diary.photoCaption === null ? null : undefined);
+    const encryptedPhotoCaptions = Array.isArray(diary.photoCaptions)
+      ? await Promise.all(diary.photoCaptions.map((c) => encryptText(roomCode, c, roomSalt)))
+      : undefined;
 
     let encryptedMission = { ...diary.mission };
     if (encryptedMission) {
@@ -204,6 +210,8 @@ export async function encryptDiaryData(
       title: encryptedTitle,
       content: encryptedContent,
       photos: encryptedPhotos,
+      ...(encryptedPhotoCaption !== undefined ? { photoCaption: encryptedPhotoCaption } : {}),
+      ...(encryptedPhotoCaptions !== undefined ? { photoCaptions: encryptedPhotoCaptions } : {}),
       mission: encryptedMission,
       warmthScore: encryptedWarmth,
     });
@@ -225,10 +233,16 @@ export async function decryptDiaryData(
     const decryptedTitle = await decryptText(roomCode, diary.title, roomSalt);
     const decryptedContent = await decryptText(roomCode, diary.content, roomSalt);
 
-    // 사진(이미지) 복호화
+    // 사진(이미지) 및 캡션 복호화
     const decryptedPhotos = await Promise.all(
       (diary.photos || []).map((p) => decryptText(roomCode, p, roomSalt))
     );
+    const decryptedPhotoCaption = diary.photoCaption
+      ? await decryptText(roomCode, diary.photoCaption, roomSalt)
+      : (diary.photoCaption === null ? null : undefined);
+    const decryptedPhotoCaptions = Array.isArray(diary.photoCaptions)
+      ? await Promise.all(diary.photoCaptions.map((c) => decryptText(roomCode, c, roomSalt)))
+      : undefined;
 
     let decryptedMission = { ...diary.mission };
     if (decryptedMission) {
@@ -268,6 +282,8 @@ export async function decryptDiaryData(
       title: decryptedTitle,
       content: decryptedContent,
       photos: decryptedPhotos,
+      ...(decryptedPhotoCaption !== undefined ? { photoCaption: decryptedPhotoCaption } : {}),
+      ...(decryptedPhotoCaptions !== undefined ? { photoCaptions: decryptedPhotoCaptions } : {}),
       mission: decryptedMission,
       warmthScore: decryptedWarmth,
     });

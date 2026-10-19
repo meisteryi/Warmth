@@ -23,6 +23,7 @@ import {
   BookOpen,
   Save,
   Calendar,
+  PenLine,
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 
@@ -71,6 +72,7 @@ export default function WriteDiaryModal({
   const [quizSourceInfo, setQuizSourceInfo] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [uploadedPhotoInfo, setUploadedPhotoInfo] = useState<CompressedImageResult | null>(null);
+  const [photoCaption, setPhotoCaption] = useState('');
   const [isCompressing, setIsCompressing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [photoError, setPhotoError] = useState('');
@@ -105,6 +107,7 @@ export default function WriteDiaryModal({
     setCustomColor('#9E2A3C');
     setSelectedPhoto(null);
     setUploadedPhotoInfo(null);
+    setPhotoCaption('');
     setPhotoError('');
     setMissionType('PUZZLE_PHOTO');
     setCustomPrompt('');
@@ -215,6 +218,7 @@ export default function WriteDiaryModal({
           customColor,
           selectedPhoto,
           uploadedPhotoInfo,
+          photoCaption,
           missionType,
           customPrompt,
           customQuizAnswer,
@@ -229,7 +233,7 @@ export default function WriteDiaryModal({
     }, 600);
 
     return () => clearTimeout(timer);
-  }, [isOpen, title, content, diaryDate, selectedColor, customColor, selectedPhoto, uploadedPhotoInfo, missionType, customPrompt, customQuizAnswer, customQuizHint, selectedStamp, stampStyle, draftKey, currentTurnId]);
+  }, [isOpen, title, content, diaryDate, selectedColor, customColor, selectedPhoto, uploadedPhotoInfo, photoCaption, missionType, customPrompt, customQuizAnswer, customQuizHint, selectedStamp, stampStyle, draftKey, currentTurnId]);
 
   // 임시 저장본 불러와 이어쓰기
   const handleRestoreDraft = () => {
@@ -244,6 +248,7 @@ export default function WriteDiaryModal({
       if (parsed.customColor) setCustomColor(parsed.customColor);
       if (parsed.selectedPhoto) setSelectedPhoto(parsed.selectedPhoto);
       if (parsed.uploadedPhotoInfo) setUploadedPhotoInfo(parsed.uploadedPhotoInfo);
+      if (typeof parsed.photoCaption === 'string') setPhotoCaption(parsed.photoCaption);
       if (parsed.missionType) setMissionType(parsed.missionType);
       if (parsed.customPrompt) setCustomPrompt(parsed.customPrompt);
       if (parsed.customQuizAnswer) setCustomQuizAnswer(parsed.customQuizAnswer);
@@ -293,6 +298,7 @@ export default function WriteDiaryModal({
           customColor,
           selectedPhoto,
           uploadedPhotoInfo,
+          photoCaption,
           missionType,
           customPrompt,
           customQuizAnswer,
@@ -501,10 +507,13 @@ export default function WriteDiaryModal({
         } catch { }
       }
 
+      const trimmedCaption = photoCaption.trim();
       const diaryPayload: Partial<DiaryData> = {
         title,
         content,
         photos: finalPhotoUrl ? [finalPhotoUrl] : [],
+        photoCaption: finalPhotoUrl && trimmedCaption ? trimmedCaption : null,
+        photoCaptions: finalPhotoUrl && trimmedCaption ? [trimmedCaption] : [],
         waxColor: selectedColor,
         mission,
         authorName: currentUserName,
@@ -898,6 +907,7 @@ export default function WriteDiaryModal({
                           onClick={() => {
                             setUploadedPhotoInfo(null);
                             setSelectedPhoto(null);
+                            setPhotoCaption('');
                           }}
                           className="text-[11px] text-rose-700 font-medium hover:underline flex items-center gap-1 cursor-pointer"
                         >
@@ -936,6 +946,30 @@ export default function WriteDiaryModal({
                     )}
                   </button>
                 )}
+
+                {/* 사진 캡션 입력창 (50자 제한) */}
+                <div className="pt-0.5">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-sans-ui text-stone-600 flex items-center gap-1">
+                      <PenLine className="w-3 h-3 text-stone-500" />
+                      <span>사진 캡션 (선택, 최대 50자)</span>
+                    </label>
+                    <span className="text-[10px] font-mono text-stone-400">
+                      <span className={photoCaption.length >= 50 ? 'text-rose-600 font-bold' : 'text-stone-600'}>
+                        {photoCaption.length}
+                      </span>
+                      /50
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    maxLength={50}
+                    value={photoCaption}
+                    onChange={(e) => setPhotoCaption(e.target.value.slice(0, 50))}
+                    placeholder="사진 밑에 들어갈 한 줄 캡션을 적어보세요 (미입력 시 '그날의 한 컷')"
+                    className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white text-stone-900 font-serif-warm text-xs focus:outline-none focus:ring-1 focus:ring-[#6B1724] focus:border-[#6B1724] placeholder:text-stone-400 placeholder:font-sans-ui shadow-2xs"
+                  />
+                </div>
 
                 {photoError && (
                   <p className="text-xs text-rose-600 font-sans-ui flex items-center gap-1">

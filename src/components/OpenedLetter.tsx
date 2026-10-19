@@ -4,9 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DiaryData, DiaryReaction, sanitizeDiaryReaction } from '@/types/diary';
 import { generateFallbackWarmth } from '@/lib/gemini';
-import { Feather, Calendar, Heart, MessageSquareQuote, PenLine, ThermometerSun, ThermometerSnowflake, Edit3, Check, X, Smile, Sparkles, Trash2, Flag, ShieldAlert } from 'lucide-react';
+import { Feather, Calendar, Heart, MessageSquareQuote, PenLine, ThermometerSun, ThermometerSnowflake, X, Smile, Sparkles, Trash2, Flag, ShieldAlert } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
-import { updateDiaryDateInFirestore, updateDiaryReactionInFirestore, getOrCreateUserId } from '@/lib/roomService';
+import { updateDiaryReactionInFirestore, getOrCreateUserId } from '@/lib/roomService';
 import { soundEngine } from '@/lib/audio';
 import { forceScrollToTop } from '@/lib/scrollUtils';
 import ReportModal from '@/components/ReportModal';
@@ -17,7 +17,6 @@ interface OpenedLetterProps {
   onResetView?: () => void;
   userName?: string;
   roomCode?: string;
-  onUpdateDiaryDate?: (diaryId: string, newIsoDate: string) => void;
   onUpdateDiaryReaction?: (diaryId: string, reaction: DiaryReaction | null, diaryTitle?: string) => void | Promise<void>;
   onBlockPartner?: () => void;
 }
@@ -28,24 +27,12 @@ export default function OpenedLetter({
   onResetView,
   userName,
   roomCode,
-  onUpdateDiaryDate,
   onUpdateDiaryReaction,
   onBlockPartner,
 }: OpenedLetterProps) {
   const { language, t } = useLanguage();
   const isAuthor = Boolean(userName && diary.authorName === userName);
   const currentUserId = typeof window !== 'undefined' ? getOrCreateUserId() : '';
-  const [currentDiaryDate, setCurrentDiaryDate] = useState<string>(diary.createdAt);
-  const [isEditingDate, setIsEditingDate] = useState(false);
-  const [editDateValue, setEditDateValue] = useState<string>(() => {
-    try {
-      const d = new Date(diary.createdAt);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    } catch {
-      return '';
-    }
-  });
-  const [isSavingDate, setIsSavingDate] = useState(false);
 
   // 포스트잇 이모티콘 + 공백 포함 100자 코멘트 반응 상태 (해당 일기만의 독립된 반응 동기화)
   const [currentReaction, setCurrentReaction] = useState<DiaryReaction | null>(() => {
@@ -88,13 +75,6 @@ export default function OpenedLetter({
     return cleanup;
   }, [diary.diaryId]);
 
-  useEffect(() => {
-    setCurrentDiaryDate(diary.createdAt);
-    try {
-      const d = new Date(diary.createdAt);
-      setEditDateValue(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
-    } catch { }
-  }, [diary.createdAt]);
 
   // 일기가 전환(diaryId 변경)되거나 해당 일기의 반응 prop이 변경되었을 때만 동기화
   useEffect(() => {
@@ -187,38 +167,6 @@ export default function OpenedLetter({
     }
   };
 
-  const handleSaveDate = async () => {
-    if (!editDateValue || isSavingDate) return;
-    setIsSavingDate(true);
-    try {
-      if (roomCode) {
-        const res = await updateDiaryDateInFirestore(roomCode, diary.diaryId, editDateValue, diary.authorName);
-        if (res.success) {
-          setCurrentDiaryDate(res.newIsoDate);
-          onUpdateDiaryDate?.(diary.diaryId, res.newIsoDate);
-          soundEngine.playPaperRustle();
-          setIsEditingDate(false);
-        } else {
-          soundEngine.playTileSlideSound();
-          alert(language === 'en' ? 'Failed to update date. Please try again.' : '날짜 수정에 실패했습니다. 다시 시도해 주세요.');
-        }
-      } else {
-        const parts = editDateValue.split('-').map(Number);
-        const targetDate = new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
-        const iso = targetDate.toISOString();
-        setCurrentDiaryDate(iso);
-        onUpdateDiaryDate?.(diary.diaryId, iso);
-        soundEngine.playPaperRustle();
-        setIsEditingDate(false);
-      }
-    } catch (e) {
-      console.warn('Failed to update diary date:', e);
-      soundEngine.playTileSlideSound();
-      alert(language === 'en' ? 'Failed to update date. Please try again.' : '날짜 수정에 실패했습니다. 다시 시도해 주세요.');
-    } finally {
-      setIsSavingDate(false);
-    }
-  };
 
   const warmth = (diary.warmthScore && typeof diary.warmthScore.temperature === 'number')
     ? diary.warmthScore
@@ -248,28 +196,13 @@ export default function OpenedLetter({
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex items-center gap-1.5">
                   <Calendar className="w-4 h-4 text-amber-800" />
-                  <span suppressHydrationWarning>{new Date(currentDiaryDate).toLocaleDateString(language === 'en' ? 'en-US' : 'ko-KR', {
+                  <span suppressHydrationWarning>{new Date(diary.createdAt).toLocaleDateString(language === 'en' ? 'en-US' : 'ko-KR', {
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric',
                     weekday: 'long',
                   })}</span>
                 </div>
-
-                {isAuthor && !isEditingDate && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsEditingDate(true);
-                      soundEngine.playTileSlideSound();
-                    }}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-stone-100 hover:bg-amber-100 text-stone-600 hover:text-amber-950 border border-stone-200 hover:border-amber-300 text-[11px] font-sans-ui font-medium transition-colors cursor-pointer active:scale-95 whitespace-nowrap"
-                    title={language === 'en' ? 'Edit Diary Date' : '작성 날짜 수정'}
-                  >
-                    <Edit3 className="w-3 h-3 text-[#6B1724]" />
-                    <span>{language === 'en' ? 'Edit Date' : '날짜 수정'}</span>
-                  </button>
-                )}
               </div>
 
               <div className="flex items-center gap-3">
@@ -311,68 +244,6 @@ export default function OpenedLetter({
                 </div>
               </div>
             </div>
-
-            {/* 작성자 날짜 사후 수정 에디터 */}
-            {isAuthor && isEditingDate && (
-              <div className="w-full mt-2.5 p-2.5 bg-amber-50/80 border border-amber-200/90 rounded-xl flex flex-wrap items-center gap-2 text-xs font-sans-ui">
-                <span className="font-semibold text-stone-700">{language === 'en' ? 'Change Date:' : '날짜 변경:'}</span>
-                <input
-                  type="date"
-                  value={editDateValue}
-                  onChange={(e) => setEditDateValue(e.target.value)}
-                  className="px-2.5 py-1 rounded-lg border border-stone-300 bg-white text-stone-900 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-[#6B1724] cursor-pointer"
-                />
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const now = new Date();
-                      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-                      setEditDateValue(todayStr);
-                      soundEngine.playTileSlideSound();
-                    }}
-                    className="px-2 py-0.5 rounded-md bg-white border border-stone-200 text-stone-700 hover:bg-stone-100 text-[11px] font-medium cursor-pointer"
-                  >
-                    {language === 'en' ? 'Today' : '오늘'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const y = new Date();
-                      y.setDate(y.getDate() - 1);
-                      const yStr = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
-                      setEditDateValue(yStr);
-                      soundEngine.playTileSlideSound();
-                    }}
-                    className="px-2 py-0.5 rounded-md bg-white border border-stone-200 text-stone-700 hover:bg-stone-100 text-[11px] font-medium cursor-pointer"
-                  >
-                    {language === 'en' ? 'Yesterday' : '어제'}
-                  </button>
-                </div>
-                <div className="flex items-center gap-1.5 ml-auto">
-                  <button
-                    type="button"
-                    disabled={isSavingDate}
-                    onClick={handleSaveDate}
-                    className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-[#6B1724] hover:bg-[#851E2E] text-amber-50 font-bold text-xs cursor-pointer shadow-2xs active:scale-95 disabled:opacity-50"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                    <span>{isSavingDate ? (language === 'en' ? 'Saving...' : '저장 중') : (language === 'en' ? 'Save' : '저장')}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsEditingDate(false);
-                      soundEngine.playTileSlideSound();
-                    }}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-200/80 hover:bg-stone-300/80 text-stone-700 text-xs cursor-pointer"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                    <span>{language === 'en' ? 'Cancel' : '취소'}</span>
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* 제목 및 스티커 */}
@@ -425,8 +296,10 @@ export default function OpenedLetter({
                           className="w-full h-full object-cover"
                         />
                       </div>
-                      <p className="mt-2 text-center font-serif-warm text-[11px] text-stone-500">
-                        그날의 한 컷 #{idx + 1}
+                      <p className="mt-2 text-center font-serif-warm text-[11px] text-stone-600 px-1 break-words">
+                        {(diary.photoCaptions && diary.photoCaptions[idx]) ||
+                          (idx === 0 && diary.photoCaption ? diary.photoCaption : null) ||
+                          `그날의 한 컷 #${idx + 1}`}
                       </p>
                     </motion.div>
                   ))}

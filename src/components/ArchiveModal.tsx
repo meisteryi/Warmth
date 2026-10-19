@@ -1131,12 +1131,22 @@ export default function ArchiveModal({
 
                     {diary.photos && diary.photos.length > 0 && (
                       <div className="my-4 flex flex-wrap gap-3">
-                        {diary.photos.map((p, pIdx) => (
-                          <div key={pIdx} className="w-48 aspect-[4/3] bg-stone-100 border border-stone-300 rounded overflow-hidden">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={p} alt="일기 사진" className="w-full h-full object-cover" />
-                          </div>
-                        ))}
+                        {diary.photos.map((p, pIdx) => {
+                          const caption = (diary.photoCaptions && diary.photoCaptions[pIdx]) ||
+                            (pIdx === 0 && diary.photoCaption ? diary.photoCaption : null) ||
+                            `그날의 한 컷 #${pIdx + 1}`;
+                          return (
+                            <div key={pIdx} className="w-48 bg-stone-100 border border-stone-300 rounded overflow-hidden shadow-2xs">
+                              <div className="w-full aspect-[4/3]">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={p} alt="일기 사진" className="w-full h-full object-cover" />
+                              </div>
+                              <p className="px-2 py-1 text-[11px] text-stone-600 font-serif-warm text-center truncate">
+                                {caption}
+                              </p>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
 
