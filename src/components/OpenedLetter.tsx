@@ -221,34 +221,25 @@ export default function OpenedLetter({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4 text-amber-800" />
-                  <span suppressHydrationWarning>{new Date(diary.createdAt).toLocaleDateString(language === 'en' ? 'en-US' : 'ko-KR', {
+                  <Calendar className={`w-4 h-4 ${theme === 'MIDNIGHT' ? 'text-amber-300' : 'text-amber-800'}`} />
+                  <span suppressHydrationWarning className={theme === 'MIDNIGHT' ? 'text-stone-200' : ''}>{new Date(diary.createdAt).toLocaleDateString(language === 'en' ? 'en-US' : 'ko-KR', {
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric',
                     weekday: 'long',
                   })}</span>
                 </div>
-                {theme !== 'IVORY' && (
-                  <span className={`text-[10.5px] px-2 py-0.5 rounded-full font-serif-warm font-semibold border ${
-                    theme === 'MIDNIGHT'
-                      ? 'bg-indigo-950/80 text-amber-200 border-indigo-700/60'
-                      : theme === 'KRAFT'
-                      ? 'bg-[#E8D6BF] text-[#4A2E1B] border-[#C8A882]'
-                      : theme === 'GRID'
-                      ? 'bg-[#EDF3ED] text-[#243329] border-[#BFD3C1]'
-                      : 'bg-blue-50 text-blue-900 border-blue-200'
-                  }`}>
-                    {theme === 'KRAFT' ? '크라프트' : theme === 'GRID' ? '원고지' : theme === 'AIRMAIL' ? '에어메일' : '별밤'}
-                  </span>
-                )}
               </div>
 
               <div className="flex items-center gap-3">
                 {diary.stamp && diary.stamp.style !== 'EMOJI_TITLE' && (
                   <div
                     className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-dashed text-xs font-serif-warm select-none rotate-[-2deg] shadow-2xs"
-                    style={{
+                    style={theme === 'MIDNIGHT' ? {
+                      borderColor: 'rgba(253, 230, 138, 0.55)',
+                      color: '#FDE68A',
+                      backgroundColor: 'rgba(255, 255, 255, 0.12)',
+                    } : {
                       borderColor: diary.stamp.color || '#A83232',
                       color: diary.stamp.color || '#A83232',
                       backgroundColor: `${diary.stamp.color || '#A83232'}10`,
@@ -260,9 +251,11 @@ export default function OpenedLetter({
                   </div>
                 )}
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5 text-stone-500 font-sans-ui text-xs">
-                    <Feather className="w-3.5 h-3.5 text-stone-600" />
-                    <span>{language === 'en' ? 'By ' : '작성자 '}<strong>{diary.authorName}</strong></span>
+                  <div className={`flex items-center gap-1.5 font-sans-ui text-xs ${
+                    theme === 'MIDNIGHT' ? 'text-stone-300' : 'text-stone-500'
+                  }`}>
+                    <Feather className={`w-3.5 h-3.5 ${theme === 'MIDNIGHT' ? 'text-amber-300' : 'text-stone-600'}`} />
+                    <span>{language === 'en' ? 'By ' : '작성자 '}<strong className={theme === 'MIDNIGHT' ? 'text-white' : ''}>{diary.authorName}</strong></span>
                   </div>
                   {!isAuthor && (
                     <button
@@ -335,7 +328,7 @@ export default function OpenedLetter({
                           className="w-full h-full object-cover"
                         />
                       </div>
-                      <p className="mt-2 text-center font-serif-warm text-[11px] text-stone-600 px-1 break-words">
+                      <p className="mt-1.5 text-center font-serif-warm text-[11px] text-stone-600 px-1 truncate">
                         {(diary.photoCaptions && diary.photoCaptions[idx]) ||
                           (idx === 0 && diary.photoCaption ? diary.photoCaption : null) ||
                           `그날의 한 컷 #${idx + 1}`}
@@ -433,7 +426,11 @@ export default function OpenedLetter({
               <button
                 type="button"
                 onClick={handleOpenReactionModal}
-                className="text-xs text-stone-400 hover:text-stone-600 transition-colors font-serif-warm cursor-pointer select-none py-0.5"
+                className={`text-xs transition-colors font-serif-warm cursor-pointer select-none py-0.5 ${
+                  theme === 'MIDNIGHT'
+                    ? 'text-amber-200/90 hover:text-amber-100 font-medium'
+                    : 'text-stone-400 hover:text-stone-600'
+                }`}
               >
                 {currentReaction ? (language === 'en' ? 'Edit reaction' : '반응 수정하기') : (language === 'en' ? 'Add reaction +' : '반응 추가하기+')}
               </button>
@@ -446,12 +443,19 @@ export default function OpenedLetter({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className={`my-6 p-3.5 sm:p-4 rounded-xl border shadow-xs ${warmth.temperature <= 0
-                ? 'bg-gradient-to-r from-[#F0F7FF] via-[#F8FBFF] to-[#FAF7F2] border-[#D0E2F5]'
-                : 'bg-gradient-to-r from-[#FFF7ED] via-[#FDF8F3] to-[#F7EDE2] border-[#ECDCCB]'
-                }`}
+              className={`my-6 p-3.5 sm:p-4 rounded-xl border shadow-xs ${
+                theme === 'MIDNIGHT'
+                  ? (warmth.temperature <= 0
+                      ? 'bg-[#1C2536] border-[#2C3B55] text-stone-200'
+                      : 'bg-[#20293A] border-[#364460] text-stone-200')
+                  : (warmth.temperature <= 0
+                      ? 'bg-gradient-to-r from-[#F0F7FF] via-[#F8FBFF] to-[#FAF7F2] border-[#D0E2F5]'
+                      : 'bg-gradient-to-r from-[#FFF7ED] via-[#FDF8F3] to-[#F7EDE2] border-[#ECDCCB]')
+              }`}
             >
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#EBD6C2]/60">
+              <div className={`flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b ${
+                theme === 'MIDNIGHT' ? 'border-[#364460]' : 'border-[#EBD6C2]/60'
+              }`}>
                 <div className="flex items-center gap-2.5">
                   <div
                     className={`w-8 h-8 rounded-full border flex items-center justify-center shadow-2xs shrink-0 ${warmth.temperature <= 0
@@ -467,7 +471,9 @@ export default function OpenedLetter({
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-sans-ui text-stone-500 font-semibold tracking-wider">
+                      <span className={`text-[10px] font-sans-ui font-semibold tracking-wider ${
+                        theme === 'MIDNIGHT' ? 'text-stone-300' : 'text-stone-500'
+                      }`}>
                         {language === 'en' ? "Today's Temperature" : '오늘의 온도'}
                       </span>
                       <span
@@ -480,7 +486,9 @@ export default function OpenedLetter({
                       </span>
                     </div>
                     {warmth.comment && (
-                      <p className="text-xs sm:text-sm font-serif-warm text-stone-700 mt-0.5 font-medium">
+                      <p className={`text-xs sm:text-sm font-serif-warm mt-0.5 font-medium ${
+                        theme === 'MIDNIGHT' ? 'text-[#F4EDE2]' : 'text-stone-700'
+                      }`}>
                         &ldquo;{warmth.comment}&rdquo;
                       </p>
                     )}
@@ -489,11 +497,17 @@ export default function OpenedLetter({
               </div>
               {warmth.keywords && warmth.keywords.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-2.5 items-center">
-                  <span className="text-[10px] font-sans-ui text-stone-400">{language === 'en' ? 'Keywords:' : '마음 키워드:'}</span>
+                  <span className={`text-[10px] font-sans-ui ${
+                    theme === 'MIDNIGHT' ? 'text-stone-300' : 'text-stone-400'
+                  }`}>{language === 'en' ? 'Keywords:' : '마음 키워드:'}</span>
                   {warmth.keywords.map((kw, idx) => (
                     <span
                       key={idx}
-                      className="px-2 py-0.5 rounded-md bg-white/90 border border-[#DFCEBA] text-[11px] font-serif-warm text-stone-600 shadow-2xs"
+                      className={`px-2 py-0.5 rounded-md border text-[11px] font-serif-warm shadow-2xs ${
+                        theme === 'MIDNIGHT'
+                          ? 'bg-[#2A374E] border-[#3D4F70] text-[#F4EDE2]'
+                          : 'bg-white/90 border-[#DFCEBA] text-stone-600'
+                      }`}
                     >
                       {kw.startsWith('#') ? kw : `#${kw}`}
                     </span>
@@ -505,18 +519,32 @@ export default function OpenedLetter({
 
           {/* 서로 공유한 미션 & 답변 카드 */}
           {diary.mission && (
-            <div className="mt-10 p-5 rounded-xl bg-[#F8F3EA] border border-[#E5DAC8] text-stone-800 font-serif-warm">
-              <div className="flex items-center gap-2 mb-2 text-amber-900 text-xs font-sans-ui font-semibold">
+            <div className={`mt-10 p-5 rounded-xl border font-serif-warm ${
+              theme === 'MIDNIGHT'
+                ? 'bg-[#1E2636] border-[#324058] text-[#F4EDE2]'
+                : 'bg-[#F8F3EA] border-[#E5DAC8] text-stone-800'
+            }`}>
+              <div className={`flex items-center gap-2 mb-2 text-xs font-sans-ui font-semibold ${
+                theme === 'MIDNIGHT' ? 'text-amber-300' : 'text-amber-900'
+              }`}>
                 <MessageSquareQuote className="w-4 h-4" />
                 <span>{language === 'en' ? 'Mission' : '오늘의 미션'}</span>
               </div>
-              <p className="text-xs sm:text-sm text-stone-600 mb-2 italic">
+              <p className={`text-xs sm:text-sm mb-2 italic ${
+                theme === 'MIDNIGHT' ? 'text-stone-300' : 'text-stone-600'
+              }`}>
                 Q. {diary.mission.prompt}
               </p>
               {diary.mission.submission && (
-                <div className="p-3 bg-white/80 rounded-lg border border-[#E0D3BF] text-xs sm:text-sm text-stone-800 font-medium">
+                <div className={`p-3 rounded-lg border text-xs sm:text-sm font-medium ${
+                  theme === 'MIDNIGHT'
+                    ? 'bg-[#273248] border-[#3B4A6A] text-[#F4EDE2]'
+                    : 'bg-white/80 border-[#E0D3BF] text-stone-800'
+                }`}>
                   &ldquo;{diary.mission.submission.text}&rdquo;
-                  <span className="block text-right text-[10px] text-stone-400 mt-1">
+                  <span className={`block text-right text-[10px] mt-1 ${
+                    theme === 'MIDNIGHT' ? 'text-stone-300' : 'text-stone-400'
+                  }`}>
                     {language === 'en' ? `— By ${diary.recipientName}` : `— ${diary.recipientName} 작성`}
                   </span>
                 </div>
@@ -525,12 +553,20 @@ export default function OpenedLetter({
           )}
 
           {/* 하단 서명 */}
-          <div className="mt-8 pt-4 border-t border-[#EADCCB] flex items-center justify-between text-xs text-stone-500 font-serif-warm">
-            <span className="flex items-center gap-1 text-rose-800/80">
+          <div className={`mt-8 pt-4 border-t flex items-center justify-between text-xs font-serif-warm ${
+            theme === 'MIDNIGHT'
+              ? 'border-stone-700/60 text-[#D5CEBE]'
+              : 'border-[#EADCCB] text-stone-500'
+          }`}>
+            <span className={`flex items-center gap-1.5 font-medium ${
+              theme === 'MIDNIGHT' ? 'text-rose-300' : 'text-rose-800/80'
+            }`}>
               <Heart className="w-3.5 h-3.5 fill-current" />
               <span>{language === 'en' ? 'A Day Connected in Warmth' : '우리의 온기가 이어진 날'}</span>
             </span>
-            <span>溫氣</span>
+            <span className={`tracking-widest ${
+              theme === 'MIDNIGHT' ? 'text-amber-200/80' : 'text-stone-400'
+            }`}>溫氣</span>
           </div>
         </div>
       </div>

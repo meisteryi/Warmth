@@ -1035,21 +1035,21 @@ export default function WriteDiaryModal({
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-[11px] font-sans-ui text-stone-600 flex items-center gap-1">
                       <PenLine className="w-3 h-3 text-stone-500" />
-                      <span>사진 캡션 (선택, 최대 50자)</span>
+                      <span>사진 캡션 (선택)</span>
                     </label>
                     <span className="text-[10px] font-mono text-stone-400">
-                      <span className={photoCaption.length >= 50 ? 'text-rose-600 font-bold' : 'text-stone-600'}>
+                      <span className={photoCaption.length >= 30 ? 'text-rose-600 font-bold' : 'text-stone-600'}>
                         {photoCaption.length}
                       </span>
-                      /50
+                      /30
                     </span>
                   </div>
                   <input
                     type="text"
-                    maxLength={50}
+                    maxLength={30}
                     value={photoCaption}
-                    onChange={(e) => setPhotoCaption(e.target.value.slice(0, 50))}
-                    placeholder="사진 밑에 들어갈 한 줄 캡션을 적어보세요 (미입력 시 '그날의 한 컷')"
+                    onChange={(e) => setPhotoCaption(e.target.value.slice(0, 30))}
+                    placeholder="사진을 설명해주세요"
                     className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white text-stone-900 font-serif-warm text-xs focus:outline-none focus:ring-1 focus:ring-[#6B1724] focus:border-[#6B1724] placeholder:text-stone-400 placeholder:font-sans-ui shadow-2xs"
                   />
                 </div>
