@@ -7,6 +7,7 @@ import { generateFallbackWarmth } from '@/lib/gemini';
 import { Feather, Calendar, Heart, MessageSquareQuote, PenLine, ThermometerSun, ThermometerSnowflake, X, Smile, Sparkles, Trash2, Flag, ShieldAlert } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { updateDiaryReactionInFirestore, getOrCreateUserId } from '@/lib/roomService';
+import { decryptText } from '@/lib/crypto';
 import { soundEngine } from '@/lib/audio';
 import { forceScrollToTop } from '@/lib/scrollUtils';
 import ReportModal from '@/components/ReportModal';
@@ -79,6 +80,26 @@ export default function OpenedLetter({
   // 일기가 전환(diaryId 변경)되거나 해당 일기의 반응 prop이 변경되었을 때만 동기화
   useEffect(() => {
     const sanitized = sanitizeDiaryReaction(diary);
+    const comment = sanitized.reaction?.comment;
+
+    // 만약 반응 코멘트가 아직 암호문(e2ee:v1:...) 상태라면 즉시 E2EE 복호화 수행
+    if (comment && comment.startsWith('e2ee:v1:') && roomCode) {
+      decryptText(roomCode, comment)
+        .then((decrypted) => {
+          const fixedReaction = {
+            ...sanitized.reaction!,
+            comment: decrypted,
+          };
+          setCurrentReaction(fixedReaction);
+          setReactionEmoji(fixedReaction.emoji || '❤️');
+          setReactionComment(decrypted || '');
+        })
+        .catch(() => {
+          setCurrentReaction(sanitized.reaction || null);
+        });
+      return;
+    }
+
     setCurrentReaction(sanitized.reaction || null);
     if (sanitized.reaction) {
       setReactionEmoji(sanitized.reaction.emoji || '❤️');
@@ -87,7 +108,7 @@ export default function OpenedLetter({
       setReactionEmoji('❤️');
       setReactionComment('');
     }
-  }, [diary.diaryId, diary.reaction]);
+  }, [diary.diaryId, diary.reaction, roomCode]);
 
   const handleSaveReaction = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -366,9 +387,9 @@ export default function OpenedLetter({
                 </span>
 
                 {/* 코멘트 및 서명 */}
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 overflow-hidden">
                   {currentReaction.comment ? (
-                    <p className="text-sm font-serif-warm font-semibold text-stone-800 leading-relaxed break-keep select-text whitespace-pre-wrap">
+                    <p className="text-sm font-serif-warm font-semibold text-stone-800 leading-relaxed break-words [overflow-wrap:anywhere] [word-break:break-word] select-text whitespace-pre-wrap">
                       {currentReaction.comment}
                     </p>
                   ) : (
