@@ -764,7 +764,9 @@ export async function updateDiaryReactionInFirestore(
         sanitizedReaction.reactorId = reaction.reactorId;
       }
       if (reaction.comment && reaction.comment.trim()) {
-        sanitizedReaction.comment = reaction.comment.trim().slice(0, 100);
+        const roomSalt = await getOrFetchRoomSalt(roomCode);
+        const rawComment = reaction.comment.trim().slice(0, 100);
+        sanitizedReaction.comment = await encryptText(roomCode, rawComment, roomSalt);
       }
     }
 

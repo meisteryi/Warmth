@@ -205,6 +205,14 @@ export async function encryptDiaryData(
       };
     }
 
+    let encryptedReaction = diary.reaction ? { ...diary.reaction } : null;
+    if (encryptedReaction && encryptedReaction.comment) {
+      encryptedReaction = {
+        ...encryptedReaction,
+        comment: await encryptText(roomCode, encryptedReaction.comment, roomSalt),
+      };
+    }
+
     return sanitizeDiaryReaction({
       ...diary,
       title: encryptedTitle,
@@ -214,6 +222,7 @@ export async function encryptDiaryData(
       ...(encryptedPhotoCaptions !== undefined ? { photoCaptions: encryptedPhotoCaptions } : {}),
       mission: encryptedMission,
       warmthScore: encryptedWarmth,
+      reaction: encryptedReaction,
     });
   } catch (e) {
     console.warn('Failed to encrypt diary data:', e);
@@ -277,6 +286,14 @@ export async function decryptDiaryData(
       };
     }
 
+    let decryptedReaction = diary.reaction ? { ...diary.reaction } : null;
+    if (decryptedReaction && decryptedReaction.comment) {
+      decryptedReaction = {
+        ...decryptedReaction,
+        comment: await decryptText(roomCode, decryptedReaction.comment, roomSalt),
+      };
+    }
+
     return sanitizeDiaryReaction({
       ...diary,
       title: decryptedTitle,
@@ -286,6 +303,7 @@ export async function decryptDiaryData(
       ...(decryptedPhotoCaptions !== undefined ? { photoCaptions: decryptedPhotoCaptions } : {}),
       mission: decryptedMission,
       warmthScore: decryptedWarmth,
+      reaction: decryptedReaction,
     });
   } catch (e) {
     console.warn('Failed to decrypt diary data:', e);
