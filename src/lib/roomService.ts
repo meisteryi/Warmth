@@ -4,6 +4,7 @@ import {
   getDoc, 
   getDocs,
   updateDoc, 
+  deleteDoc,
   collection, 
   onSnapshot, 
   serverTimestamp,
@@ -214,6 +215,33 @@ export function subscribeDiary(
   });
 }
 
+/**
+ * 방이 24시간 동안 매칭되지 않고 방치된 미연결 방인지 엄격하게 검증하는 안전 함수
+ * 
+ * [절대 안전 규칙]
+ * 1. status가 'MATCHED'인 연결된 방은 절대 만료되지 않음 (영구 보존)
+ * 2. members가 2명 이상인 방은 절대 만료되지 않음
+ * 3. latestDiaryId나 일기가 존재하는 방은 절대 만료되지 않음
+ * 4. 테스트 전용 방(#777777)은 절대 만료되지 않음
+ * 5. 오직 status === 'WAITING_PARTNER'이고, 멤버가 1명 이하이며, 일기가 없고, 생성 후 24시간이 경과한 방만 만료 판정
+ */
+export function isRoomUnmatchedExpired(room: Partial<RoomData> | null | undefined): boolean {
+  if (!room) return false;
+  if (room.roomCode === '777777' || room.roomId === '777777') return false;
+  // 연결된 방(MATCHED)은 절대 만료 대상이 아님
+  if (room.status !== 'WAITING_PARTNER') return false;
+  if (room.members && room.members.length >= 2) return false;
+  if (room.latestDiaryId) return false;
+  if (room.matchedAt) return false;
+
+  if (!room.createdAt) return false;
+  const createdMs = new Date(room.createdAt).getTime();
+  if (isNaN(createdMs)) return false;
+
+  const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+  return Date.now() - createdMs > TWENTY_FOUR_HOURS_MS;
+}
+
 // 1. 방 생성 (6자리 난수 코드 발급, 128비트 암호학적 솔트 발급 및 충돌 방지 루프)
 export async function createRoomInFirestore(creatorNickname: string): Promise<string> {
   // 방 생성 시 이 탭의 고유 UID를 신규 발급하여 동일 브라우저의 다른 창과 충돌 방지
@@ -227,6 +255,13 @@ export async function createRoomInFirestore(creatorNickname: string): Promise<st
     if (!snap.exists()) {
       roomCode = candidate;
       break;
+    } else {
+      const existing = snap.data() as RoomData;
+      // 연결된 방은 절대 건드리지 않고, 24시간 동안 파트너 없이 방치된 미연결 방만 재활용 허용
+      if (isRoomUnmatchedExpired(existing)) {
+        roomCode = candidate;
+        break;
+      }
     }
   }
 
@@ -295,6 +330,15 @@ export async function joinRoomInFirestore(
   const room = snap.data() as RoomData;
   if (room.roomSalt) {
     setCachedRoomSalt(roomCode, room.roomSalt);
+  }
+
+  // 🍎 절대 연결된 방(MATCHED)은 건드리지 않고, 24시간 지난 미연결(WAITING_PARTNER) 방만 만료 처리
+  if (isRoomUnmatchedExpired(room)) {
+    deleteDoc(roomRef).catch(() => {});
+    return {
+      success: false,
+      message: '초대코드의 유효기간(24시간)이 만료되었습니다. 방장에게 새 코드를 발급해달라고 요청해주세요.',
+    };
   }
 
   const normalizedNick = (partnerNickname || '').trim().toLowerCase();

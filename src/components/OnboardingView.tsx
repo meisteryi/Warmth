@@ -154,7 +154,7 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
   // 초대 링크 / 텍스트 공유
   const handleShareInvite = () => {
     if (!generatedCode) return;
-    const shareText = `📮 [온기: 둘만의 비밀 교환일기]\n${myName} 님이 보낸 교환일기 초대코드입니다: [${generatedCode}]\n아날로그 서재에서 함께 일기를 써보아요.`;
+    const shareText = `📮 [온기: 둘만의 비밀 교환일기]\n${myName} 님이 보낸 교환일기 초대코드입니다: [${generatedCode}]\n(초대코드는 24시간 동안 유효합니다)\n아날로그 서재에서 함께 일기를 써보아요.`;
     navigator.clipboard.writeText(shareText).catch(() => { });
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -423,6 +423,9 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
                   </div>
                   <p className="text-xs sm:text-sm text-stone-600 font-serif-warm font-medium">
                     상대방에게 이 코드를 알려주세요.
+                  </p>
+                  <p className="text-[11px] text-amber-800/80 font-serif-warm mt-1 font-medium">
+                    (초대코드 유효시간: 24시간)
                   </p>
                 </div>
 

@@ -46,10 +46,11 @@ import {
   setExplicitUserId,
   savePushSubscriptionToRoom,
   getPartnerMemberInfo,
-  updateUserProfileInFirestore
+  updateUserProfileInFirestore,
+  isRoomUnmatchedExpired
 } from '@/lib/roomService';
 import { decryptDiaryData, decryptKnockData } from '@/lib/crypto';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import {
   registerServiceWorker,
@@ -522,6 +523,18 @@ export default function HomePage() {
                   sessionStore.set(STORAGE_KEYS.PARTNER_NAME, pName);
                 }
               }
+              // 🍎 24시간 동안 매칭되지 않고 방치된 미연결 방인지 안전 검증 (연결된 방은 절대 만료되지 않음)
+              if (isRoomUnmatchedExpired(loadedRoomData)) {
+                deleteDoc(doc(db, 'rooms', savedRoom)).catch(() => {});
+                sessionStore.remove(STORAGE_KEYS.ROOM_CODE);
+                sessionStore.remove(STORAGE_KEYS.USER_NAME);
+                sessionStore.remove(STORAGE_KEYS.PARTNER_NAME);
+                sessionStore.remove(STORAGE_KEYS.USER_ROLE);
+                showToast('⏳ 초대코드의 유효시간(24시간)이 만료되었습니다. 새 방을 생성해주세요.');
+                setUiState('VIEW_ONBOARDING');
+                return;
+              }
+
               if (loadedRoomData.members) {
                 const myUid = getOrCreateUserId();
                 const partnerLeft = Boolean(
@@ -571,6 +584,19 @@ export default function HomePage() {
 
     const unsubscribe = subscribeRoom(roomCode, async (room) => {
       if (isLeavingRef.current) return;
+
+      // 🍎 24시간 동안 매칭되지 않은 미연결 방이면 안전하게 온보딩으로 복귀 (연결된 방은 절대 건드리지 않음)
+      if (isRoomUnmatchedExpired(room)) {
+        deleteDoc(doc(db, 'rooms', roomCode)).catch(() => {});
+        sessionStore.remove(STORAGE_KEYS.ROOM_CODE);
+        sessionStore.remove(STORAGE_KEYS.USER_NAME);
+        sessionStore.remove(STORAGE_KEYS.PARTNER_NAME);
+        sessionStore.remove(STORAGE_KEYS.USER_ROLE);
+        showToast('⏳ 초대코드의 유효시간(24시간)이 만료되었습니다. 새 방을 생성해주세요.');
+        setUiState('VIEW_ONBOARDING');
+        return;
+      }
+
       setRoomData(room);
 
       // 0. 방 멤버 정보로부터 내 역할(CREATOR vs PARTNER) 동기화 및 닉네임/생년월일 동기화
