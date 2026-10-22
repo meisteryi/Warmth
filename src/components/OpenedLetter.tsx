@@ -349,7 +349,10 @@ export default function OpenedLetter({
                           className="w-full h-full object-cover"
                         />
                       </div>
-                      <p className="mt-1.5 text-center font-serif-warm text-[11px] text-stone-600 px-1 truncate">
+                      <p 
+                        className="mt-1.5 text-center font-serif-warm text-[11px] !text-black font-medium px-1 break-words [overflow-wrap:anywhere] leading-snug"
+                        style={{ color: '#1C1917' }}
+                      >
                         {(diary.photoCaptions && diary.photoCaptions[idx]) ||
                           (idx === 0 && diary.photoCaption ? diary.photoCaption : null) ||
                           `그날의 한 컷 #${idx + 1}`}

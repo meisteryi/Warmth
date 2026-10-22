@@ -1141,7 +1141,10 @@ export default function ArchiveModal({
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={p} alt="편지 사진" className="w-full h-full object-cover" />
                               </div>
-                              <p className="px-2 py-1 text-[11px] text-stone-600 font-serif-warm text-center truncate">
+                              <p 
+                                className="px-2 py-1 text-[11px] !text-black font-medium font-serif-warm text-center break-words [overflow-wrap:anywhere] leading-snug"
+                                style={{ color: '#1C1917' }}
+                              >
                                 {caption}
                               </p>
                             </div>
