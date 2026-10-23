@@ -378,7 +378,7 @@ export default function OpenedLetter({
             <motion.div
               initial={{ opacity: 0, scale: 0.95, rotate: -2 }}
               animate={{ opacity: 1, scale: 1, rotate: -1 }}
-              className="relative my-6 max-w-sm ml-auto mr-1 sm:mr-3 p-4 sm:p-4.5 rounded-xs bg-gradient-to-br from-[#FFFDE6] via-[#FEF9C3] to-[#FEF08A]/90 border border-[#FDE68A] shadow-md shadow-amber-950/10 transition-transform hover:rotate-0"
+              className="postit-note relative my-6 max-w-sm ml-auto mr-1 sm:mr-3 p-4 sm:p-4.5 rounded-xs bg-gradient-to-br from-[#FFFDE6] via-[#FEF9C3] to-[#FEF08A]/90 border border-[#FDE68A] shadow-md shadow-amber-950/10 transition-transform hover:rotate-0"
             >
               {/* 포스트잇 상단 반투명 마스킹 테이프 효과 */}
               <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-16 h-3.5 bg-white/75 border border-white/90 shadow-2xs backdrop-blur-2xs rotate-1 pointer-events-none" />
@@ -392,16 +392,19 @@ export default function OpenedLetter({
                 {/* 코멘트 및 서명 */}
                 <div className="min-w-0 flex-1 overflow-hidden">
                   {currentReaction.comment ? (
-                    <p className="text-sm font-serif-warm font-semibold text-stone-800 leading-relaxed break-words [overflow-wrap:anywhere] [word-break:break-word] select-text whitespace-pre-wrap">
+                    <p 
+                      className="text-sm font-serif-warm font-semibold !text-[#1C1917] leading-relaxed break-words [overflow-wrap:anywhere] [word-break:break-word] select-text whitespace-pre-wrap"
+                      style={{ color: '#1C1917' }}
+                    >
                       {currentReaction.comment}
                     </p>
                   ) : (
-                    <p className="text-xs font-serif-warm text-stone-600">
+                    <p className="text-xs font-serif-warm !text-[#1C1917]" style={{ color: '#1C1917' }}>
                       {currentReaction.reactorName}님의 마음 반응
                     </p>
                   )}
-                  <div className="mt-2 flex items-center justify-between text-[11px] font-sans-ui text-stone-500">
-                    <span className="truncate">
+                  <div className="mt-2 flex items-center justify-between text-[11px] font-sans-ui !text-stone-700" style={{ color: '#44403C' }}>
+                    <span className="truncate !text-stone-700" style={{ color: '#44403C' }}>
                       — {currentReaction.reactorName}
                       {currentReaction.reactedAt && ` · ${formatReactionTime(currentReaction.reactedAt)}`}
                     </span>
@@ -410,7 +413,8 @@ export default function OpenedLetter({
                         <button
                           type="button"
                           onClick={handleOpenReactionModal}
-                          className="text-[11px] text-stone-400 hover:text-stone-700 underline cursor-pointer"
+                          className="text-[11px] !text-stone-600 hover:!text-stone-900 underline cursor-pointer"
+                          style={{ color: '#57534E' }}
                         >
                           {language === 'en' ? 'Edit' : '수정'}
                         </button>
@@ -418,7 +422,8 @@ export default function OpenedLetter({
                           type="button"
                           onClick={handleRemoveReaction}
                           disabled={isSavingReaction}
-                          className="text-[11px] text-stone-400 hover:text-rose-500 underline cursor-pointer"
+                          className="text-[11px] !text-stone-600 hover:!text-rose-600 underline cursor-pointer"
+                          style={{ color: '#57534E' }}
                         >
                           {language === 'en' ? 'Remove' : '떼기'}
                         </button>
@@ -432,7 +437,8 @@ export default function OpenedLetter({
                           setIsReportModalOpen(true);
                           soundEngine.playTileSlideSound();
                         }}
-                        className="text-[11px] text-stone-400 hover:text-rose-500 underline cursor-pointer shrink-0 ml-2"
+                        className="text-[11px] !text-stone-600 hover:!text-rose-600 underline cursor-pointer shrink-0 ml-2"
+                        style={{ color: '#57534E' }}
                         title={language === 'en' ? 'Report inappropriate note' : '부적절한 포스트잇 신고'}
                       >
                         {language === 'en' ? 'Report' : '신고'}
@@ -634,7 +640,7 @@ export default function OpenedLetter({
               animate={{ opacity: 1, scale: 1, y: 0, rotate: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 12 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative w-full max-w-sm bg-gradient-to-br from-[#FFFDE6] via-[#FEF9C3] to-[#FEF08A]/95 rounded-xs border border-[#FDE68A] shadow-2xl p-5 sm:p-6 overflow-hidden"
+              className="postit-modal relative w-full max-w-sm bg-gradient-to-br from-[#FFFDE6] via-[#FEF9C3] to-[#FEF08A]/95 rounded-xs border border-[#FDE68A] shadow-2xl p-5 sm:p-6 overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               {/* 포스트잇 상단 반투명 마스킹 테이프 장식 */}
@@ -644,7 +650,7 @@ export default function OpenedLetter({
               <div className="flex items-center justify-between mb-4 pb-2 border-b border-[#FDE68A]/80">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">📌</span>
-                  <h3 className="font-serif-warm font-bold text-stone-800 text-base">
+                  <h3 className="font-serif-warm font-bold !text-[#1C1917] text-base" style={{ color: '#1C1917' }}>
                     {language === 'en' ? 'Stick a Note' : '포스트잇 남기기'}
                   </h3>
                 </div>
@@ -660,7 +666,7 @@ export default function OpenedLetter({
               <form onSubmit={handleSaveReaction} className="space-y-4">
                 {/* 1. 이모티콘 입력 (직접 입력 가능 + 빠른 추천 칩) */}
                 <div>
-                  <label className="block text-xs font-serif-warm font-semibold text-stone-700 mb-1.5">
+                  <label className="block text-xs font-serif-warm font-semibold !text-stone-800 mb-1.5" style={{ color: '#292524' }}>
                     {language === 'en' ? 'Emoji' : '이모티콘 하나'}
                   </label>
                   <div className="flex items-center gap-3">
@@ -670,7 +676,8 @@ export default function OpenedLetter({
                       value={reactionEmoji}
                       onChange={(e) => setReactionEmoji(e.target.value.trim())}
                       placeholder="❤️"
-                      className="w-14 h-14 text-3xl text-center bg-white/95 border border-[#FDE68A] rounded-xl shadow-inner focus:outline-none focus:ring-2 focus:ring-[#8A5A44]/40 text-stone-800 shrink-0 font-sans"
+                      className="w-14 h-14 text-3xl text-center bg-white/95 border border-[#FDE68A] rounded-xl shadow-inner focus:outline-none focus:ring-2 focus:ring-[#8A5A44]/40 !text-stone-900 shrink-0 font-sans"
+                      style={{ color: '#1C1917' }}
                     />
                     {/* 빠른 1-클릭 추천 이모지 칩 */}
                     <div className="flex flex-wrap gap-1.5 flex-1">
@@ -698,10 +705,10 @@ export default function OpenedLetter({
                 {/* 2. 공백 포함 100자 이내의 코멘트 */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-serif-warm font-semibold text-stone-700">
+                    <label className="text-xs font-serif-warm font-semibold !text-stone-800" style={{ color: '#292524' }}>
                       {language === 'en' ? 'Short Note (within 100 chars)' : '한 줄 코멘트 (공백 포함 100자 이내)'}
                     </label>
-                    <span className={`text-[11px] font-sans-ui ${reactionComment.length >= 100 ? 'text-rose-500 font-bold' : 'text-stone-400'}`}>
+                    <span className={`text-[11px] font-sans-ui ${reactionComment.length >= 100 ? 'text-rose-500 font-bold' : '!text-stone-500'}`} style={{ color: reactionComment.length >= 100 ? '#F43F5E' : '#78716C' }}>
                       {reactionComment.length}/100자
                     </span>
                   </div>
@@ -711,7 +718,8 @@ export default function OpenedLetter({
                     maxLength={100}
                     onChange={(e) => setReactionComment(e.target.value.slice(0, 100))}
                     placeholder={language === 'en' ? 'e.g. Reading your letter warmed my heart so much today! Let’s have a cup of warm tea together.' : '예: 오늘도 고생 많았어 토닥토닥. 편지 읽고 마음이 몽글몽글해졌어. 내일도 다정한 하루 보내자!'}
-                    className="w-full px-3.5 py-2.5 bg-white/95 border border-[#FDE68A] rounded-xl text-stone-800 placeholder-stone-400 font-serif-warm text-sm focus:outline-none focus:ring-2 focus:ring-[#8A5A44]/40 shadow-inner resize-none leading-relaxed"
+                    className="w-full px-3.5 py-2.5 bg-white/95 border border-[#FDE68A] rounded-xl !text-stone-900 placeholder-stone-400 font-serif-warm text-sm focus:outline-none focus:ring-2 focus:ring-[#8A5A44]/40 shadow-inner resize-none leading-relaxed"
+                    style={{ color: '#1C1917' }}
                   />
                 </div>
 

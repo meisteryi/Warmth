@@ -224,6 +224,41 @@ body {
   color: #9DA6B8 !important;
 }
 
+/* 노란색 포스트잇 메모지 및 작성 모달: 편지지 테마(별밤 등)에 관계없이 항상 짙은 검은색 텍스트 유지 */
+.postit-note,
+.postit-modal {
+  color: #1C1917 !important;
+}
+
+.paper-theme-midnight .postit-note .text-stone-900,
+.paper-theme-midnight .postit-note .text-stone-800,
+.paper-theme-midnight .postit-modal .text-stone-900,
+.paper-theme-midnight .postit-modal .text-stone-800,
+.paper-theme-midnight .postit-note p,
+.paper-theme-midnight .postit-modal h3 {
+  color: #1C1917 !important;
+}
+
+.paper-theme-midnight .postit-note .text-stone-700,
+.paper-theme-midnight .postit-note .text-stone-600,
+.paper-theme-midnight .postit-modal .text-stone-700,
+.paper-theme-midnight .postit-modal .text-stone-600,
+.paper-theme-midnight .postit-modal label {
+  color: #292524 !important;
+}
+
+.paper-theme-midnight .postit-note .text-stone-500,
+.paper-theme-midnight .postit-note .text-stone-400,
+.paper-theme-midnight .postit-modal .text-stone-500,
+.paper-theme-midnight .postit-modal .text-stone-400 {
+  color: #57534E !important;
+}
+
+.paper-theme-midnight .postit-modal input,
+.paper-theme-midnight .postit-modal textarea {
+  color: #1C1917 !important;
+}
+
 /* 폴라로이드 사진 프레임 */
 .polaroid-frame {
   background: #FFFDF8;
