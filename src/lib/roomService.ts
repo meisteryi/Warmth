@@ -46,6 +46,16 @@ export function setCachedRoomDiaries(roomCode: string, diaries: DiaryData[]) {
   }
 }
 
+export function invalidateRoomDiariesCache(roomCode: string) {
+  if (!roomCode) return;
+  roomDiariesCache.delete(roomCode);
+  if (typeof window !== 'undefined') {
+    try {
+      sessionStorage.removeItem(`warmth_room_diaries_cache_${roomCode}`);
+    } catch {}
+  }
+}
+
 export function getCachedRoomDiaries(roomCode: string): DiaryData[] | undefined {
   if (roomDiariesCache.has(roomCode)) {
     return roomDiariesCache.get(roomCode);
@@ -205,12 +215,10 @@ export function subscribeDiary(
       const raw = snapshot.data() as DiaryData;
       const roomSalt = await getOrFetchRoomSalt(roomCode);
       const decrypted = await decryptDiaryData(roomCode, raw, roomSalt);
-      const sanitized = sanitizeDiaryReaction(decrypted);
-
-      // Firestore에 오염/누출되어 있던 반응이 있다면 백그라운드에서 자가 치유
-      if (raw.reaction && !sanitized.reaction) {
-        updateDiaryReactionInFirestore(roomCode, diaryId, null).catch(() => {});
-      }
+      const sanitized = sanitizeDiaryReaction({
+        ...decrypted,
+        diaryId: decrypted.diaryId || raw.diaryId || snapshot.id,
+      });
 
       onUpdate(sanitized);
     }
@@ -579,7 +587,7 @@ export async function saveDiaryToFirestore(
   });
 
   // 새 일기 작성 완료 시 캐시 무효화 (서재 즉시 갱신 보장)
-  roomDiariesCache.delete(roomCode);
+  invalidateRoomDiariesCache(roomCode);
 }
 
 // 5. 미션 통과 업데이트 (답변 텍스트 암호화)
@@ -605,7 +613,7 @@ export async function updateMissionInFirestore(
     updatedAt: serverTimestamp(),
   }).catch(() => {});
 
-  roomDiariesCache.delete(roomCode);
+  invalidateRoomDiariesCache(roomCode);
 }
 
 // 6. 실링 왁스 개봉 완료 업데이트
@@ -630,7 +638,7 @@ export async function unsealDiaryInFirestore(
   });
 
   // 개봉 상태 갱신 시 캐시 무효화
-  roomDiariesCache.delete(roomCode);
+  invalidateRoomDiariesCache(roomCode);
 }
 
 // 7. 상대방에게 은은한 노크 전송 (메시지 암호화)
@@ -706,11 +714,6 @@ export async function getRoomDiariesFromFirestore(
         diaryId: decrypted.diaryId || raw.diaryId || docSnap.id,
       });
 
-      // Firestore에 오염/누출되어 있던 반응이 있다면 백그라운드에서 자가 치유
-      if (raw.reaction && !sanitized.reaction) {
-        updateDiaryReactionInFirestore(roomCode, sanitized.diaryId, null).catch(() => {});
-      }
-
       list.push(sanitized);
     }
 
@@ -719,7 +722,7 @@ export async function getRoomDiariesFromFirestore(
     const result = limitCount ? sorted.slice(0, limitCount) : sorted;
 
     if (!limitCount && result.length > 0) {
-      roomDiariesCache.set(roomCode, result);
+      setCachedRoomDiaries(roomCode, result);
     }
 
     return result;
@@ -782,7 +785,7 @@ export async function updateDiaryDateInFirestore(
     }
 
     // 3) 서재 메모리 캐시 무효화
-    roomDiariesCache.delete(roomCode);
+    invalidateRoomDiariesCache(roomCode);
 
     return { success: true, newIsoDate };
   } catch (e) {
@@ -798,6 +801,15 @@ export async function updateDiaryReactionInFirestore(
   reaction: DiaryReaction | null
 ): Promise<{ success: boolean }> {
   try {
+    // 1) 서재 메모리 및 sessionStorage 캐시를 즉시 낙관적(Optimistic) 갱신하여 화면 이동 시에도 포스트잇 유지 보장
+    const existingCache = getCachedRoomDiaries(roomCode);
+    if (existingCache && existingCache.length > 0) {
+      const updatedCache = existingCache.map((item) =>
+        item.diaryId === diaryId ? { ...item, reaction } : item
+      );
+      setCachedRoomDiaries(roomCode, updatedCache);
+    }
+
     const diaryRef = doc(db, 'rooms', roomCode, 'diaries', diaryId);
     let sanitizedReaction: Record<string, unknown> | null = null;
     if (reaction) {
@@ -821,8 +833,14 @@ export async function updateDiaryReactionInFirestore(
       updatedAt: serverTimestamp(),
     });
 
-    // 서재 메모리 캐시 무효화
-    roomDiariesCache.delete(roomCode);
+    // 2) Firestore 반영 완료 후에도 최신 캐시 재확인 및 동기화
+    const afterCache = getCachedRoomDiaries(roomCode);
+    if (afterCache && afterCache.length > 0) {
+      const updatedCache = afterCache.map((item) =>
+        item.diaryId === diaryId ? { ...item, reaction } : item
+      );
+      setCachedRoomDiaries(roomCode, updatedCache);
+    }
 
     return { success: true };
   } catch (e) {
@@ -862,7 +880,7 @@ export async function leaveRoomInFirestore(
   try {
     // 🍎 애플 심사위원 및 테스트 전용 방(#777777)은 영구적으로 MATCHED 및 데모 일기 보존
     if (roomCode === '777777') {
-      roomDiariesCache.delete(roomCode);
+      invalidateRoomDiariesCache(roomCode);
       return;
     }
 
@@ -884,7 +902,7 @@ export async function leaveRoomInFirestore(
       updatedAt: serverTimestamp(),
     });
 
-    roomDiariesCache.delete(roomCode);
+    invalidateRoomDiariesCache(roomCode);
     roomSaltCache.delete(roomCode);
   } catch (e) {
     console.warn('Failed to leave room in firestore:', e);

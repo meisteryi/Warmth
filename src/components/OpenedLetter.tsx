@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DiaryData, DiaryReaction, sanitizeDiaryReaction } from '@/types/diary';
 import { generateFallbackWarmth } from '@/lib/gemini';
-import { Feather, Calendar, Heart, MessageSquareQuote, PenLine, ThermometerSun, ThermometerSnowflake, X, Smile, Sparkles, Trash2, Flag, ShieldAlert } from 'lucide-react';
+import { Feather, Calendar, Heart, MessageSquareQuote, PenLine, ThermometerSun, ThermometerSnowflake, X, Flag, ShieldAlert } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 import { updateDiaryReactionInFirestore, getOrCreateUserId, getOrFetchRoomSalt } from '@/lib/roomService';
 import { decryptText } from '@/lib/crypto';
@@ -101,15 +101,17 @@ export default function OpenedLetter({
       return;
     }
 
-    setCurrentReaction(sanitized.reaction || null);
-    if (sanitized.reaction) {
-      setReactionEmoji(sanitized.reaction.emoji || '❤️');
-      setReactionComment(sanitized.reaction.comment || '');
-    } else {
-      setReactionEmoji('❤️');
-      setReactionComment('');
-    }
-  }, [diary.diaryId, diary.reaction, roomCode]);
+    queueMicrotask(() => {
+      setCurrentReaction(sanitized.reaction || null);
+      if (sanitized.reaction) {
+        setReactionEmoji(sanitized.reaction.emoji || '❤️');
+        setReactionComment(sanitized.reaction.comment || '');
+      } else {
+        setReactionEmoji('❤️');
+        setReactionComment('');
+      }
+    });
+  }, [diary, diary.diaryId, diary.reaction, roomCode]);
 
   const handleSaveReaction = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -130,10 +132,12 @@ export default function OpenedLetter({
       setIsReactionModalOpen(false);
       soundEngine.playMissionPassChime();
 
-      if (roomCode) {
+      // 부모 상태(diary / selectedArchiveDiary) 및 로컬 캐시를 즉시 동기화하여 화면 전환 시 증발 방지
+      void onUpdateDiaryReaction?.(diary.diaryId, newReaction, diary.title);
+
+      if (roomCode && diary.diaryId) {
         await updateDiaryReactionInFirestore(roomCode, diary.diaryId, newReaction);
       }
-      onUpdateDiaryReaction?.(diary.diaryId, newReaction, diary.title);
     } catch (err) {
       console.warn('Failed to update diary reaction:', err);
     } finally {
@@ -151,10 +155,11 @@ export default function OpenedLetter({
       setIsReactionModalOpen(false);
       soundEngine.playPaperRustle();
 
-      if (roomCode) {
+      void onUpdateDiaryReaction?.(diary.diaryId, null, diary.title);
+
+      if (roomCode && diary.diaryId) {
         await updateDiaryReactionInFirestore(roomCode, diary.diaryId, null);
       }
-      onUpdateDiaryReaction?.(diary.diaryId, null, diary.title);
     } catch (err) {
       console.warn('Failed to remove diary reaction:', err);
     } finally {

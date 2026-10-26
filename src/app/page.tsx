@@ -1207,10 +1207,10 @@ export default function HomePage() {
       showToast(`💌 편지에 ${reaction.emoji} 포스트잇으로 마음을 남겼습니다.`);
 
       // 상대방에게 백그라운드 Web Push 발송 (앱이 꺼져 있어도 OS 잠금 화면에 알림 표시)
-      if (roomCode) {
+      if (activeRoomCode) {
         try {
           const myUid = getOrCreateUserId();
-          const roomSnap = await getDoc(doc(db, 'rooms', roomCode));
+          const roomSnap = await getDoc(doc(db, 'rooms', activeRoomCode));
           if (roomSnap.exists()) {
             const freshRoom = roomSnap.data() as RoomData;
             const partner = getPartnerMemberInfo(freshRoom, myUid, userName);
@@ -1572,7 +1572,7 @@ export default function HomePage() {
                 onWriteReply={handleOpenWriteModal}
                 onResetView={handleGoHome}
                 userName={userName}
-                roomCode={roomCode}
+                roomCode={activeRoomCode}
                 onUpdateDiaryReaction={handleUpdateDiaryReaction}
                 onBlockPartner={handleLeaveRoom}
               />

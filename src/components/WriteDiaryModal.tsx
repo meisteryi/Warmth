@@ -132,76 +132,80 @@ export default function WriteDiaryModal({
     prevIsOpenRef.current = isOpen;
 
     if (!wasOpen && isOpen) {
-      // 1. 이전 잔여 폼 상태 완전 초기화
-      resetForm();
+      queueMicrotask(() => {
+        // 1. 이전 잔여 폼 상태 완전 초기화
+        resetForm();
 
-      // 2. 스크롤 위치 상단 초기화
-      modalScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
-      modalBackdropRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+        // 2. 스크롤 위치 상단 초기화
+        modalScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+        modalBackdropRef.current?.scrollTo({ top: 0, behavior: 'instant' });
 
-      // 3. initialTitle이 전달되었을 때 반영
-      if (typeof initialTitle === 'string' && initialTitle.trim()) {
-        setTitle(initialTitle.trim());
-      }
+        // 3. initialTitle이 전달되었을 때 반영
+        if (typeof initialTitle === 'string' && initialTitle.trim()) {
+          setTitle(initialTitle.trim());
+        }
 
-      // 4. 캐시된 글감 우선 적용 (API 추가 소모 없이 즉각 반영)
-      const cached = getCachedDailyPrompt();
-      if (cached) {
-        setDailyPrompt(cached);
-      } else {
-        const clean = partnerName && partnerName.trim() && partnerName !== '상대방' && partnerName !== '파트너'
-          ? `${partnerName.trim()}에게`
-          : '너에게';
-        setDailyPrompt(`오늘 하루 중 ${clean} 가장 먼저 말해주고 싶었던 사소한 순간은?`);
+        // 4. 캐시된 글감 우선 적용 (API 추가 소모 없이 즉각 반영)
+        const cached = getCachedDailyPrompt();
+        if (cached) {
+          setDailyPrompt(cached);
+        } else {
+          const clean = partnerName && partnerName.trim() && partnerName !== '상대방' && partnerName !== '파트너'
+            ? `${partnerName.trim()}에게`
+            : '너에게';
+          setDailyPrompt(`오늘 하루 중 ${clean} 가장 먼저 말해주고 싶었던 사소한 순간은?`);
 
-        fetchDailyPrompt(partnerName, false).then((prompt) => {
-          if (prompt) setDailyPrompt(prompt);
-        });
-      }
+          fetchDailyPrompt(partnerName, false).then((prompt) => {
+            if (prompt) setDailyPrompt(prompt);
+          });
+        }
 
-      // 5. 과거 버그로 남았을 수 있는 아웃박스 잔여물 정리
-      if (roomCode) {
+        // 5. 과거 버그로 남았을 수 있는 아웃박스 잔여물 정리
+        if (roomCode) {
+          try {
+            localStorage.removeItem(`warmth_last_outbox_${roomCode}`);
+          } catch { }
+        }
+
+        // 6. 현재 방 및 이번 턴(currentTurnId)의 임시 저장본(draftKey) 확인
         try {
-          localStorage.removeItem(`warmth_last_outbox_${roomCode}`);
-        } catch { }
-      }
+          const raw = localStorage.getItem(draftKey);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            // 상대방 턴이 끝나고 내 턴이 되어 '처음' 여는 경우(저장된 turnId가 없거나 현재 턴과 다름),
+            // 혹은 이미 상대방에게 발송된 내 최신 일기와 내용이 동일한 경우 이전 초안은 즉시 파기하고 배너를 띄우지 않음.
+            const isFromDifferentTurn = !parsed.turnId || parsed.turnId !== currentTurnId;
+            const isAlreadySent = fallbackPreviousDiary &&
+              fallbackPreviousDiary.authorName === currentUserName &&
+              (parsed.content === fallbackPreviousDiary.content || (parsed.title && parsed.title === fallbackPreviousDiary.title));
 
-      // 6. 현재 방 및 이번 턴(currentTurnId)의 임시 저장본(draftKey) 확인
-      try {
-        const raw = localStorage.getItem(draftKey);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          // 상대방 턴이 끝나고 내 턴이 되어 '처음' 여는 경우(저장된 turnId가 없거나 현재 턴과 다름),
-          // 혹은 이미 상대방에게 발송된 내 최신 일기와 내용이 동일한 경우 이전 초안은 즉시 파기하고 배너를 띄우지 않음.
-          const isFromDifferentTurn = !parsed.turnId || parsed.turnId !== currentTurnId;
-          const isAlreadySent = fallbackPreviousDiary &&
-            fallbackPreviousDiary.authorName === currentUserName &&
-            (parsed.content === fallbackPreviousDiary.content || (parsed.title && parsed.title === fallbackPreviousDiary.title));
-
-          if (isFromDifferentTurn || isAlreadySent) {
-            localStorage.removeItem(draftKey);
-            setHasDraftNotice(false);
-            setLastSavedDraftTime(null);
-          } else if (parsed && (parsed.title?.trim() || parsed.content?.trim())) {
-            // 이번 내 턴 중에 작성하다가 나간 적이 있어 임시 저장본이 남아있는 경우에만 임시저장 배너 표시!
-            setHasDraftNotice(true);
-            setLastSavedDraftTime(parsed.savedAt || '이전 저장본');
+            if (isFromDifferentTurn || isAlreadySent) {
+              localStorage.removeItem(draftKey);
+              setHasDraftNotice(false);
+              setLastSavedDraftTime(null);
+            } else if (parsed && (parsed.title?.trim() || parsed.content?.trim())) {
+              // 이번 내 턴 중에 작성하다가 나간 적이 있어 임시 저장본이 남아있는 경우에만 임시저장 배너 표시!
+              setHasDraftNotice(true);
+              setLastSavedDraftTime(parsed.savedAt || '이전 저장본');
+            } else {
+              setHasDraftNotice(false);
+              setLastSavedDraftTime(null);
+            }
           } else {
             setHasDraftNotice(false);
             setLastSavedDraftTime(null);
           }
-        } else {
+        } catch {
           setHasDraftNotice(false);
           setLastSavedDraftTime(null);
         }
-      } catch {
+      });
+    } else if (wasOpen && !isOpen) {
+      queueMicrotask(() => {
         setHasDraftNotice(false);
         setLastSavedDraftTime(null);
-      }
-    } else if (wasOpen && !isOpen) {
-      setHasDraftNotice(false);
-      setLastSavedDraftTime(null);
-      resetForm();
+        resetForm();
+      });
     }
   }, [isOpen, draftKey, roomCode, initialTitle, partnerName, currentUserName, fallbackPreviousDiary, resetForm, currentTurnId]);
 
@@ -503,12 +507,21 @@ export default function WriteDiaryModal({
       }
 
       // 사용자가 지정한 일기 날짜(diaryDate) 반영
-      let diaryCreatedAt = new Date().toISOString();
-      if (diaryDate) {
+      // 오늘 날짜인 경우 실제 현재 작성 시각을 그대로 보존하고, 과거/다른 날짜를 지정한 경우에도 현재 시/분/초를 유지하여
+      // 오전(00:00~11:59)에 작성된 일기의 createdAt이 미래(정오 12:00)로 설정되는 문제를 방지합니다.
+      const now = new Date();
+      let diaryCreatedAt = now.toISOString();
+      if (diaryDate && diaryDate !== getTodayDateString()) {
         try {
           const [year, month, day] = diaryDate.split('-').map(Number);
-          // 정오(12:00:00) 로컬 타임으로 생성하여 타임존(UTC) 변환 시 날짜 역전 방지
-          const selectedDate = new Date(year, month - 1, day, 12, 0, 0);
+          const selectedDate = new Date(
+            year,
+            month - 1,
+            day,
+            now.getHours(),
+            now.getMinutes(),
+            now.getSeconds()
+          );
           if (!isNaN(selectedDate.getTime())) {
             diaryCreatedAt = selectedDate.toISOString();
           }

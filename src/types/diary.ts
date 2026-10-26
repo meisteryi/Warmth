@@ -173,35 +173,17 @@ export interface DiaryData {
 }
 
 /**
- * 일기 객체에 부착된 포스트잇 반응(reaction) 유효성 검증 및 유령/누출 반응 정화
- * 1. 아직 개봉되지 않은 일기(!isWaxBroken || !openedAt)는 물리적으로 반응이 존재할 수 없음
- * 2. 반응 시점(reactedAt)이 일기 작성 시점(createdAt)보다 이전이면 이전 일기에서 복사/누출된 유령 반응임
- * 3. 반응 시점(reactedAt)이 일기 개봉 시점(openedAt)보다 이전이면 유령 반응임
+ * 일기 객체에 부착된 포스트잇 반응(reaction) 유효성 검증
+ * - 아직 개봉되지 않은 일기(!isWaxBroken)는 봉인 상태이므로 반응을 노출하지 않음
+ * - 주의: 일기 작성 시점(createdAt 정오 보정)이나 날짜 사후 수정, 기기 간 시계 오차로 인해
+ *   정상 등록된 포스트잇이 삭제되지 않도록 타임스탬프 역전 비교로 반응을 폐기하지 않음
  */
 export function sanitizeDiaryReaction(diary: DiaryData): DiaryData {
   if (!diary || !diary.reaction) return diary;
 
-  // 1. 미개봉 일기는 포스트잇 반응을 가질 수 없음 (개봉 전 봉인 상태)
-  if (!diary.isWaxBroken) {
+  // 최소 필수 필드(emoji) 검증
+  if (typeof diary.reaction.emoji !== 'string' || !diary.reaction.emoji.trim()) {
     return { ...diary, reaction: null };
-  }
-
-  // 2. 반응 시점(reactedAt)이 일기 작성 시점(createdAt)보다 이전인 경우 (시계 오차 1분 허용)
-  if (diary.reaction.reactedAt && diary.createdAt) {
-    const reactedMs = new Date(diary.reaction.reactedAt).getTime();
-    const createdMs = new Date(diary.createdAt).getTime();
-    if (!isNaN(reactedMs) && !isNaN(createdMs) && reactedMs < createdMs - 60000) {
-      return { ...diary, reaction: null };
-    }
-  }
-
-  // 3. 반응 시점(reactedAt)이 일기 개봉 시점(openedAt)보다 이전인 경우 (시계 오차 1분 허용)
-  if (diary.reaction.reactedAt && diary.openedAt) {
-    const reactedMs = new Date(diary.reaction.reactedAt).getTime();
-    const openedMs = new Date(diary.openedAt).getTime();
-    if (!isNaN(reactedMs) && !isNaN(openedMs) && reactedMs < openedMs - 60000) {
-      return { ...diary, reaction: null };
-    }
   }
 
   return diary;
