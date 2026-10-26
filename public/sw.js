@@ -1,7 +1,6 @@
-// 온기 (Warmth) Service Worker for Web Push & Offline Support
-const SW_VERSION = '2026-10-26-v7';
+// 온기 (Warmth) Service Worker for Web Push & Offline Support (v2026-10-26-v7)
 
-self.addEventListener('install', (event) => {
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
@@ -23,7 +22,7 @@ self.addEventListener('push', (event) => {
     try {
       const payload = event.data.json();
       data = { ...data, ...payload };
-    } catch (e) {
+    } catch {
       data.body = event.data.text();
     }
   }

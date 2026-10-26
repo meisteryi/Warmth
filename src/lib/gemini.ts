@@ -6,7 +6,17 @@ import { getSecureGeminiKey } from './secureKeys';
  * Vercel 등 백엔드 지원 환경에서는 API 키가 클라이언트에 전혀 노출되지 않습니다.
  * 정적 호스팅(GitHub Pages 등) 환경에서는 클라이언트 폴백으로 원활히 작동합니다.
  */
-async function callGeminiProxy(action: string, payload: any): Promise<any | null> {
+interface GeminiProxyResponse {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string;
+      }>;
+    };
+  }>;
+}
+
+async function callGeminiProxy(action: string, payload: Record<string, unknown>): Promise<GeminiProxyResponse | null> {
   try {
     const res = await fetch('/api/gemini/', {
       method: 'POST',

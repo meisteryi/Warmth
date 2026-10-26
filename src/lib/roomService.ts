@@ -798,7 +798,7 @@ export async function updateDiaryReactionInFirestore(
 ): Promise<{ success: boolean }> {
   try {
     const diaryRef = doc(db, 'rooms', roomCode, 'diaries', diaryId);
-    let sanitizedReaction: Record<string, any> | null = null;
+    let sanitizedReaction: Record<string, unknown> | null = null;
     if (reaction) {
       sanitizedReaction = {
         emoji: reaction.emoji || '❤️',
@@ -836,6 +836,7 @@ export async function getLatestReadDiaryForPartner(
   myUserName: string,
   _partnerName?: string
 ): Promise<DiaryData | null> {
+  void _partnerName;
   try {
     // 최근 10건 내에서 내가 작성했고 상대방이 이미 읽은 일기 탐색
     const list = await getRoomDiariesFromFirestore(roomCode, 10);
@@ -920,7 +921,7 @@ export async function savePushSubscriptionToRoom(
     if (!snap.exists()) return;
     const room = snap.data() as RoomData;
     const subString = JSON.stringify(subscription);
-    const updates: Record<string, any> = {
+    const updates: Record<string, unknown> = {
       updatedAt: serverTimestamp(),
     };
 
@@ -938,7 +939,7 @@ export async function savePushSubscriptionToRoom(
     if (userNickname) {
       const cleanNick = userNickname.trim().toLowerCase();
       const matchedEntry = Object.entries(memberInfo).find(
-        ([_, info]) => (info?.nickname || '').trim().toLowerCase() === cleanNick
+        (entry) => (entry[1]?.nickname || '').trim().toLowerCase() === cleanNick
       );
       if (matchedEntry) {
         updates[`memberInfo.${matchedEntry[0]}.pushSubscription`] = subString;
@@ -974,8 +975,8 @@ export function getPartnerMemberInfo(
 
   // 1. 닉네임이 다른 엔트리 우선 탐색 (가장 정확)
   if (normalizedMyNick) {
-    const partnerByNick = entries.find(([_, info]) => {
-      const nick = (info?.nickname || '').trim().toLowerCase();
+    const partnerByNick = entries.find((entry) => {
+      const nick = (entry[1]?.nickname || '').trim().toLowerCase();
       return Boolean(nick) && nick !== normalizedMyNick;
     });
     if (partnerByNick) {

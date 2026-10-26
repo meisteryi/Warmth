@@ -124,7 +124,7 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
  * 백엔드 서버 푸시(/api/push)를 통해 상대방 기기의 OS 화면에 알림 전송 (앱이 꺼져 있어도 수신됨)
  */
 export async function sendServerWebPush(
-  subscription: any,
+  subscription: PushSubscription | PushSubscriptionJSON | Record<string, unknown> | string | null | undefined,
   title: string,
   body: string,
   tag?: string

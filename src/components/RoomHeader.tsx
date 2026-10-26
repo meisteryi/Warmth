@@ -101,6 +101,14 @@ export default function RoomHeader({
     const status = getNotificationStatus();
     setNotifPermission(status.permission);
     setVolume(soundEngine.getVolume());
+
+    const handlePermissionGranted = () => {
+      setNotifPermission('granted');
+    };
+    window.addEventListener('warmth-notification-permission-granted', handlePermissionGranted);
+    return () => {
+      window.removeEventListener('warmth-notification-permission-granted', handlePermissionGranted);
+    };
   }, []);
 
   // 외부 클릭 또는 ESC 키 누름 시 메뉴 닫기 (토글 버튼 클릭 시에는 버튼 onClick에서 안전하게 토글되도록 제외)
@@ -144,6 +152,7 @@ export default function RoomHeader({
 
   const handleToggleNotification = async () => {
     if (notifPermission === 'granted') {
+      window.dispatchEvent(new CustomEvent('warmth-notification-permission-granted'));
       alert('이미 알림 권한이 허용되어 있습니다. 새로운 편지나 노크가 올 때 알림이 전달됩니다.');
       return;
     }
