@@ -132,7 +132,7 @@ export async function sendServerWebPush(
   if (!subscription) return false;
   try {
     const subObj = typeof subscription === 'string' ? JSON.parse(subscription) : subscription;
-    const res = await fetch('/api/push', {
+    const res = await fetch('/api/push/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

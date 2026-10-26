@@ -921,20 +921,38 @@ export async function savePushSubscriptionToRoom(
     const room = snap.data() as RoomData;
     const subString = JSON.stringify(subscription);
     const updates: Record<string, any> = {
-      [`memberInfo.${uid}.pushSubscription`]: subString,
       updatedAt: serverTimestamp(),
     };
 
-    // 닉네임이 전달된 경우, 해당 닉네임을 가진 방 멤버 슬롯에도 동시에 저장하여 UID 불일치 방지
-    if (userNickname && room.memberInfo) {
+    const memberInfo = room.memberInfo || {};
+    const existingKeys = Object.keys(memberInfo);
+    let targetMatched = false;
+
+    // 1. 전달된 uid가 이미 방의 memberInfo 슬롯에 존재하는 경우 업데이트
+    if (memberInfo[uid]) {
+      updates[`memberInfo.${uid}.pushSubscription`] = subString;
+      targetMatched = true;
+    }
+
+    // 2. 닉네임이 일치하는 기존 방 멤버 슬롯이 있으면 해당 슬롯에 저장 (UID 불일치 및 3번째 멤버 키 생성으로 인한 보안 규칙 거부 방지)
+    if (userNickname) {
       const cleanNick = userNickname.trim().toLowerCase();
-      const matchedEntry = Object.entries(room.memberInfo).find(
+      const matchedEntry = Object.entries(memberInfo).find(
         ([_, info]) => (info?.nickname || '').trim().toLowerCase() === cleanNick
       );
-      if (matchedEntry && matchedEntry[0] !== uid) {
+      if (matchedEntry) {
         updates[`memberInfo.${matchedEntry[0]}.pushSubscription`] = subString;
+        targetMatched = true;
       }
     }
+
+    // 3. 아직 방 정원(2명) 미만이고 매칭된 슬롯이 없을 때만 현재 uid 슬롯에 저장
+    if (!targetMatched && existingKeys.length < 2) {
+      updates[`memberInfo.${uid}.pushSubscription`] = subString;
+      targetMatched = true;
+    }
+
+    if (!targetMatched) return;
 
     await updateDoc(roomRef, updates);
   } catch (e) {

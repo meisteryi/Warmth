@@ -239,6 +239,8 @@ export default function HomePage() {
   const handledDiaryIdRef = useRef<string | null>(null);
   const diaryUnsubRef = useRef<(() => void) | null>(null);
   const currentDiaryRef = useRef<DiaryData | null>(null);
+  const isInitialDiarySyncDoneRef = useRef<boolean>(false);
+  const notifiedDiaryArrivalIdRef = useRef<string | null>(null);
 
   // 상대방 연결 해제 수신 모달 상태
   const [isPartnerDisconnectedModalOpen, setIsPartnerDisconnectedModalOpen] = useState(false);
@@ -482,7 +484,6 @@ export default function HomePage() {
         setUserName(savedUser);
         setPartnerName(savedPartner);
         setUiState('VIEW_HOME'); // ★ 지연 없이 즉시 둘만의 서재 홈으로 세팅 (온보딩 깜빡임 원천 차단)
-        syncPushSubscription(savedRoom);
 
         (async () => {
           try {
@@ -524,6 +525,10 @@ export default function HomePage() {
                   sessionStore.set(STORAGE_KEYS.PARTNER_NAME, pName);
                 }
               }
+
+              // 본인 실제 방 UID 바인딩 완료 후 푸시 구독 동기화 (3번째 멤버 키 생성으로 인한 보안 규칙 거부 원천 방지)
+              syncPushSubscription(savedRoom);
+
               // 🍎 24시간 동안 매칭되지 않고 방치된 미연결 방인지 안전 검증 (연결된 방은 절대 만료되지 않음)
               if (isRoomUnmatchedExpired(loadedRoomData)) {
                 deleteDoc(doc(db, 'rooms', savedRoom)).catch(() => {});
@@ -551,12 +556,18 @@ export default function HomePage() {
                 if (diarySnap.exists()) {
                   const rawDiary = diarySnap.data() as DiaryData;
                   const decrypted = await decryptDiaryData(savedRoom, rawDiary, loadedRoomData.roomSalt);
+                  currentDiaryRef.current = decrypted;
+                  handledDiaryIdRef.current = loadedRoomData.latestDiaryId;
+                  isInitialDiarySyncDoneRef.current = true;
                   setDiary(decrypted);
                   setUiState('VIEW_HOME');
                   return;
                 }
               }
               // 일기가 아직 없는 방 -> 커플 홈 화면으로 복귀
+              currentDiaryRef.current = null;
+              handledDiaryIdRef.current = null;
+              isInitialDiarySyncDoneRef.current = true;
               setDiary(null);
               setUiState('VIEW_HOME');
               setIsWriteModalOpen(false);
@@ -691,18 +702,42 @@ export default function HomePage() {
             setIsKnockModalOpen(true);
             const knockSender = decryptedKnock?.senderName || partnerName || '상대방';
             const knockMsg = decryptedKnock?.message || '똑똑, 교환일기 왔어요!';
-            // 사용자가 화면을 보고 있지 않을 때(백그라운드 탭)에만 로컬 시스템 알림 발송
-            if (typeof document !== 'undefined' && document.hidden) {
+            // 앱이 백그라운드이거나 다른 창을 사용 중(포커스 없음)일 때 로컬 시스템 알림 발송
+            const isAppNotFocused = typeof document !== 'undefined' && (document.hidden || !document.hasFocus());
+            if (isAppNotFocused) {
               sendLocalNotification('🔔 노크가 도착했습니다!', `${knockSender}: "${knockMsg}"`, 'warmth-knock');
             }
           }
         }
+      } else if (!handledKnockTimeRef.current) {
+        // 최초 마운트 시점에 노크가 없었음을 기록하여, 방의 '첫 번째 노크'도 정상 알림이 울리도록 처리
+        handledKnockTimeRef.current = '__INITIAL_NONE__';
       }
 
       // 2. 방에 최신 일기(latestDiaryId)가 업데이트되었을 때 실시간 동기화 & E2EE 복호화
       if (room.latestDiaryId) {
         if (room.latestDiaryId !== handledDiaryIdRef.current || !diaryUnsubRef.current) {
+          const prevHandledId = handledDiaryIdRef.current;
           handledDiaryIdRef.current = room.latestDiaryId;
+
+          // 백그라운드/비포커스 상태에서 상대방의 새 일기 도착이 감지되면, 무거운 사진 복호화 전에 노크처럼 즉시(1ms) OS 알림 발송
+          const isTurnForMe = room.currentTurn === userName || room.currentTurn === getOrCreateUserId();
+          const isAppNotFocusedNow = typeof document !== 'undefined' && (document.hidden || !document.hasFocus());
+          if (
+            isInitialDiarySyncDoneRef.current &&
+            prevHandledId !== room.latestDiaryId &&
+            isTurnForMe &&
+            isAppNotFocusedNow &&
+            notifiedDiaryArrivalIdRef.current !== room.latestDiaryId
+          ) {
+            notifiedDiaryArrivalIdRef.current = room.latestDiaryId;
+            sendLocalNotification(
+              '📬 새 편지가 도착했습니다!',
+              `${partnerName || '상대방'} 님이 비밀 편지를 봉인하여 보냈습니다.`,
+              `warmth-diary-${room.latestDiaryId}`
+            );
+          }
+
           if (diaryUnsubRef.current) {
             diaryUnsubRef.current();
             diaryUnsubRef.current = null;
@@ -710,17 +745,20 @@ export default function HomePage() {
 
           diaryUnsubRef.current = subscribeDiary(roomCode, room.latestDiaryId, (latestDiary) => {
             const prev = currentDiaryRef.current;
-            const isTabHidden = typeof document !== 'undefined' && document.hidden;
+            const isAppNotFocused = typeof document !== 'undefined' && (document.hidden || !document.hasFocus());
 
-            // 최초 로드 시점(prev === null)에는 현재 상태만 저장하고 중복 알림은 절대 발송하지 않음
-            if (!prev) {
+            // 앱 최초 로드 시점(첫 동기화)에는 현재 상태만 저장하고 중복 알림은 발송하지 않음 (단, 빈방에서 도착한 '첫 편지'는 알림 발송)
+            if (!prev && !isInitialDiarySyncDoneRef.current) {
+              isInitialDiarySyncDoneRef.current = true;
               currentDiaryRef.current = latestDiary;
               setDiary(latestDiary);
               return;
             }
+            isInitialDiarySyncDoneRef.current = true;
 
             // 1) 내가 보낸 편지를 상대방이 개봉했을 때 실시간 감지 & 차임벨 & 축하 토스트
             if (
+              prev &&
               prev.diaryId === latestDiary.diaryId &&
               !prev.isWaxBroken &&
               latestDiary.isWaxBroken &&
@@ -729,8 +767,7 @@ export default function HomePage() {
               soundEngine.playWaxCrackSound();
               const toastMsg = `💌 ${partnerName} 님이 내가 보낸 편지의 실링 왁스를 개봉했습니다! 💖`;
               showToast(toastMsg);
-              // 앱 화면이 백그라운드에 숨겨져 있을 때만 OS 알림 배너 전달
-              if (isTabHidden) {
+              if (isAppNotFocused) {
                 sendLocalNotification(
                   '💌 편지 개봉 알림',
                   `${partnerName} 님이 내가 보낸 편지의 실링 왁스를 개봉했습니다!`,
@@ -739,17 +776,17 @@ export default function HomePage() {
               }
             }
 
-            // 2) 상대방이 작성한 새 편지가 실시간 도착했을 때
+            // 2) 상대방이 작성한 새 편지가 실시간 도착했을 때 (방의 첫 번째 편지 포함)
             if (
-              prev.diaryId !== latestDiary.diaryId &&
+              (!prev || prev.diaryId !== latestDiary.diaryId) &&
               latestDiary.authorName !== userName &&
               !latestDiary.isWaxBroken
             ) {
               soundEngine.playPaperRustle();
               const toastMsg = `📬 ${latestDiary.authorName} 님에게서 새 편지가 도착했습니다!`;
               showToast(toastMsg);
-              // 앱 화면이 백그라운드에 숨겨져 있을 때만 OS 알림 배너 전달
-              if (isTabHidden) {
+              if (isAppNotFocused && notifiedDiaryArrivalIdRef.current !== latestDiary.diaryId) {
+                notifiedDiaryArrivalIdRef.current = latestDiary.diaryId;
                 sendLocalNotification(
                   '📬 새 편지가 도착했습니다!',
                   `${latestDiary.authorName} 님이 비밀 편지를 봉인하여 보냈습니다.`,
@@ -761,6 +798,7 @@ export default function HomePage() {
 
             // 3) 내가 쓴 편지에 상대방이 이모티콘 마음 반응(포스트잇)을 남겼거나 변경했을 때 실시간 감지
             if (
+              prev &&
               prev.diaryId === latestDiary.diaryId &&
               latestDiary.reaction &&
               prev.reaction?.emoji !== latestDiary.reaction.emoji &&
@@ -771,8 +809,7 @@ export default function HomePage() {
               const cleanComment = latestDiary.reaction.comment ? `: "${latestDiary.reaction.comment.trim()}"` : '';
               const toastMsg = `💌 ${reactor} 님이 편지에 ${latestDiary.reaction.emoji} 반응을 남겼습니다! ✨${cleanComment}`;
               showToast(toastMsg);
-              // 앱 화면이 백그라운드에 숨겨져 있을 때만 OS 알림 배너 전달
-              if (isTabHidden) {
+              if (isAppNotFocused) {
                 sendLocalNotification(
                   '📌 포스트잇 마음 알림',
                   `${reactor} 님이 편지에 ${latestDiary.reaction.emoji} 포스트잇을 남겼어요${cleanComment}`,
@@ -792,6 +829,7 @@ export default function HomePage() {
         }
         handledDiaryIdRef.current = null;
         currentDiaryRef.current = null;
+        isInitialDiarySyncDoneRef.current = true;
         setDiary(null);
       }
 
@@ -839,6 +877,22 @@ export default function HomePage() {
               if (dSnap.exists()) {
                 const rawDiary = dSnap.data() as DiaryData;
                 const decrypted = await decryptDiaryData(roomCode, rawDiary, freshRoom.roomSalt);
+                const prev = currentDiaryRef.current;
+
+                // 화면 복귀 시점에 새로 도착한 편지가 발견되면 알림이 삼켜지지 않도록 효과음 및 토스트 표시
+                if (
+                  isInitialDiarySyncDoneRef.current &&
+                  (!prev || prev.diaryId !== decrypted.diaryId) &&
+                  decrypted.authorName !== userName &&
+                  !decrypted.isWaxBroken
+                ) {
+                  soundEngine.playPaperRustle();
+                  showToast(`📬 ${decrypted.authorName} 님에게서 새 편지가 도착했습니다!`);
+                  setUiState((p) => (p === 'VIEW_WAITING' || p === 'VIEW_EMPTY' ? 'VIEW_HOME' : p));
+                }
+
+                isInitialDiarySyncDoneRef.current = true;
+                handledDiaryIdRef.current = freshRoom.latestDiaryId;
                 currentDiaryRef.current = decrypted;
                 setDiary(decrypted);
               }
