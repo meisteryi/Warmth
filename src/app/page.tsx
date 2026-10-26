@@ -210,7 +210,9 @@ export default function HomePage() {
   // 방 코드가 state에 동기화되지 않은 경우 즉시 동기화
   useEffect(() => {
     if (activeRoomCode && roomCode !== activeRoomCode) {
-      setRoomCode(activeRoomCode);
+      queueMicrotask(() => {
+        setRoomCode(activeRoomCode);
+      });
     }
   }, [activeRoomCode, roomCode]);
 
@@ -306,7 +308,9 @@ export default function HomePage() {
 
   // 앱 진입 시 온기 브랜드 스플래시 화면 (0.8초 동안 우아하게 유지 후 부드러운 페이드아웃)
   useEffect(() => {
-    setIsMounted(true);
+    queueMicrotask(() => {
+      setIsMounted(true);
+    });
     const splashTimer = setTimeout(() => {
       setShowSplash(false);
     }, 850);
@@ -456,22 +460,22 @@ export default function HomePage() {
     if (typeof window === 'undefined') return;
     try {
       const isDismissed = sessionStorage.getItem('warmth_dismiss_notif_banner') === 'true';
-      if (
+      const shouldShow =
         !isDismissed &&
         'Notification' in window &&
         Notification.permission === 'default' &&
-        uiState !== 'VIEW_ONBOARDING'
-      ) {
-        setShowNotifPromptBanner(true);
-      } else {
-        setShowNotifPromptBanner(false);
-      }
+        uiState !== 'VIEW_ONBOARDING';
+      queueMicrotask(() => {
+        setShowNotifPromptBanner(shouldShow);
+      });
     } catch {}
   }, [uiState]);
 
   // 1. 앱 마운트 시 저장된 세션(방 코드 및 닉네임) 자동 복구 & 재접속 및 서비스 워커 등록
   useEffect(() => {
-    setIsMounted(true);
+    queueMicrotask(() => {
+      setIsMounted(true);
+    });
     if (typeof window === 'undefined') return;
     registerServiceWorker();
     try {
@@ -480,10 +484,12 @@ export default function HomePage() {
       const savedPartner = sessionStore.get(STORAGE_KEYS.PARTNER_NAME);
 
       if (savedRoom && savedUser && savedPartner) {
-        setRoomCode(savedRoom);
-        setUserName(savedUser);
-        setPartnerName(savedPartner);
-        setUiState('VIEW_HOME'); // ★ 지연 없이 즉시 둘만의 서재 홈으로 세팅 (온보딩 깜빡임 원천 차단)
+        queueMicrotask(() => {
+          setRoomCode(savedRoom);
+          setUserName(savedUser);
+          setPartnerName(savedPartner);
+          setUiState('VIEW_HOME'); // ★ 지연 없이 즉시 둘만의 서재 홈으로 세팅 (온보딩 깜빡임 원천 차단)
+        });
 
         (async () => {
           try {
@@ -495,12 +501,12 @@ export default function HomePage() {
 
               if (loadedRoomData.memberInfo) {
                 const myUid = getOrCreateUserId();
-                const entry = Object.entries(loadedRoomData.memberInfo).find(([uid, info]: any) => {
+                const entry = Object.entries(loadedRoomData.memberInfo).find(([uid, info]) => {
                   return uid === myUid || (info.nickname && info.nickname.trim().toLowerCase() === savedUser.trim().toLowerCase());
                 });
                 if (entry) {
-                  const myInfo = entry[1] as any;
-                  const role = myInfo.role as 'CREATOR' | 'PARTNER';
+                  const myInfo = entry[1];
+                  const role = myInfo.role;
                   setUserRole(role);
                   sessionStore.set(STORAGE_KEYS.USER_ROLE, role);
                   // Firestore 방에 등록된 본인 실제 UID로 확정 바인딩
@@ -513,14 +519,14 @@ export default function HomePage() {
                 }
 
                 // 상대방 정보 동기화 (상대방이 닉네임을 변경한 경우 자동 반영, 본인 닉네임과 중복 방지)
-                const currentMe = savedUser || userName;
-                const partnerEntry = Object.entries(loadedRoomData.memberInfo).find(([uid, info]: any) => {
+                const currentMe = savedUser;
+                const partnerEntry = Object.entries(loadedRoomData.memberInfo).find(([uid, info]) => {
                   const isNotMeByUid = uid !== myUid;
                   const isNotMeByName = !currentMe || (info?.nickname && info.nickname.trim().toLowerCase() !== currentMe.trim().toLowerCase());
                   return isNotMeByUid && isNotMeByName;
                 }) || Object.entries(loadedRoomData.memberInfo).find(([uid]) => uid !== myUid);
-                if (partnerEntry && (partnerEntry[1] as any)?.nickname) {
-                  const pName = (partnerEntry[1] as any).nickname;
+                if (partnerEntry && partnerEntry[1]?.nickname) {
+                  const pName = partnerEntry[1].nickname;
                   setPartnerName(pName);
                   sessionStore.set(STORAGE_KEYS.PARTNER_NAME, pName);
                 }
@@ -587,7 +593,7 @@ export default function HomePage() {
     } catch (e) {
       console.warn('Failed to load session:', e);
     }
-  }, [syncPushSubscription]);
+  }, [syncPushSubscription, showToast]);
 
   // 실시간 Firestore 룸 및 일기 구독 (상대방의 노크 및 새 일기 실시간 감지 + E2EE 복호화 + 웹 푸시 알림)
   useEffect(() => {
@@ -857,7 +863,7 @@ export default function HomePage() {
         diaryUnsubRef.current = null;
       }
     };
-  }, [roomCode, userName, partnerName]);
+  }, [roomCode, userName, partnerName, showToast, syncPushSubscription]);
 
   // 모바일 PWA 환경 백그라운드 복귀(잠금 해제, 앱 전환) 시 최신 방/일기 즉각 재검증
   useEffect(() => {
@@ -910,7 +916,7 @@ export default function HomePage() {
       document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
       window.removeEventListener('focus', handleVisibilityOrFocus);
     };
-  }, [roomCode]);
+  }, [roomCode, userName, showToast]);
 
   // 0. 초대코드 매칭 완료 처리
   const handleMatched = async (code: string, me: string, partner: string, role?: 'CREATOR' | 'PARTNER') => {
