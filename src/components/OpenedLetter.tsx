@@ -6,7 +6,7 @@ import { DiaryData, DiaryReaction, sanitizeDiaryReaction } from '@/types/diary';
 import { generateFallbackWarmth } from '@/lib/gemini';
 import { Feather, Calendar, Heart, MessageSquareQuote, PenLine, ThermometerSun, ThermometerSnowflake, X, Smile, Sparkles, Trash2, Flag, ShieldAlert } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
-import { updateDiaryReactionInFirestore, getOrCreateUserId } from '@/lib/roomService';
+import { updateDiaryReactionInFirestore, getOrCreateUserId, getOrFetchRoomSalt } from '@/lib/roomService';
 import { decryptText } from '@/lib/crypto';
 import { soundEngine } from '@/lib/audio';
 import { forceScrollToTop } from '@/lib/scrollUtils';
@@ -84,7 +84,8 @@ export default function OpenedLetter({
 
     // 만약 반응 코멘트가 아직 암호문(e2ee:v1:...) 상태라면 즉시 E2EE 복호화 수행
     if (comment && comment.startsWith('e2ee:v1:') && roomCode) {
-      decryptText(roomCode, comment)
+      getOrFetchRoomSalt(roomCode)
+        .then((roomSalt) => decryptText(roomCode, comment, roomSalt))
         .then((decrypted) => {
           const fixedReaction = {
             ...sanitized.reaction!,

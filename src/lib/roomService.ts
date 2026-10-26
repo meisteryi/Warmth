@@ -22,6 +22,7 @@ import {
   encryptText,
   generateRoomSalt 
 } from './crypto';
+import { analyzeWarmthTemperature } from './gemini';
 
 // 방 고유 솔트 메모리 캐시 (불필요한 Firestore 반복 조회 방지)
 const roomSaltCache = new Map<string, string>();
@@ -1004,5 +1005,82 @@ export async function updateUserProfileInFirestore(
     return false;
   }
 }
+
+const activeWarmthBackfillRooms = new Set<string>();
+
+// 14. 기존 저장된 편지들에 대해 1회 한정 Gemini AI 온기 온도·코멘트·해시태그 일괄 적용
+export async function backfillRoomDiariesWarmthOnce(
+  roomCode: string,
+  onUpdated?: (updatedDiaries: DiaryData[]) => void
+): Promise<void> {
+  if (!roomCode || roomCode === '777777' || typeof window === 'undefined') return;
+
+  const storageKey = `warmth_gemini_warmth_backfill_v1_${roomCode}`;
+  try {
+    if (localStorage.getItem(storageKey) === 'done') return;
+  } catch {}
+
+  if (activeWarmthBackfillRooms.has(roomCode)) return;
+  activeWarmthBackfillRooms.add(roomCode);
+
+  try {
+    const diaries = await getRoomDiariesFromFirestore(roomCode);
+    if (!diaries || diaries.length === 0) {
+      try {
+        localStorage.setItem(storageKey, 'done');
+      } catch {}
+      return;
+    }
+
+    let anyUpdated = false;
+    const updatedList = [...diaries];
+
+    for (let i = 0; i < updatedList.length; i++) {
+      const d = updatedList[i];
+      if (!d.diaryId) continue;
+
+      const titleText = (d.title || '').trim();
+      const contentText = (d.content || '').trim();
+      if (
+        !contentText ||
+        contentText.startsWith('e2ee:v1:') ||
+        contentText.startsWith('[🔒')
+      ) {
+        continue;
+      }
+
+      try {
+        const aiScore = await analyzeWarmthTemperature(
+          titleText,
+          contentText,
+          d.authorName || '',
+          d.recipientName || ''
+        );
+        if (aiScore && typeof aiScore.temperature === 'number') {
+          const diaryRef = doc(db, 'rooms', roomCode, 'diaries', d.diaryId);
+          await updateDoc(diaryRef, { warmthScore: aiScore });
+          updatedList[i] = { ...d, warmthScore: aiScore };
+          anyUpdated = true;
+        }
+      } catch (err) {
+        console.warn('Warmth backfill item skipped:', d.diaryId, err);
+      }
+    }
+
+    if (anyUpdated) {
+      setCachedRoomDiaries(roomCode, updatedList);
+      onUpdated?.(updatedList);
+    }
+
+    try {
+      localStorage.setItem(storageKey, 'done');
+    } catch {}
+  } catch (e) {
+    console.warn('Warmth backfill error:', e);
+  } finally {
+    activeWarmthBackfillRooms.delete(roomCode);
+  }
+}
+
 
 

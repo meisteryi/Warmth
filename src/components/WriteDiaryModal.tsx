@@ -491,7 +491,7 @@ export default function WriteDiaryModal({
       try {
         warmthScore = await Promise.race([
           fetchWarmthScore(title, content, currentUserName, partnerName),
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500)),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 7000)),
         ]);
       } catch {
         warmthScore = null;

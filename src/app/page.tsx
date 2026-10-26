@@ -47,7 +47,8 @@ import {
   savePushSubscriptionToRoom,
   getPartnerMemberInfo,
   updateUserProfileInFirestore,
-  isRoomUnmatchedExpired
+  isRoomUnmatchedExpired,
+  backfillRoomDiariesWarmthOnce
 } from '@/lib/roomService';
 import { decryptDiaryData, decryptKnockData } from '@/lib/crypto';
 import { doc, getDoc, deleteDoc } from 'firebase/firestore';
@@ -581,6 +582,19 @@ export default function HomePage() {
   useEffect(() => {
     if (!roomCode) return;
     const myUid = getOrCreateUserId();
+
+    // 기존 저장된 편지들에 대해 1회 한정 Gemini AI 온기 온도·코멘트·해시태그 자동 적용
+    backfillRoomDiariesWarmthOnce(roomCode, (updatedDiaries) => {
+      const curr = currentDiaryRef.current;
+      if (curr?.diaryId) {
+        const matched = updatedDiaries.find((d) => d.diaryId === curr.diaryId);
+        if (matched?.warmthScore) {
+          const next = { ...curr, warmthScore: matched.warmthScore };
+          currentDiaryRef.current = next;
+          setDiary(next);
+        }
+      }
+    });
 
     const unsubscribe = subscribeRoom(roomCode, async (room) => {
       if (isLeavingRef.current) return;

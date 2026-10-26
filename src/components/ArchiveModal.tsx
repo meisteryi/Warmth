@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DiaryData, sanitizeDiaryReaction } from '@/types/diary';
-import { getRoomDiariesFromFirestore, getCachedRoomDiaries } from '@/lib/roomService';
+import { getRoomDiariesFromFirestore, getCachedRoomDiaries, backfillRoomDiariesWarmthOnce } from '@/lib/roomService';
 import { generateFallbackWarmth } from '@/lib/gemini';
 import { 
   BookOpen, 
@@ -145,6 +145,11 @@ export default function ArchiveModal({
       const sanitized = maskUnopenedDiaries(list, currentUserName);
       setDiaries(sanitized);
       setLoadError(null);
+
+      // 기존 편지에 대해 1회 한정 Gemini AI 온기 측정 백필
+      backfillRoomDiariesWarmthOnce(roomCode, (updatedList) => {
+        setDiaries(maskUnopenedDiaries(updatedList, currentUserName));
+      });
     } catch (e) {
       console.warn('Failed to fetch archive:', e);
       isCompleted = true;

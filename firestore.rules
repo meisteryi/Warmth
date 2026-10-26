@@ -63,12 +63,22 @@ service cloud.firestore {
       return data.roomId == current.roomId &&
              data.roomCode == current.roomCode &&
              data.roomSalt == current.roomSalt &&
+             (!('createdAt' in current) || data.createdAt == current.createdAt) &&
              data.members is list &&
              data.members.size() >= 0 &&
              data.members.size() <= 2 &&
              data.memberInfo is map &&
              data.memberInfo.size() <= 2 &&
              data.status in ['WAITING_PARTNER', 'MATCHED'];
+    }
+
+    function isUnmatchedEmptyRoom() {
+      return resource.data.roomId != '777777' &&
+             (!('status' in resource.data) || resource.data.status == 'WAITING_PARTNER') &&
+             (!('members' in resource.data) || (resource.data.members is list && resource.data.members.size() <= 1)) &&
+             (!('participants' in resource.data) || (resource.data.participants is list && resource.data.participants.size() <= 1)) &&
+             (!('latestDiaryId' in resource.data) || resource.data.latestDiaryId == null || resource.data.latestDiaryId == '') &&
+             (!('matchedAt' in resource.data) || resource.data.matchedAt == null || resource.data.matchedAt == '');
     }
 
     function isValidDiaryCreate(diaryId, data) {
@@ -95,11 +105,14 @@ service cloud.firestore {
       // 방 생성: 6자리 숫자 코드 + 1인 초기 멤버 + WAITING_PARTNER 상태 + 유효 솔트
       allow create: if isValidRoomCode(roomCode) && isValidRoomCreate(roomCode, request.resource.data);
 
-      // 방 수정: 최대 2명 정원 제한 엄수, roomId/roomSalt 불변 보장
-      allow update: if isValidRoomCode(roomCode) && isValidRoomUpdate(roomCode, request.resource.data, resource.data);
+      // 방 수정: 최대 2명 정원 제한 엄수, roomId/roomSalt/createdAt 불변 보장 (단, 미연결 빈 방 재활용 시 초기화 허용)
+      allow update: if isValidRoomCode(roomCode) && (
+        isValidRoomUpdate(roomCode, request.resource.data, resource.data) ||
+        (isUnmatchedEmptyRoom() && isValidRoomCreate(roomCode, request.resource.data))
+      );
 
-      // 방 삭제: 소중한 추억 보호를 위해 임의 삭제 전면 차단
-      allow delete: if false;
+      // 방 삭제: 연결된 방이나 일기가 있는 방은 영구 보존하고, 미연결 빈 방(24시간 만료 등)만 정리 허용
+      allow delete: if isValidRoomCode(roomCode) && isUnmatchedEmptyRoom();
 
       // 2. 일기 (diaries) 서브컬렉션 규칙
       match /diaries/{diaryId} {
