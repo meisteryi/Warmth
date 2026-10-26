@@ -189,6 +189,32 @@ export function sanitizeDiaryReaction(diary: DiaryData): DiaryData {
   return diary;
 }
 
+/**
+ * 일기가 현재 사용자(나)가 작성한 편지인지 안전하게 판별하는 헬퍼 함수
+ * - 1순위: diary.authorId와 myUid가 일치하면 닉네임 변경 직후라도 무조건 내 편지로 판별
+ * - 2순위: authorName과 currentUserName이 일치하면 내 편지로 판별 (타 기기 재접속 및 데모룸 호환)
+ */
+export function isDiaryWrittenByMe(
+  diary: Pick<DiaryData, 'authorId' | 'authorName'> | null | undefined,
+  currentUserName: string,
+  myUid?: string | null,
+  partnerName?: string
+): boolean {
+  if (!diary) return false;
+  if (myUid && diary.authorId && diary.authorId !== 'user_ssr' && diary.authorId === myUid) {
+    return true;
+  }
+  const cleanAuthor = (diary.authorName || '').trim();
+  const cleanMe = (currentUserName || '').trim();
+  if (cleanMe && cleanAuthor === cleanMe) {
+    return true;
+  }
+  if (partnerName && cleanAuthor && cleanAuthor === partnerName.trim()) {
+    return false;
+  }
+  return false;
+}
+
 export interface KnockData {
   senderUid: string;
   senderName: string;

@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DiaryData, MonthlyRecapData, sanitizeDiaryReaction } from '@/types/diary';
+import { DiaryData, MonthlyRecapData, sanitizeDiaryReaction, isDiaryWrittenByMe } from '@/types/diary';
 import {
   getRoomDiariesFromFirestore,
   getCachedRoomDiaries,
   backfillRoomDiariesWarmthOnce,
   getSavedMonthlyRecap,
   saveMonthlyRecapToRoom,
+  getOrCreateUserId,
 } from '@/lib/roomService';
 import { generateFallbackWarmth, generateMonthlyRecap } from '@/lib/gemini';
 import { 
@@ -84,10 +85,11 @@ interface ArchiveModalProps {
 }
 
 // 상대방이 보낸 미개봉 비밀 편지는 React State/메모리 레벨에서도 완전히 마스킹 (F12/DevTools 스포일러 원천 차단)
-function maskUnopenedDiaries(list: DiaryData[], currentUserName: string): DiaryData[] {
+function maskUnopenedDiaries(list: DiaryData[], currentUserName: string, partnerName?: string): DiaryData[] {
+  const myUid = typeof window !== 'undefined' ? getOrCreateUserId() : '';
   return list.map((rawItem) => {
     const item = sanitizeDiaryReaction(rawItem);
-    const isMine = item.authorName === currentUserName;
+    const isMine = isDiaryWrittenByMe(item, currentUserName, myUid, partnerName);
     if (!isMine && !item.isWaxBroken) {
       return {
         ...item,
@@ -233,9 +235,10 @@ export default function ArchiveModal({
 
   // [5번 요구사항] 월간 및 누적 온기 통계 & 키워드 분석
   const stats = useMemo<WarmthStats | null>(() => {
+    const myUid = typeof window !== 'undefined' ? getOrCreateUserId() : '';
     // 상대방이 보낸 미개봉 비밀 편지는 스포일러 방지를 위해 온기 통계에서 제외
     const readableDiaries = diaries.filter(
-      (d) => d.isWaxBroken || d.authorName === currentUserName
+      (d) => d.isWaxBroken || isDiaryWrittenByMe(d, currentUserName, myUid, partnerName)
     );
     if (readableDiaries.length === 0) return null;
 
@@ -288,12 +291,13 @@ export default function ArchiveModal({
       topKeywords,
       monthlyCounts: Object.entries(monthlyCounts),
     };
-  }, [diaries, currentUserName]);
+  }, [diaries, currentUserName, partnerName]);
 
   // [이달의 온기 결산] 월별 상세 통계 및 온도 흐름, 폴라로이드 필름 롤 계산
   const monthlyDetails = useMemo<MonthlyDetailStats[]>(() => {
+    const myUid = typeof window !== 'undefined' ? getOrCreateUserId() : '';
     const readableDiaries = diaries.filter(
-      (d) => d.isWaxBroken || d.authorName === currentUserName
+      (d) => d.isWaxBroken || isDiaryWrittenByMe(d, currentUserName, myUid, partnerName)
     );
     if (readableDiaries.length === 0) return [];
 
@@ -423,7 +427,7 @@ export default function ArchiveModal({
 
     // 화면 노출용은 최신 월 우선 정렬
     return computedAsc.reverse();
-  }, [diaries, currentUserName]);
+  }, [diaries, currentUserName, partnerName]);
 
   const currentMonthDetail = useMemo<MonthlyDetailStats | null>(() => {
     if (selectedReportMonth === 'ALL') return null;
@@ -986,7 +990,8 @@ export default function ArchiveModal({
               </div>
             ) : (
               paginatedDiaries.map((item) => {
-                const isMine = item.authorName === currentUserName;
+                const myUid = typeof window !== 'undefined' ? getOrCreateUserId() : '';
+                const isMine = isDiaryWrittenByMe(item, currentUserName, myUid, partnerName);
                 const isUnopenedByMe = !isMine && !item.isWaxBroken;
                 const isMyUnopenedLetter = isMine && !item.isWaxBroken;
                 const formattedDate = formatDate(item.createdAt);
@@ -1903,7 +1908,8 @@ export default function ArchiveModal({
                 </h2>
                 <div className="space-y-2 text-xs">
                   {diaries.map((d, idx) => {
-                    const isUnopenedByMe = d.authorName !== currentUserName && !d.isWaxBroken;
+                    const myUid = typeof window !== 'undefined' ? getOrCreateUserId() : '';
+                    const isUnopenedByMe = !isDiaryWrittenByMe(d, currentUserName, myUid, partnerName) && !d.isWaxBroken;
                     return (
                       <div key={d.diaryId} className="flex justify-between items-baseline gap-2 border-b border-dashed border-stone-200 pb-1">
                         <span className="truncate">
@@ -1920,7 +1926,8 @@ export default function ArchiveModal({
 
               {/* 3. 각 일기 본문 페이지들 (시간 순 정렬) */}
               {diaries.map((diary, idx) => {
-                const isUnopenedByMe = diary.authorName !== currentUserName && !diary.isWaxBroken;
+                const myUid = typeof window !== 'undefined' ? getOrCreateUserId() : '';
+                const isUnopenedByMe = !isDiaryWrittenByMe(diary, currentUserName, myUid, partnerName) && !diary.isWaxBroken;
 
                 if (isUnopenedByMe) {
                   return (

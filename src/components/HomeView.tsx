@@ -20,7 +20,7 @@ import {
   ThermometerSnowflake,
   CheckCheck,
 } from 'lucide-react';
-import { DiaryData, RoomData } from '@/types/diary';
+import { DiaryData, RoomData, isDiaryWrittenByMe } from '@/types/diary';
 import {
   calculateDaysTogether,
   DaysTogetherInfo,
@@ -28,7 +28,7 @@ import {
   ResetCountdownInfo,
   formatDiaryDateWithRelative,
 } from '@/lib/dateUtils';
-import { updateAnniversaryDateInFirestore, getRoomDiariesFromFirestore } from '@/lib/roomService';
+import { updateAnniversaryDateInFirestore, getRoomDiariesFromFirestore, getOrCreateUserId } from '@/lib/roomService';
 import { fetchDailyPrompt, getCachedDailyPrompt } from '@/lib/aiClient';
 import { soundEngine } from '@/lib/audio';
 import { useLanguage } from '@/lib/i18n';
@@ -224,9 +224,10 @@ export default function HomeView({
     }
   };
 
-  // 편지 상태 분석
-  const isMine = Boolean(diary && diary.authorName === userName);
-  const isPartner = Boolean(diary && diary.authorName !== userName);
+  // 편지 상태 분석 (UID 우선 + 닉네임 판별을 통해 프로필 닉네임 변경 직후에도 내 편지/상대 편지 구분 유지)
+  const myUid = typeof window !== 'undefined' ? getOrCreateUserId() : '';
+  const isMine = Boolean(diary && isDiaryWrittenByMe(diary, userName, myUid, partnerName));
+  const isPartner = Boolean(diary && !isMine);
 
   // 1) 상대방이 보낸 편지인데 내가 아직 왁스를 안 깬 경우: 새 봉인 편지 도착!
   const hasIncomingSealedLetter = Boolean(diary && isPartner && !diary.isWaxBroken);

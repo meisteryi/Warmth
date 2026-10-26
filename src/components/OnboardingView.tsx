@@ -124,20 +124,7 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
       soundEngine.playPaperRustle();
     } catch (e) {
       console.error('Failed to create room in Firestore', e);
-      // 에러 발생 시 오프라인/로컬 난수 발급 fallback
-      const fallbackCode = Math.floor(100000 + Math.random() * 900000).toString();
-      setGeneratedCode(fallbackCode);
-      setIsWaitingPartner(true);
-      try {
-        localStorage.setItem(
-          PENDING_ROOM_KEY,
-          JSON.stringify({
-            code: fallbackCode,
-            creatorName: myName.trim(),
-            createdAt: Date.now(),
-          })
-        );
-      } catch { }
+      alert('일기장 초대코드를 생성하는 중 네트워크 오류가 발생했습니다. 인터넷 연결을 확인한 후 다시 시도해주세요.');
     } finally {
       setIsLoading(false);
     }

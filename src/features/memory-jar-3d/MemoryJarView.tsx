@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { ArrowLeft, Shuffle, ChevronLeft, ChevronRight, ChevronDown, Calendar } from 'lucide-react';
-import { DiaryData, WAX_COLORS, WEATHER_STAMPS } from '@/types/diary';
-import { getRoomDiariesFromFirestore, getCachedRoomDiaries } from '@/lib/roomService';
+import { DiaryData, WAX_COLORS, WEATHER_STAMPS, isDiaryWrittenByMe } from '@/types/diary';
+import { getRoomDiariesFromFirestore, getCachedRoomDiaries, getOrCreateUserId } from '@/lib/roomService';
 import { WaxPieceData } from './types';
 import { MemoryJarCanvas, MemoryJarCanvasHandle } from './MemoryJarCanvas';
 import { hapticFeedback } from '@/lib/haptics';
@@ -537,20 +537,51 @@ export default function MemoryJarView({
     }
   };
 
-  // 현재 선택된 월의 일기들을 1:1 WaxPieceData로 변환
+  // 현재 선택된 월의 일기들을 1:1 WaxPieceData로 변환 (미개봉 상대방 편지는 스포일러 방지를 위해 제목·사진 마스킹)
   const waxPieces: WaxPieceData[] = useMemo(() => {
     if (!currentJar) return [];
+    const myUid = typeof window !== 'undefined' ? getOrCreateUserId() : '';
 
     return currentJar.diaries.map((diary, index) => {
-      const ensuredDiaryId = diary.diaryId || `diary-${index}-${diary.createdAt || Date.now()}`;
+      const ensuredDiaryId = diary.diaryId || `diary-${index}-${diary.createdAt || index}`;
       const safeDiary: DiaryData = {
         ...diary,
         diaryId: ensuredDiaryId,
       };
+      const isMine = isDiaryWrittenByMe(safeDiary, currentUserName || '', myUid, partnerName);
+      const isUnopenedByMe = !isMine && !safeDiary.isWaxBroken;
+
       const hexColor = safeDiary.waxColor || '#6B1724';
       const colorOption = WAX_COLORS.find(
         (c) => c.hex.toLowerCase() === hexColor.toLowerCase()
       );
+
+      if (isUnopenedByMe) {
+        const senderLabel = safeDiary.authorName || partnerName || '상대방';
+        const maskedTitle = `🔒 ${senderLabel} 님이 보낸 비밀 편지`;
+        const maskedDiary: DiaryData = {
+          ...safeDiary,
+          title: maskedTitle,
+          content: '실링 왁스로 봉인되어 있습니다. 메인 화면에서 관문을 풀고 왁스를 녹여 소중한 온기를 확인해 보세요.',
+          photos: [],
+          warmthScore: undefined,
+          stamp: undefined,
+          reaction: null,
+        };
+        return {
+          id: ensuredDiaryId,
+          diaryId: ensuredDiaryId,
+          color: hexColor,
+          label: colorOption ? colorOption.name : '실링 왁스',
+          title: maskedTitle,
+          date: formatDiaryDate(safeDiary.createdAt),
+          authorName: senderLabel,
+          shapeType: 'SEAL_COIN' as const,
+          size: 0.95 + ((index % 3) * 0.08),
+          photoUrl: undefined,
+          diary: maskedDiary,
+        };
+      }
 
       return {
         id: ensuredDiaryId,
@@ -566,7 +597,7 @@ export default function MemoryJarView({
         diary: safeDiary,
       };
     });
-  }, [currentJar]);
+  }, [currentJar, currentUserName, partnerName]);
 
   // 메모이제이션된 3D 렌더 옵션 (최신 달: 마개 열림 / 과거 달: 마개 닫힘)
   const isCorkOpen = currentJar?.isLatest ?? true;
@@ -648,8 +679,8 @@ export default function MemoryJarView({
               showHint={false}
               onOpenDiaryPiece={(piece) => {
                 const targetDiary =
-                  currentJar?.diaries.find((d) => d.diaryId && d.diaryId === piece.diaryId) ||
                   (piece.diary as DiaryData | undefined) ||
+                  currentJar?.diaries.find((d) => d.diaryId && d.diaryId === piece.diaryId) ||
                   currentJar?.diaries.find((d) => d.title === piece.title);
                 if (targetDiary) {
                   onSelectDiary(targetDiary);

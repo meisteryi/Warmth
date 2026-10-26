@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DiaryData, DiaryReaction, sanitizeDiaryReaction } from '@/types/diary';
+import { DiaryData, DiaryReaction, sanitizeDiaryReaction, isDiaryWrittenByMe } from '@/types/diary';
 import { generateFallbackWarmth } from '@/lib/gemini';
 import { Feather, Calendar, Heart, MessageSquareQuote, PenLine, ThermometerSun, ThermometerSnowflake, X, Flag, ShieldAlert } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
@@ -32,8 +32,8 @@ export default function OpenedLetter({
   onBlockPartner,
 }: OpenedLetterProps) {
   const { language, t } = useLanguage();
-  const isAuthor = Boolean(userName && diary.authorName === userName);
   const currentUserId = typeof window !== 'undefined' ? getOrCreateUserId() : '';
+  const isAuthor = isDiaryWrittenByMe(diary, userName || '', currentUserId);
 
   // 포스트잇 이모티콘 + 공백 포함 100자 코멘트 반응 상태 (해당 일기만의 독립된 반응 동기화)
   const [currentReaction, setCurrentReaction] = useState<DiaryReaction | null>(() => {

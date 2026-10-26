@@ -1019,24 +1019,93 @@ export function getPartnerMemberInfo(
 }
 
 
-// 13. 방 내 사용자 프로필 (이름, 생년월일) 실시간 업데이트
+// 13. 방 내 사용자 프로필 (이름, 생년월일) 실시간 업데이트 및 기존 편지 작성자명/수신자명 동기화
 export async function updateUserProfileInFirestore(
   roomCode: string,
   uid: string,
   newNickname: string,
-  newBirthDate?: string
+  newBirthDate?: string,
+  oldNickname?: string
 ): Promise<boolean> {
   if (!roomCode || !uid || !newNickname.trim()) return false;
+  const trimmedNew = newNickname.trim();
+  const trimmedOld = (oldNickname || '').trim();
   try {
     const roomRef = doc(db, 'rooms', roomCode);
-    const updates: Record<string, unknown> = {
-      [`memberInfo.${uid}.nickname`]: newNickname.trim(),
-      updatedAt: serverTimestamp(),
-    };
-    if (newBirthDate !== undefined) {
-      updates[`memberInfo.${uid}.birthDate`] = newBirthDate.trim();
+    const snap = await getDoc(roomRef);
+    let targetUid = uid;
+    let detectedOldNick = trimmedOld;
+
+    if (snap.exists()) {
+      const room = snap.data() as RoomData;
+      const memberInfo = room.memberInfo || {};
+      if (memberInfo[uid]) {
+        targetUid = uid;
+        if (!detectedOldNick && memberInfo[uid]?.nickname) {
+          detectedOldNick = memberInfo[uid].nickname.trim();
+        }
+      } else if (trimmedOld) {
+        const matched = Object.entries(memberInfo).find(
+          ([, info]) => (info?.nickname || '').trim() === trimmedOld
+        );
+        if (matched) {
+          targetUid = matched[0];
+        }
+      }
+
+      const updates: Record<string, unknown> = {
+        [`memberInfo.${targetUid}.nickname`]: trimmedNew,
+        updatedAt: serverTimestamp(),
+      };
+      if (newBirthDate !== undefined) {
+        updates[`memberInfo.${targetUid}.birthDate`] = newBirthDate.trim();
+      }
+      if (room.currentTurn && detectedOldNick && room.currentTurn === detectedOldNick) {
+        updates.currentTurn = trimmedNew;
+      }
+      if (room.lastWrittenByUser && detectedOldNick && room.lastWrittenByUser[detectedOldNick]) {
+        updates[`lastWrittenByUser.${trimmedNew}`] = room.lastWrittenByUser[detectedOldNick];
+      }
+      await updateDoc(roomRef, updates);
+    } else {
+      const updates: Record<string, unknown> = {
+        [`memberInfo.${uid}.nickname`]: trimmedNew,
+        updatedAt: serverTimestamp(),
+      };
+      if (newBirthDate !== undefined) {
+        updates[`memberInfo.${uid}.birthDate`] = newBirthDate.trim();
+      }
+      await updateDoc(roomRef, updates);
     }
-    await updateDoc(roomRef, updates);
+
+    // 기존 편지들의 작성자명(authorName) 및 수신자명(recipientName)도 새 닉네임으로 안전하게 동기화 (본문·포스트잇 등 다른 필드는 절대 건드리지 않음)
+    if (detectedOldNick && detectedOldNick !== trimmedNew) {
+      try {
+        const diariesRef = collection(db, 'rooms', roomCode, 'diaries');
+        const dSnap = await getDocs(diariesRef);
+        const updatePromises: Promise<void>[] = [];
+        dSnap.forEach((docSnap) => {
+          const data = docSnap.data() as DiaryData;
+          const diaryUpdates: Record<string, unknown> = {};
+          if (data.authorId === targetUid || data.authorId === uid || data.authorName === detectedOldNick) {
+            diaryUpdates.authorName = trimmedNew;
+          }
+          if (data.recipientId === targetUid || data.recipientId === uid || data.recipientName === detectedOldNick) {
+            diaryUpdates.recipientName = trimmedNew;
+          }
+          if (Object.keys(diaryUpdates).length > 0) {
+            updatePromises.push(updateDoc(docSnap.ref, diaryUpdates).catch(() => {}));
+          }
+        });
+        if (updatePromises.length > 0) {
+          await Promise.all(updatePromises);
+        }
+        invalidateRoomDiariesCache(roomCode);
+      } catch (syncErr) {
+        console.warn('Non-critical diary authorName sync warning:', syncErr);
+      }
+    }
+
     return true;
   } catch (e) {
     console.warn('Failed to update user profile in Firestore:', e);

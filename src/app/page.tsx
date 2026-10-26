@@ -27,7 +27,7 @@ const MemoryJarView = dynamic(
     ),
   }
 );
-import { DiaryData, DiaryReaction, KnockData, UIState, WaxColor, RoomData } from '@/types/diary';
+import { DiaryData, DiaryReaction, KnockData, UIState, WaxColor, RoomData, isDiaryWrittenByMe } from '@/types/diary';
 import { isDiaryWrittenInCurrentCycle, getTimeUntilNextReset, ResetCountdownInfo } from '@/lib/dateUtils';
 import { soundEngine } from '@/lib/audio';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -764,13 +764,15 @@ export default function HomePage() {
             }
             isInitialDiarySyncDoneRef.current = true;
 
+            const isWrittenByMe = isDiaryWrittenByMe(latestDiary, userName, myUid, partnerName);
+
             // 1) 내가 보낸 편지를 상대방이 개봉했을 때 실시간 감지 & 차임벨 & 축하 토스트
             if (
               prev &&
               prev.diaryId === latestDiary.diaryId &&
               !prev.isWaxBroken &&
               latestDiary.isWaxBroken &&
-              latestDiary.authorName === userName
+              isWrittenByMe
             ) {
               soundEngine.playWaxCrackSound();
               const toastMsg = `💌 ${partnerName} 님이 내가 보낸 편지의 실링 왁스를 개봉했습니다! 💖`;
@@ -787,7 +789,7 @@ export default function HomePage() {
             // 2) 상대방이 작성한 새 편지가 실시간 도착했을 때 (방의 첫 번째 편지 포함)
             if (
               (!prev || prev.diaryId !== latestDiary.diaryId) &&
-              latestDiary.authorName !== userName &&
+              !isWrittenByMe &&
               !latestDiary.isWaxBroken
             ) {
               soundEngine.playPaperRustle();
@@ -810,7 +812,7 @@ export default function HomePage() {
               prev.diaryId === latestDiary.diaryId &&
               latestDiary.reaction &&
               prev.reaction?.emoji !== latestDiary.reaction.emoji &&
-              latestDiary.authorName === userName
+              isWrittenByMe
             ) {
               soundEngine.playMissionPassChime();
               const reactor = latestDiary.reaction.reactorName || partnerName;
@@ -888,10 +890,12 @@ export default function HomePage() {
                 const prev = currentDiaryRef.current;
 
                 // 화면 복귀 시점에 새로 도착한 편지가 발견되면 알림이 삼켜지지 않도록 효과음 및 토스트 표시
+                const myUid = getOrCreateUserId();
+                const isWrittenByMe = isDiaryWrittenByMe(decrypted, userName, myUid, partnerName);
                 if (
                   isInitialDiarySyncDoneRef.current &&
                   (!prev || prev.diaryId !== decrypted.diaryId) &&
-                  decrypted.authorName !== userName &&
+                  !isWrittenByMe &&
                   !decrypted.isWaxBroken
                 ) {
                   soundEngine.playPaperRustle();
@@ -918,7 +922,7 @@ export default function HomePage() {
       document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
       window.removeEventListener('focus', handleVisibilityOrFocus);
     };
-  }, [roomCode, userName, showToast]);
+  }, [roomCode, userName, partnerName, showToast]);
 
   // 0. 초대코드 매칭 완료 처리
   const handleMatched = async (code: string, me: string, partner: string, role?: 'CREATOR' | 'PARTNER') => {
@@ -1271,6 +1275,9 @@ export default function HomePage() {
   // 내 프로필 (이름, 생년월일) 저장 및 Firestore & 로컬 실시간 동기화
   const handleSaveProfile = async (newName: string, newBirthDate: string) => {
     const trimmedName = newName.trim();
+    const oldName = userName;
+    const myUid = getOrCreateUserId();
+
     setUserName(trimmedName);
     setUserBirthDate(newBirthDate);
     sessionStore.set(STORAGE_KEYS.USER_NAME, trimmedName);
@@ -1280,10 +1287,33 @@ export default function HomePage() {
       sessionStore.remove('warmth_active_user_birthdate');
     }
 
-    if (roomCode) {
+    // 현재 열려 있거나 메모리에 올라와 있는 최신 편지의 작성자명/수신자명도 즉시 동기화 (닉네임 변경 직후 내 편지가 상대 편지로 오판되는 현상 방지)
+    setDiary((prev) => {
+      if (!prev) return prev;
+      const isMine = isDiaryWrittenByMe(prev, oldName, myUid, partnerName);
+      const nextDiary: DiaryData = {
+        ...prev,
+        authorName: isMine ? trimmedName : prev.authorName,
+        recipientName: !isMine && prev.recipientName === oldName ? trimmedName : prev.recipientName,
+      };
+      currentDiaryRef.current = nextDiary;
+      return nextDiary;
+    });
+
+    setSelectedArchiveDiary((prev) => {
+      if (!prev) return prev;
+      const isMine = isDiaryWrittenByMe(prev, oldName, myUid, partnerName);
+      return {
+        ...prev,
+        authorName: isMine ? trimmedName : prev.authorName,
+        recipientName: !isMine && prev.recipientName === oldName ? trimmedName : prev.recipientName,
+      };
+    });
+
+    const targetRoomCode = roomCode || activeRoomCode;
+    if (targetRoomCode) {
       try {
-        const myUid = getOrCreateUserId();
-        await updateUserProfileInFirestore(roomCode, myUid, trimmedName, newBirthDate);
+        await updateUserProfileInFirestore(targetRoomCode, myUid, trimmedName, newBirthDate, oldName);
       } catch (err) {
         console.error('Failed to update profile in Firestore:', err);
       }
@@ -1599,6 +1629,15 @@ export default function HomePage() {
               partnerName={partnerName}
               onGoHome={handleGoHome}
               onSelectDiary={(selectedDiary) => {
+                const myUid = getOrCreateUserId();
+                const isMine = isDiaryWrittenByMe(selectedDiary, userName, myUid, partnerName);
+                if (!isMine && !selectedDiary.isWaxBroken) {
+                  setSelectedArchiveDiary(null);
+                  setUiState(diary?.mission?.isPassed ? 'VIEW_WAX_READY' : 'VIEW_SEALED_LETTER');
+                  forceScrollToTop(mainRef.current);
+                  showToast('🔒 아직 개봉하지 않은 편지입니다. 관문을 풀고 실링 왁스를 녹여주세요!');
+                  return;
+                }
                 setSelectedArchiveDiary(selectedDiary);
                 setUiState('VIEW_OPENED_DIARY');
                 forceScrollToTop(mainRef.current);
