@@ -45,6 +45,7 @@ interface HomeViewProps {
   userBirthDate?: string;
   onOpenWriteModal: (initialTitle?: string) => void;
   onOpenArchive: () => void;
+  onOpenMonthlyRecap?: (monthKey: string) => void;
   onSendKnock: () => void;
   onOpenSealedLetter: () => void;
   onOpenDiary: () => void;
@@ -116,6 +117,7 @@ export default function HomeView({
   userBirthDate,
   onOpenWriteModal,
   onOpenArchive,
+  onOpenMonthlyRecap,
   onSendKnock,
   onOpenSealedLetter,
   onOpenDiary,
@@ -136,7 +138,9 @@ export default function HomeView({
   useEffect(() => {
     // 1) 현재 구독 중인 최신 diary가 있는 경우 최우선 적용
     if (diary && diary.createdAt) {
-      setLastDiaryDate(diary.createdAt);
+      queueMicrotask(() => {
+        setLastDiaryDate(diary.createdAt!);
+      });
       return;
     }
 
@@ -236,6 +240,20 @@ export default function HomeView({
   // 4) 상대방이 보낸 편지를 내가 이미 열어본 상태: 내가 답장할 차례!
   const isPartnerLetterOpenedByMe = Boolean(diary && isPartner && diary.isWaxBroken);
 
+  // [이달의 온기 결산] 매월 마지막 날(28~31일) 여부 및 이번 달 키('YYYY-MM') 계산
+  const monthlyRecapBannerInfo = useMemo(() => {
+    const now = new Date();
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const isLastDayOfMonth = tomorrow.getDate() === 1;
+    const monthNum = now.getMonth() + 1;
+    const monthKey = `${now.getFullYear()}-${String(monthNum).padStart(2, '0')}`;
+    return {
+      isLastDayOfMonth,
+      monthNum,
+      monthKey,
+    };
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 25, scale: 0.98 }}
@@ -328,6 +346,48 @@ export default function HomeView({
           </div>
         </div>
       </motion.div>
+
+      {/* [이달의 온기 결산] 매월 마지막 날 도착하는 빈티지 우편 티켓 배너 */}
+      {monthlyRecapBannerInfo.isLastDayOfMonth && (
+        <motion.button
+          type="button"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: 'easeOut' }}
+          onClick={() => {
+            soundEngine.playPaperRustle();
+            if (onOpenMonthlyRecap) {
+              onOpenMonthlyRecap(monthlyRecapBannerInfo.monthKey);
+            } else {
+              onOpenArchive();
+            }
+          }}
+          className="w-full text-left rounded-2xl p-4 bg-gradient-to-r from-[#FFFDF9] via-[#FDF5E8] to-[#F7E8D0] border border-amber-300/90 shadow-sm hover:shadow-md hover:border-[#6B1724]/40 transition-all cursor-pointer flex items-center justify-between gap-3 group"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-2xl bg-[#6B1724] text-amber-100 flex items-center justify-center shrink-0 shadow-xs">
+              <Sparkles className="w-5 h-5 text-amber-200" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-sans-ui font-bold px-2 py-0.5 rounded-full bg-amber-200/70 text-amber-950">
+                  MONTHLY RECAP
+                </span>
+                <span className="text-xs sm:text-sm font-serif-warm font-bold text-stone-900 truncate">
+                  💌 {monthlyRecapBannerInfo.monthNum}월의 온기 결산 편지가 도착했어요
+                </span>
+              </div>
+              <p className="text-[11px] sm:text-xs font-serif-warm text-stone-600 mt-0.5 truncate">
+                이번 달 우리가 함께 나눈 평균 온도와 다정한 문장을 확인해보세요
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 text-xs font-serif-warm font-bold text-[#6B1724] shrink-0 group-hover:translate-x-0.5 transition-transform">
+            <span className="hidden sm:inline">결산 열기</span>
+            <ChevronRight className="w-4 h-4" />
+          </div>
+        </motion.button>
+      )}
 
       {/* 2. 오늘의 교환일기 상태 카드 (Cozy Desk Widget) */}
       <motion.div

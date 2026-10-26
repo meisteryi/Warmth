@@ -220,6 +220,8 @@ export default function HomePage() {
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false);
   const [isWriteModalOpen, setIsWriteModalOpen] = useState(false);
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
+  const [archiveInitialTab, setArchiveInitialTab] = useState<'LIST' | 'REPORT' | 'BOOKLET' | undefined>(undefined);
+  const [archiveInitialMonth, setArchiveInitialMonth] = useState<string | undefined>(undefined);
   const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [userBirthDate, setUserBirthDate] = useState<string>(() => {
@@ -1461,7 +1463,16 @@ export default function HomePage() {
               userRole={userRole}
               userBirthDate={userBirthDate}
               onOpenWriteModal={handleOpenWriteModal}
-              onOpenArchive={() => setIsArchiveOpen(true)}
+              onOpenArchive={() => {
+                setArchiveInitialTab(undefined);
+                setArchiveInitialMonth(undefined);
+                setIsArchiveOpen(true);
+              }}
+              onOpenMonthlyRecap={(monthKey) => {
+                setArchiveInitialTab('REPORT');
+                setArchiveInitialMonth(monthKey);
+                setIsArchiveOpen(true);
+              }}
               onSendKnock={() => handleSendKnock('오늘의 편지를 기다리고 있어요 ✉️')}
               onOpenSealedLetter={() => {
                 if (!diary) return;
@@ -1657,10 +1668,16 @@ export default function HomePage() {
       {/* 둘만의 서재(아카이브) 모달 (E2EE 암호화 해제 열람) */}
       <ArchiveModal
         isOpen={isArchiveOpen}
-        onClose={() => setIsArchiveOpen(false)}
+        onClose={() => {
+          setIsArchiveOpen(false);
+          setArchiveInitialTab(undefined);
+          setArchiveInitialMonth(undefined);
+        }}
         roomCode={activeRoomCode}
         currentUserName={userName}
         partnerName={partnerName}
+        initialTab={archiveInitialTab}
+        initialReportMonth={archiveInitialMonth}
         onSelectDiary={(selectedDiary) => {
           setSelectedArchiveDiary(selectedDiary);
           setUiState('VIEW_OPENED_DIARY');

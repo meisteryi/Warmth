@@ -1,4 +1,4 @@
-import { WarmthScore } from '@/types/diary';
+import { WarmthScore, MonthlyRecapData } from '@/types/diary';
 import { getSecureGeminiKey } from './secureKeys';
 
 /**
@@ -802,4 +802,150 @@ export async function evaluateQuizAnswerFlexibly(
 
   // 3) 스마트 휴리스틱 대체 (오프라인 / API 장애 시)
   return fallbackFlexibleAnswerCheck(stemExp || cleanExp, stemUser || cleanUser);
+}
+
+/**
+ * 5. 🕯️ 이달의 온기 결산 (Monthly Warmth Recap) 생성
+ */
+export interface MonthlyRecapLetterInput {
+  date: string;
+  author: string;
+  title: string;
+  content: string;
+  temperature?: number;
+}
+
+export async function generateMonthlyRecap(
+  monthKey: string,
+  monthLabel: string,
+  userName: string,
+  partnerName: string,
+  letters: MonthlyRecapLetterInput[]
+): Promise<MonthlyRecapData> {
+  const cleanUser = (userName || '').trim() || '나';
+  const cleanPartner = (partnerName || '').trim() || '상대방';
+
+  // 1) 서버 프록시 우선 시도
+  const proxyData = await callGeminiProxy('monthlyRecap', {
+    monthLabel,
+    userName: cleanUser,
+    partnerName: cleanPartner,
+    letters,
+  });
+
+  if (proxyData?.candidates?.[0]?.content?.parts?.[0]?.text) {
+    try {
+      const cleanedJson = proxyData.candidates[0].content.parts[0].text
+        .replace(/```json/gi, '')
+        .replace(/```/g, '')
+        .trim();
+      const parsed = JSON.parse(cleanedJson);
+      if (parsed.summary && parsed.bestQuote) {
+        return {
+          monthKey,
+          summary: String(parsed.summary).trim(),
+          bestQuote: String(parsed.bestQuote).trim(),
+          bestQuoteAuthor: String(parsed.bestQuoteAuthor || cleanUser).trim(),
+          bestQuoteDate: String(parsed.bestQuoteDate || monthLabel).trim(),
+          nextSuggestion:
+            String(
+              parsed.nextSuggestion ||
+                '다가오는 달에도 서로의 하루 끝에 가장 따뜻한 안식처가 되어주는 다정한 편지를 나눠보세요.'
+            ).trim(),
+          analyzedCount: letters.length,
+          generatedAt: new Date().toISOString(),
+        };
+      }
+    } catch (e) {
+      console.warn('Proxy monthlyRecap parse error:', e);
+    }
+  }
+
+  // 2) 클라이언트 직접 호출 폴백
+  const apiKey = getSecureGeminiKey();
+  if (apiKey && letters.length > 0) {
+    try {
+      const letterDigest = letters
+        .map(
+          (l, idx) =>
+            `[${idx + 1}] 날짜: ${l.date} | 작성자: ${l.author} | 온도: ${typeof l.temperature === 'number' ? `${l.temperature}°C` : '미측정'}\n제목: ${l.title}\n본문: ${l.content}`
+        )
+        .join('\n\n');
+
+      const recapPrompt = `당신은 아날로그 1:1 비밀 교환일기 '온기(Warmth)'의 다정한 월간 에세이 에디터입니다.
+두 연인(${cleanUser}, ${cleanPartner})이 [${monthLabel}] 한 달 동안 주고받은 편지들을 읽고, 온기 우체국에서 보내는 따뜻한 월간 결산 편지처럼 아래 4가지를 작성해주세요.
+
+1. summary: 두 사람이 이번 달 편지에서 나눈 실제 일상과 감정을 구체적으로 언급하며 3~4문장(130~220자 내외)의 다정하고 시적인 한국어 에세이 총평으로 작성하세요.
+2. bestQuote: 편지 본문들 중에서 가장 마음이 따뜻해지거나 애틋했던 실제 문장 1줄(20~65자 내외)을 발췌하세요.
+3. bestQuoteAuthor & bestQuoteDate: 발췌한 문장이 담긴 편지의 작성자 이름과 날짜(예: "10월 17일")를 적으세요.
+4. nextSuggestion: 이번 달 편지 내용과 다가오는 달의 계절감을 바탕으로 다음 달 함께 해보면 좋을 소소한 데이트/약속/글감 제안을 1~2문장으로 작성하세요.
+반드시 순수 JSON 형태로만 응답하세요:
+{"summary": "...", "bestQuote": "...", "bestQuoteAuthor": "...", "bestQuoteDate": "...", "nextSuggestion": "..."}`;
+
+      const res = await fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey,
+          },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: `${recapPrompt}\n\n[이번 달 주고받은 편지 목록]:\n${letterDigest}` }] }],
+            generationConfig: {
+              responseMimeType: 'application/json',
+              temperature: 0.65,
+            },
+          }),
+        }
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+          const cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+          const parsed = JSON.parse(cleaned);
+          if (parsed.summary && parsed.bestQuote) {
+            return {
+              monthKey,
+              summary: String(parsed.summary).trim(),
+              bestQuote: String(parsed.bestQuote).trim(),
+              bestQuoteAuthor: String(parsed.bestQuoteAuthor || cleanUser).trim(),
+              bestQuoteDate: String(parsed.bestQuoteDate || monthLabel).trim(),
+              nextSuggestion:
+                String(
+                  parsed.nextSuggestion ||
+                    '다가오는 달에도 서로의 하루 끝에 가장 따뜻한 안식처가 되어주는 다정한 편지를 나눠보세요.'
+                ).trim(),
+              analyzedCount: letters.length,
+              generatedAt: new Date().toISOString(),
+            };
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Client monthlyRecap fallback:', e);
+    }
+  }
+
+  // 3) 오프라인/예비 감성 폴백 생성
+  const warmest = [...letters].sort((a, b) => (b.temperature ?? 26) - (a.temperature ?? 26))[0] || letters[0];
+  const rawSentences = (warmest?.content || '')
+    .split(/(?<=[.!?~])\s+|\n+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 10 && s.length <= 75);
+  const pickedQuote = rawSentences[0] || warmest?.title || '오늘 하루도 네 생각 덕분에 참 따뜻하고 든든했어.';
+
+  return {
+    monthKey,
+    summary: `${monthLabel} 한 달 동안 ${cleanUser} 님과 ${cleanPartner} 님은 서로의 하루를 조곤조곤 나누며 둘만의 서재를 따뜻한 온기로 채워주셨습니다. 바쁜 일상 속에서도 잊지 않고 건넨 다정한 안부와 진심 어린 문장들이 모여 두 분만의 소중한 계절을 기록하고 있네요.`,
+    bestQuote: pickedQuote,
+    bestQuoteAuthor: warmest?.author || cleanUser,
+    bestQuoteDate: warmest?.date || monthLabel,
+    nextSuggestion:
+      '다음 달에는 이번 달 편지에서 가장 기분 좋게 이야기 나눴던 음식을 함께 먹으며, 서로에게 가장 고마웠던 순간을 직접 들려주는 시간을 가져보세요.',
+    analyzedCount: letters.length,
+    generatedAt: new Date().toISOString(),
+  };
 }

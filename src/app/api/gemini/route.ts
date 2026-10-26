@@ -21,8 +21,8 @@ export async function POST(req: Request) {
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent';
 
     // 2. 요청 action별 프롬프트 구성 및 실행
-    let contents: any[] = [];
-    let generationConfig: any = { temperature: 0.7 };
+    let contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+    let generationConfig: Record<string, unknown> = { temperature: 0.7 };
 
     if (action === 'customQuiz') {
       const { previousContent, isFirstLetter } = payload;
@@ -146,6 +146,42 @@ ${hasSpecificName ? `연인(${cleanPartner})에게 보낼 오늘의 교환일기
 
       contents = [{ role: 'user', parts: [{ text: `${tempPrompt}\n\n[편지 내용]:\n${title}\n${content}` }] }];
       generationConfig = { responseMimeType: 'application/json', temperature: 0.5 };
+    } else if (action === 'monthlyRecap') {
+      const { monthLabel, userName, partnerName, letters } = payload;
+      const cleanUser = (userName || '').trim() || '나';
+      const cleanPartner = (partnerName || '').trim() || '상대방';
+      const letterDigest = Array.isArray(letters)
+        ? letters
+            .map(
+              (l: { date?: string; author?: string; title?: string; content?: string; temperature?: number }, idx: number) =>
+                `[${idx + 1}] 날짜: ${l.date || ''} | 작성자: ${l.author || ''} | 온도: ${typeof l.temperature === 'number' ? `${l.temperature}°C` : '미측정'}\n제목: ${l.title || ''}\n본문: ${l.content || ''}`
+            )
+            .join('\n\n')
+        : '';
+
+      const recapPrompt = `당신은 아날로그 1:1 비밀 교환일기 '온기(Warmth)'의 다정한 월간 에세이 에디터입니다.
+두 연인(${cleanUser}, ${cleanPartner})이 [${monthLabel || '이번 달'}] 한 달 동안 주고받은 편지들을 읽고, 마치 온기 우체국에서 보내는 따뜻한 월간 결산 편지처럼 아래 4가지를 작성해주세요.
+
+★ 작성 규칙:
+1. summary (온기 우체국이 전하는 이달의 이야기):
+   - 두 사람이 이번 달 편지에서 나눈 실제 일상, 감정, 계절감, 음식, 산책, 서로를 향한 위로 등을 구체적으로 언급하며 3~4문장(130~220자 내외)의 다정하고 시적인 한국어 에세이 총평으로 작성하세요.
+   - 두 사람의 이름(${cleanUser}, ${cleanPartner}) 또는 '두 분'이라는 표현을 자연스럽게 사용하세요.
+2. bestQuote (이달의 가장 다정했던 한 줄):
+   - 제공된 편지 본문들 중에서 가장 마음이 따뜻해지거나 애틋했던 실제 문장 1줄(20~65자 내외)을 원문 느낌 그대로 발췌하세요.
+3. bestQuoteAuthor & bestQuoteDate:
+   - 발췌한 문장이 담긴 편지의 작성자 이름과 날짜(예: "10월 17일")를 적으세요.
+4. nextSuggestion (다음 달을 위한 작은 제안):
+   - 이번 달 편지 속에서 두 사람이 나눴던 이야기나 다가오는 다음 달의 계절감을 바탕으로, 다음 달에 함께 해보면 좋을 소소하고 다정한 데이트/약속/글감 제안을 1~2문장(60~110자 내외)으로 작성하세요.
+5. 반드시 마크다운 코드블록 없이 순수 JSON 형태로만 응답하세요:
+{"summary": "...", "bestQuote": "...", "bestQuoteAuthor": "...", "bestQuoteDate": "...", "nextSuggestion": "..."}`;
+
+      contents = [
+        {
+          role: 'user',
+          parts: [{ text: `${recapPrompt}\n\n[이번 달 주고받은 편지 목록]:\n${letterDigest}` }],
+        },
+      ];
+      generationConfig = { responseMimeType: 'application/json', temperature: 0.65 };
     } else {
       return NextResponse.json({ error: '알 수 없는 action입니다.' }, { status: 400 });
     }
@@ -178,10 +214,10 @@ ${hasSpecificName ? `연인(${cleanPartner})에게 보낼 오늘의 교환일기
     }
 
     return NextResponse.json(data);
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Server Gemini Proxy Error:', err);
     return NextResponse.json(
-      { error: err.message || '서버 프록시 처리 중 오류 발생' },
+      { error: (err as Error)?.message || '서버 프록시 처리 중 오류 발생' },
       { status: 500 }
     );
   }

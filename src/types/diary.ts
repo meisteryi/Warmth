@@ -220,6 +220,17 @@ export interface DisconnectionData {
   disconnectedAt: string;
 }
 
+export interface MonthlyRecapData {
+  monthKey: string; // e.g., '2026-10'
+  summary: string; // Gemini AI 3~4문장 월간 온기 에세이 총평
+  bestQuote: string; // 이달의 가장 다정했던 한 문장
+  bestQuoteAuthor: string; // 발췌된 편지 작성자
+  bestQuoteDate: string; // 발췌된 편지 날짜 (예: '10월 17일')
+  nextSuggestion: string; // 다음 달을 위한 작은 제안
+  analyzedCount: number; // 분석 당시 해당 월 편지 수
+  generatedAt: string; // ISO 8601
+}
+
 export interface RoomData {
   roomId: string;
   roomCode: string;
@@ -244,6 +255,9 @@ export interface RoomData {
   anniversaryDate?: string;
   lastWrittenByUser?: {
     [uidOrName: string]: string;
+  };
+  monthlyRecaps?: {
+    [monthKey: string]: string; // E2EE encrypted MonthlyRecapData JSON
   };
 }
 

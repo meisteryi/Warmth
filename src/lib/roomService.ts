@@ -15,11 +15,12 @@ import {
   Unsubscribe 
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { DiaryData, DiaryReaction, RoomData, sanitizeDiaryReaction } from '@/types/diary';
+import { DiaryData, DiaryReaction, MonthlyRecapData, RoomData, sanitizeDiaryReaction } from '@/types/diary';
 import { 
   encryptDiaryData, 
   decryptDiaryData, 
   encryptText,
+  decryptText,
   generateRoomSalt 
 } from './crypto';
 import { analyzeWarmthTemperature } from './gemini';
@@ -1098,6 +1099,84 @@ export async function backfillRoomDiariesWarmthOnce(
     console.warn('Warmth backfill error:', e);
   } finally {
     activeWarmthBackfillRooms.delete(roomCode);
+  }
+}
+
+// 15. 월간 온기 결산(Monthly Warmth Recap) E2EE 암호화 조회 및 저장
+export async function getSavedMonthlyRecap(
+  roomCode: string,
+  monthKey: string
+): Promise<MonthlyRecapData | null> {
+  if (!roomCode || !monthKey) return null;
+
+  const localKey = `warmth_monthly_recap_${roomCode}_${monthKey}`;
+
+  // 1) Firestore 방 문서의 monthlyRecaps[monthKey] 우선 조회 (상대방과 결산 결과 실시간 공유)
+  try {
+    const roomRef = doc(db, 'rooms', roomCode);
+    const snap = await getDoc(roomRef);
+    if (snap.exists()) {
+      const room = snap.data() as RoomData;
+      const encrypted = room.monthlyRecaps?.[monthKey];
+      if (encrypted) {
+        const decryptedJson = await decryptText(roomCode, encrypted, room.roomSalt);
+        if (decryptedJson && !decryptedJson.startsWith('[🔒')) {
+          const parsed = JSON.parse(decryptedJson) as MonthlyRecapData;
+          if (parsed && parsed.summary) {
+            if (typeof window !== 'undefined') {
+              try {
+                localStorage.setItem(localKey, JSON.stringify(parsed));
+              } catch {}
+            }
+            return parsed;
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to fetch monthly recap from Firestore:', e);
+  }
+
+  // 2) 로컬 스토리지 캐시 폴백
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem(localKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as MonthlyRecapData;
+        if (parsed && parsed.summary) return parsed;
+      }
+    } catch {}
+  }
+
+  return null;
+}
+
+export async function saveMonthlyRecapToRoom(
+  roomCode: string,
+  monthKey: string,
+  recap: MonthlyRecapData
+): Promise<void> {
+  if (!roomCode || !monthKey || !recap) return;
+
+  const localKey = `warmth_monthly_recap_${roomCode}_${monthKey}`;
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(localKey, JSON.stringify(recap));
+    } catch {}
+  }
+
+  if (roomCode === '777777') return;
+
+  try {
+    const roomSalt = await getOrFetchRoomSalt(roomCode);
+    const encrypted = await encryptText(roomCode, JSON.stringify(recap), roomSalt);
+    const roomRef = doc(db, 'rooms', roomCode);
+    await updateDoc(roomRef, {
+      [`monthlyRecaps.${monthKey}`]: encrypted,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (e) {
+    console.warn('Failed to save monthly recap to Firestore:', e);
   }
 }
 

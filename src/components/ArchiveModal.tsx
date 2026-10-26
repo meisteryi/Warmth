@@ -1,10 +1,16 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DiaryData, sanitizeDiaryReaction } from '@/types/diary';
-import { getRoomDiariesFromFirestore, getCachedRoomDiaries, backfillRoomDiariesWarmthOnce } from '@/lib/roomService';
-import { generateFallbackWarmth } from '@/lib/gemini';
+import { DiaryData, MonthlyRecapData, sanitizeDiaryReaction } from '@/types/diary';
+import {
+  getRoomDiariesFromFirestore,
+  getCachedRoomDiaries,
+  backfillRoomDiariesWarmthOnce,
+  getSavedMonthlyRecap,
+  saveMonthlyRecapToRoom,
+} from '@/lib/roomService';
+import { generateFallbackWarmth, generateMonthlyRecap } from '@/lib/gemini';
 import { 
   BookOpen, 
   Calendar, 
@@ -19,12 +25,15 @@ import {
   Heart, 
   Download,
   Lock,
-  AlertCircle
+  AlertCircle,
+  MessageSquareQuote,
+  Camera,
+  TrendingUp,
+  Loader2
 } from 'lucide-react';
 import { soundEngine } from '@/lib/audio';
 import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
 import { useLanguage } from '@/lib/i18n';
-import { Capacitor } from '@capacitor/core';
 
 interface WarmthStats {
   totalDiaries: number;
@@ -35,6 +44,33 @@ interface WarmthStats {
   monthlyCounts: [string, number][];
 }
 
+interface MonthlyDetailStats {
+  monthKey: string; // 'YYYY-MM'
+  monthLabel: string; // 'YYYY년 M월'
+  monthShortLabel: string; // 'M월'
+  diaries: DiaryData[];
+  avgTemp: number;
+  prevMonthDiff: number | null;
+  prevMonthShortLabel: string | null;
+  topStamp: { symbol: string; name: string } | null;
+  hottestDiary: DiaryData | null;
+  maxTemp: number;
+  topKeywords: [string, number][];
+  chartPoints: Array<{
+    dateLabel: string;
+    fullDateLabel: string;
+    temp: number;
+    diary: DiaryData;
+  }>;
+  photos: Array<{
+    url: string;
+    caption?: string | null;
+    dateLabel: string;
+    authorName: string;
+    diary: DiaryData;
+  }>;
+}
+
 interface ArchiveModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -43,6 +79,8 @@ interface ArchiveModalProps {
   partnerName: string;
   onSelectDiary: (diary: DiaryData) => void;
   onOpenSealedLetter?: () => void;
+  initialTab?: 'LIST' | 'REPORT' | 'BOOKLET';
+  initialReportMonth?: string;
 }
 
 // 상대방이 보낸 미개봉 비밀 편지는 React State/메모리 레벨에서도 완전히 마스킹 (F12/DevTools 스포일러 원천 차단)
@@ -73,6 +111,8 @@ export default function ArchiveModal({
   partnerName,
   onSelectDiary,
   onOpenSealedLetter,
+  initialTab,
+  initialReportMonth,
 }: ArchiveModalProps) {
   const { language, t } = useLanguage();
   // SWR(Stale-While-Revalidate): 메모리 캐시가 있으면 즉시 초기값으로 렌더링
@@ -87,14 +127,11 @@ export default function ArchiveModal({
   });
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'LIST' | 'REPORT' | 'BOOKLET'>('LIST');
-  const [isIosApp, setIsIosApp] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && Capacitor.getPlatform() === 'ios') {
-      setIsIosApp(true);
-    }
-  }, []);
+  const [activeTab, setActiveTab] = useState<'LIST' | 'REPORT' | 'BOOKLET'>(initialTab || 'LIST');
+  const [selectedReportMonth, setSelectedReportMonth] = useState<string>(initialReportMonth || 'ALL');
+  const [recapMap, setRecapMap] = useState<Record<string, MonthlyRecapData>>({});
+  const [isGeneratingRecap, setIsGeneratingRecap] = useState(false);
+  const [isSavingRecapImage, setIsSavingRecapImage] = useState(false);
 
   // [요구사항] 10개씩 페이지네이션 및 달력 인터페이스 상태
   const PAGE_SIZE = 10;
@@ -117,12 +154,15 @@ export default function ArchiveModal({
     }
   }, [isOpen, activeTab, currentPage]);
 
-  const fetchDiaries = async () => {
+  const fetchDiaries = useCallback(async () => {
     if (!roomCode) return;
     // 캐시된 데이터가 전혀 없을 때만 로딩 스피너 표시 (기존 데이터가 있으면 백그라운드 갱신)
-    if (diaries.length === 0) {
-      setIsLoading(true);
-    }
+    setDiaries((prev) => {
+      if (prev.length === 0) {
+        setIsLoading(true);
+      }
+      return prev;
+    });
     setLoadError(null);
 
     let isCompleted = false;
@@ -130,9 +170,12 @@ export default function ArchiveModal({
     const safetyTimer = setTimeout(() => {
       if (!isCompleted) {
         setIsLoading(false);
-        if (diaries.length === 0) {
-          setLoadError('네트워크 연결이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.');
-        }
+        setDiaries((prev) => {
+          if (prev.length === 0) {
+            setLoadError('네트워크 연결이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.');
+          }
+          return prev;
+        });
       }
     }, 6000);
 
@@ -154,30 +197,39 @@ export default function ArchiveModal({
       console.warn('Failed to fetch archive:', e);
       isCompleted = true;
       clearTimeout(safetyTimer);
-      if (diaries.length === 0) {
-        setLoadError('일기를 불러오지 못했습니다. 네트워크 상태를 확인해 주세요.');
-      }
+      setDiaries((prev) => {
+        if (prev.length === 0) {
+          setLoadError('일기를 불러오지 못했습니다. 네트워크 상태를 확인해 주세요.');
+        }
+        return prev;
+      });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [roomCode, currentUserName]);
 
   useEffect(() => {
     if (isOpen && roomCode) {
       soundEngine.playPaperRustle();
-      setLoadError(null);
-
-      // 모달이 열릴 때 캐시가 있으면 즉시 화면에 주입하여 깜빡임 제거
       const cached = getCachedRoomDiaries(roomCode);
-      if (cached && cached.length > 0) {
-        setDiaries(maskUnopenedDiaries(cached, currentUserName));
-      } else {
-        setDiaries([]);
-      }
-
-      fetchDiaries();
+      queueMicrotask(() => {
+        setLoadError(null);
+        if (initialTab) {
+          setActiveTab(initialTab);
+        }
+        if (initialReportMonth) {
+          setSelectedReportMonth(initialReportMonth);
+        }
+        // 모달이 열릴 때 캐시가 있으면 즉시 화면에 주입하여 깜빡임 제거
+        if (cached && cached.length > 0) {
+          setDiaries(maskUnopenedDiaries(cached, currentUserName));
+        } else {
+          setDiaries([]);
+        }
+        void fetchDiaries();
+      });
     }
-  }, [isOpen, roomCode]);
+  }, [isOpen, roomCode, currentUserName, fetchDiaries, initialTab, initialReportMonth]);
 
   // [5번 요구사항] 월간 및 누적 온기 통계 & 키워드 분석
   const stats = useMemo<WarmthStats | null>(() => {
@@ -237,6 +289,271 @@ export default function ArchiveModal({
       monthlyCounts: Object.entries(monthlyCounts),
     };
   }, [diaries, currentUserName]);
+
+  // [이달의 온기 결산] 월별 상세 통계 및 온도 흐름, 폴라로이드 필름 롤 계산
+  const monthlyDetails = useMemo<MonthlyDetailStats[]>(() => {
+    const readableDiaries = diaries.filter(
+      (d) => d.isWaxBroken || d.authorName === currentUserName
+    );
+    if (readableDiaries.length === 0) return [];
+
+    const grouped: Record<string, DiaryData[]> = {};
+    readableDiaries.forEach((d) => {
+      if (!d.createdAt) return;
+      const date = new Date(d.createdAt);
+      if (isNaN(date.getTime())) return;
+      const mKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      if (!grouped[mKey]) grouped[mKey] = [];
+      grouped[mKey].push(d);
+    });
+
+    // 시간순 정렬 (과거 월 -> 최신 월) 후 전월 대비 온도 증감 계산
+    const chronologicalKeys = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
+    const computedAsc: MonthlyDetailStats[] = [];
+
+    chronologicalKeys.forEach((mKey, idx) => {
+      const [yStr, mStr] = mKey.split('-');
+      const monthNum = parseInt(mStr, 10);
+      const monthLabel = `${yStr}년 ${monthNum}월`;
+      const monthShortLabel = `${monthNum}월`;
+
+      const monthDiaries = [...grouped[mKey]].sort(
+        (a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
+      );
+
+      let totalTemp = 0;
+      let validTempCount = 0;
+      let maxTemp = -999;
+      let hottestDiary: DiaryData | null = null;
+      const keywordCounts: Record<string, number> = {};
+      const stampCounts: Record<string, { count: number; symbol: string; name: string }> = {};
+      const chartPoints: MonthlyDetailStats['chartPoints'] = [];
+      const photos: MonthlyDetailStats['photos'] = [];
+
+      monthDiaries.forEach((d) => {
+        const warmth =
+          d.warmthScore && typeof d.warmthScore.temperature === 'number'
+            ? d.warmthScore
+            : generateFallbackWarmth(d.title, d.content);
+
+        const temp =
+          warmth && typeof warmth.temperature === 'number' ? warmth.temperature : 36.5;
+
+        totalTemp += temp;
+        validTempCount++;
+        if (temp > maxTemp) {
+          maxTemp = temp;
+          hottestDiary = d;
+        }
+
+        if (warmth?.keywords) {
+          warmth.keywords.forEach((kw) => {
+            const clean = kw.trim();
+            if (clean) keywordCounts[clean] = (keywordCounts[clean] || 0) + 1;
+          });
+        }
+
+        if (d.stamp?.symbol && d.stamp?.name) {
+          const sKey = `${d.stamp.symbol}|${d.stamp.name}`;
+          if (!stampCounts[sKey]) {
+            stampCounts[sKey] = { count: 0, symbol: d.stamp.symbol, name: d.stamp.name };
+          }
+          stampCounts[sKey].count += 1;
+        }
+
+        const dt = d.createdAt ? new Date(d.createdAt) : new Date();
+        const dateLabel = `${dt.getMonth() + 1}/${dt.getDate()}`;
+        const fullDateLabel = `${dt.getMonth() + 1}월 ${dt.getDate()}일`;
+
+        chartPoints.push({
+          dateLabel,
+          fullDateLabel,
+          temp: Number(temp.toFixed(1)),
+          diary: d,
+        });
+
+        if (d.photos && d.photos.length > 0) {
+          d.photos.forEach((url, pIdx) => {
+            if (!url) return;
+            photos.push({
+              url,
+              caption: d.photoCaptions?.[pIdx] || d.title,
+              dateLabel: fullDateLabel,
+              authorName: d.authorName,
+              diary: d,
+            });
+          });
+        }
+      });
+
+      const avgTemp =
+        validTempCount > 0 ? Number((totalTemp / validTempCount).toFixed(1)) : 36.5;
+
+      const prevDetail = idx > 0 ? computedAsc[idx - 1] : null;
+      const prevMonthDiff = prevDetail
+        ? Number((avgTemp - prevDetail.avgTemp).toFixed(1))
+        : null;
+      const prevMonthShortLabel = prevDetail ? prevDetail.monthShortLabel : null;
+
+      const topStampEntry = Object.values(stampCounts).sort((a, b) => b.count - a.count)[0];
+      const topStamp = topStampEntry
+        ? { symbol: topStampEntry.symbol, name: topStampEntry.name }
+        : { symbol: '☀️', name: '따스한 온기' };
+
+      const topKeywords = Object.entries(keywordCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+
+      computedAsc.push({
+        monthKey: mKey,
+        monthLabel,
+        monthShortLabel,
+        diaries: monthDiaries,
+        avgTemp,
+        prevMonthDiff,
+        prevMonthShortLabel,
+        topStamp,
+        hottestDiary,
+        maxTemp: maxTemp > -999 ? Number(maxTemp.toFixed(1)) : avgTemp,
+        topKeywords,
+        chartPoints,
+        photos,
+      });
+    });
+
+    // 화면 노출용은 최신 월 우선 정렬
+    return computedAsc.reverse();
+  }, [diaries, currentUserName]);
+
+  const currentMonthDetail = useMemo<MonthlyDetailStats | null>(() => {
+    if (selectedReportMonth === 'ALL') return null;
+    return monthlyDetails.find((m) => m.monthKey === selectedReportMonth) || null;
+  }, [monthlyDetails, selectedReportMonth]);
+
+  const currentRecap = selectedReportMonth !== 'ALL' ? recapMap[selectedReportMonth] || null : null;
+
+  // 월간 온기 결산 AI 내러티브 생성 / 갱신 함수
+  const runMonthlyRecapGeneration = useCallback(
+    async (detail: MonthlyDetailStats, forceRefresh = false) => {
+      if (!roomCode || detail.diaries.length < 2) return;
+      setIsGeneratingRecap(true);
+      try {
+        if (!forceRefresh) {
+          const saved = await getSavedMonthlyRecap(roomCode, detail.monthKey);
+          if (saved && saved.summary) {
+            setRecapMap((prev) => ({ ...prev, [detail.monthKey]: saved }));
+            setIsGeneratingRecap(false);
+            return;
+          }
+        }
+
+        const diaryInputs = detail.diaries.map((d) => {
+          const dt = d.createdAt ? new Date(d.createdAt) : new Date();
+          const dateLabel = `${dt.getMonth() + 1}월 ${dt.getDate()}일`;
+          const warmth =
+            d.warmthScore && typeof d.warmthScore.temperature === 'number'
+              ? d.warmthScore
+              : generateFallbackWarmth(d.title, d.content);
+          return {
+            author: d.authorName,
+            title: d.title,
+            content: d.content,
+            date: dateLabel,
+            temperature: warmth?.temperature,
+          };
+        });
+
+        const generated = await generateMonthlyRecap(
+          detail.monthKey,
+          detail.monthLabel,
+          currentUserName,
+          partnerName,
+          diaryInputs
+        );
+
+        setRecapMap((prev) => ({ ...prev, [detail.monthKey]: generated }));
+        await saveMonthlyRecapToRoom(roomCode, detail.monthKey, generated);
+      } catch (e) {
+        console.warn('Failed to load/generate monthly recap:', e);
+      } finally {
+        setIsGeneratingRecap(false);
+      }
+    },
+    [roomCode, currentUserName, partnerName]
+  );
+
+  // REPORT 탭에서 특정 월을 선택했을 때 E2EE 저장본 조회 후 없으면 1회 자동 생성
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'REPORT' || !currentMonthDetail) return;
+    if (recapMap[currentMonthDetail.monthKey]) return;
+    if (currentMonthDetail.diaries.length < 2) return;
+
+    queueMicrotask(() => {
+      void runMonthlyRecapGeneration(currentMonthDetail, false);
+    });
+  }, [isOpen, activeTab, currentMonthDetail, recapMap, runMonthlyRecapGeneration]);
+
+  // 월간 온기 결산 카드를 고화질 PNG 이미지로 저장 / 공유
+  const handleSaveRecapImage = async () => {
+    if (!currentMonthDetail || isSavingRecapImage) return;
+    soundEngine.playMissionPassChime();
+    setIsSavingRecapImage(true);
+
+    try {
+      const element = document.getElementById('warmth-monthly-recap-card');
+      if (!element) return;
+
+      const { default: html2canvas } = await import('html2canvas');
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: '#FAF7F2',
+        ignoreElements: (el) => el.classList.contains('no-export'),
+      });
+
+      const fileName = `온기_${currentMonthDetail.monthKey}_결산카드_${roomCode}.png`;
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob((b) => resolve(b), 'image/png', 0.95)
+      );
+      if (!blob) return;
+
+      if (
+        typeof navigator !== 'undefined' &&
+        navigator.share &&
+        navigator.canShare &&
+        navigator.canShare({
+          files: [new File([blob], fileName, { type: 'image/png' })],
+        })
+      ) {
+        try {
+          const file = new File([blob], fileName, { type: 'image/png' });
+          await navigator.share({
+            title: `온기 (Warmth) · ${currentMonthDetail.monthLabel}의 온기 결산`,
+            text: `${currentUserName} & ${partnerName} 두 사람의 ${currentMonthDetail.monthLabel} 온기 결산 카드입니다.`,
+            files: [file],
+          });
+          return;
+        } catch (shareErr: unknown) {
+          if ((shareErr as Error)?.name === 'AbortError') return;
+        }
+      }
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (e) {
+      console.warn('Failed to save monthly recap image:', e);
+    } finally {
+      setIsSavingRecapImage(false);
+    }
+  };
 
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfProgressText, setPdfProgressText] = useState('');
@@ -418,7 +735,9 @@ export default function ArchiveModal({
   // 페이지 보정
   useEffect(() => {
     if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
+      queueMicrotask(() => {
+        setCurrentPage(totalPages);
+      });
     }
   }, [totalPages, currentPage]);
 
@@ -891,7 +1210,7 @@ export default function ArchiveModal({
           </div>
         )}
 
-        {/* 탭 2: [5번 요구사항] 월간 온기 리포트 & 키워드 분석 영역 */}
+        {/* 탭 2: [5번 요구사항 & 이달의 온기 결산] 월간 온기 리포트 & 키워드 분석 영역 */}
         {activeTab === 'REPORT' && (
           <div ref={reportContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
             {!stats || stats.totalDiaries === 0 ? (
@@ -902,99 +1221,613 @@ export default function ArchiveModal({
               </div>
             ) : (
               <>
-                {/* 평균 온기 온도 대형 카드 */}
-                <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-[#FFFBF4] to-[#F5ECE0] border border-[#E8DFC8] shadow-sm relative overflow-hidden">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-sans-ui font-bold text-amber-900 tracking-wider">
-                      둘만의 평균 온기 지수
-                    </span>
-                    <span className="text-xs font-serif-warm text-stone-500">
-                      총 {stats.totalDiaries}편의 편지 분석
-                    </span>
-                  </div>
-                  <div className="flex items-baseline gap-2 my-2">
-                    <span className="font-mono text-4xl sm:text-5xl font-bold text-[#6B1724]">
-                      +{stats.avgTemp.toFixed(1)}°C
-                    </span>
-                    <span className="text-xs sm:text-sm font-serif-warm text-stone-600">
-                      {stats.avgTemp >= 30
-                        ? '깊은 애정과 설렘이 가득한 뜨거운 온기'
-                        : stats.avgTemp >= 15
-                        ? '하루의 피로를 녹여주는 다정하고 포근한 온기'
-                        : '잔잔하고 담담하게 서로를 지켜주는 온기'}
-                    </span>
-                  </div>
+                {/* 상단 월별 선택 탭 바 (전체 누적 + 각 월별 온기 결산 탭) */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 no-print touch-pan-x">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedReportMonth('ALL');
+                      soundEngine.playTileSlideSound();
+                    }}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-serif-warm font-bold border transition-all cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-1.5 ${
+                      selectedReportMonth === 'ALL'
+                        ? 'bg-[#6B1724] text-amber-50 border-[#6B1724] shadow-xs'
+                        : 'bg-white text-stone-700 border-[#E8DFD3] hover:bg-amber-50/60'
+                    }`}
+                  >
+                    <BarChart3 className="w-3.5 h-3.5" />
+                    <span>전체 누적 리포트</span>
+                  </button>
+
+                  {monthlyDetails.map((m) => {
+                    const isSelected = selectedReportMonth === m.monthKey;
+                    return (
+                      <button
+                        key={m.monthKey}
+                        type="button"
+                        onClick={() => {
+                          setSelectedReportMonth(m.monthKey);
+                          soundEngine.playTileSlideSound();
+                        }}
+                        className={`px-3.5 py-1.5 rounded-full text-xs font-serif-warm font-bold border transition-all cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-1 ${
+                          isSelected
+                            ? 'bg-[#6B1724] text-amber-50 border-[#6B1724] shadow-xs'
+                            : 'bg-[#FFFBF4] text-amber-950 border-amber-300/80 hover:bg-amber-100/60'
+                        }`}
+                      >
+                        <Sparkles className={`w-3 h-3 ${isSelected ? 'text-amber-200' : 'text-amber-700'}`} />
+                        <span>{m.monthLabel} 결산</span>
+                      </button>
+                    );
+                  })}
                 </div>
 
-                {/* 가장 뜨거웠던 편지 하이라이트 */}
-                {stats.hottestDiary && (
-                  <div className="p-4 rounded-2xl bg-white border border-[#E8DFD3] shadow-xs">
-                    <div className="flex items-center gap-1.5 text-xs font-sans-ui font-bold text-[#6B1724] mb-1.5">
-                      <Flame className="w-4 h-4 text-[#6B1724]" />
-                      <span>우리 둘의 가장 뜨거웠던 순간</span>
+                {/* A. 전체 누적 리포트 뷰 */}
+                {selectedReportMonth === 'ALL' || !currentMonthDetail ? (
+                  <>
+                    {/* 평균 온기 온도 대형 카드 */}
+                    <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-[#FFFBF4] to-[#F5ECE0] border border-[#E8DFC8] shadow-sm relative overflow-hidden">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-sans-ui font-bold text-amber-900 tracking-wider">
+                          둘만의 평균 온기 지수
+                        </span>
+                        <span className="text-xs font-serif-warm text-stone-500">
+                          총 {stats.totalDiaries}편의 편지 분석
+                        </span>
+                      </div>
+                      <div className="flex items-baseline gap-2 my-2">
+                        <span className="font-mono text-4xl sm:text-5xl font-bold text-[#6B1724]">
+                          +{stats.avgTemp.toFixed(1)}°C
+                        </span>
+                        <span className="text-xs sm:text-sm font-serif-warm text-stone-600">
+                          {stats.avgTemp >= 30
+                            ? '깊은 애정과 설렘이 가득한 뜨거운 온기'
+                            : stats.avgTemp >= 15
+                            ? '하루의 피로를 녹여주는 다정하고 포근한 온기'
+                            : '잔잔하고 담담하게 서로를 지켜주는 온기'}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <h4 className="font-serif-warm font-bold text-stone-900 text-sm sm:text-base">
-                        「{stats.hottestDiary.title}」
-                      </h4>
-                      <span className="font-mono font-bold text-sm text-[#6B1724] shrink-0">
-                        +{stats.maxTemp.toFixed(1)}°C
-                      </span>
-                    </div>
-                    <p className="text-xs text-stone-500 font-serif-warm mt-1">
-                      {formatDate(stats.hottestDiary.createdAt)} · 작성자 {stats.hottestDiary.authorName}
-                    </p>
-                  </div>
-                )}
 
-                {/* 다정한 키워드 구름 Top 12 */}
-                <div className="p-4 sm:p-5 rounded-2xl bg-white border border-[#E8DFD3] shadow-xs">
-                  <div className="flex items-center gap-1.5 text-xs font-sans-ui font-bold text-stone-800 mb-3">
-                    <Heart className="w-4 h-4 text-rose-600" />
-                    <span>우리가 편지에서 가장 많이 나눈 다정한 단어들</span>
-                  </div>
-
-                  {stats.topKeywords.length === 0 ? (
-                    <p className="text-xs text-stone-400 font-serif-warm py-4 text-center">
-                      아직 추출된 감성 해시태그가 없습니다.
-                    </p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2 items-center justify-center py-2">
-                      {stats.topKeywords.map(([kw, count], idx) => {
-                        const isTop = idx < 3;
-                        return (
-                          <span
-                            key={kw}
-                            className={`px-3 py-1.5 rounded-xl font-serif-warm transition-all ${
-                              isTop
-                                ? 'bg-[#6B1724] text-amber-50 font-bold text-sm shadow-xs'
-                                : 'bg-[#FAF4ED] text-stone-800 border border-[#E8DFD3] text-xs font-medium'
-                            }`}
-                          >
-                            {kw}
-                            <span className={`text-[10px] ml-1.5 ${isTop ? 'text-amber-200' : 'text-stone-400'}`}>
-                              {count}회
-                            </span>
+                    {/* 가장 뜨거웠던 편지 하이라이트 */}
+                    {stats.hottestDiary && (
+                      <div
+                        onClick={() => {
+                          if (!stats.hottestDiary) return;
+                          soundEngine.playPaperRustle();
+                          onSelectDiary(stats.hottestDiary);
+                        }}
+                        className="p-4 rounded-2xl bg-white border border-[#E8DFD3] hover:border-[#6B1724]/40 transition-all cursor-pointer shadow-xs"
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-1.5 text-xs font-sans-ui font-bold text-[#6B1724]">
+                            <Flame className="w-4 h-4 text-[#6B1724]" />
+                            <span>우리 둘의 가장 뜨거웠던 순간</span>
+                          </div>
+                          <span className="text-[11px] font-serif-warm text-stone-400 flex items-center gap-0.5">
+                            <span>편지 펼치기</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
                           </span>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {/* 월별 작성 편수 요약 */}
-                {stats.monthlyCounts.length > 0 && (
-                  <div className="p-4 rounded-2xl bg-white border border-[#E8DFD3] shadow-xs">
-                    <div className="text-xs font-sans-ui font-bold text-stone-800 mb-2">
-                      월별 작성 기록
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {stats.monthlyCounts.map(([month, count]) => (
-                        <div key={month} className="p-2.5 rounded-xl bg-stone-50 border border-stone-200/70 text-center">
-                          <div className="text-xs text-stone-600 font-serif-warm">{month}</div>
-                          <div className="text-sm font-bold text-[#6B1724] font-mono mt-0.5">{count}편</div>
                         </div>
-                      ))}
+                        <div className="flex items-center justify-between gap-2">
+                          <h4 className="font-serif-warm font-bold text-stone-900 text-sm sm:text-base">
+                            「{stats.hottestDiary.title}」
+                          </h4>
+                          <span className="font-mono font-bold text-sm text-[#6B1724] shrink-0">
+                            +{stats.maxTemp.toFixed(1)}°C
+                          </span>
+                        </div>
+                        <p className="text-xs text-stone-500 font-serif-warm mt-1">
+                          {formatDate(stats.hottestDiary.createdAt)} · 작성자 {stats.hottestDiary.authorName}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* 다정한 키워드 구름 Top 12 */}
+                    <div className="p-4 sm:p-5 rounded-2xl bg-white border border-[#E8DFD3] shadow-xs">
+                      <div className="flex items-center gap-1.5 text-xs font-sans-ui font-bold text-stone-800 mb-3">
+                        <Heart className="w-4 h-4 text-rose-600" />
+                        <span>우리가 편지에서 가장 많이 나눈 다정한 단어들</span>
+                      </div>
+
+                      {stats.topKeywords.length === 0 ? (
+                        <p className="text-xs text-stone-400 font-serif-warm py-4 text-center">
+                          아직 추출된 감성 해시태그가 없습니다.
+                        </p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2 items-center justify-center py-2">
+                          {stats.topKeywords.map(([kw, count], idx) => {
+                            const isTop = idx < 3;
+                            return (
+                              <span
+                                key={kw}
+                                className={`px-3 py-1.5 rounded-xl font-serif-warm transition-all ${
+                                  isTop
+                                    ? 'bg-[#6B1724] text-amber-50 font-bold text-sm shadow-xs'
+                                    : 'bg-[#FAF4ED] text-stone-800 border border-[#E8DFD3] text-xs font-medium'
+                                }`}
+                              >
+                                {kw}
+                                <span className={`text-[10px] ml-1.5 ${isTop ? 'text-amber-200' : 'text-stone-400'}`}>
+                                  {count}회
+                                </span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 월별 온기 결산 바로가기 그리드 */}
+                    {monthlyDetails.length > 0 && (
+                      <div className="p-4 rounded-2xl bg-white border border-[#E8DFD3] shadow-xs">
+                        <div className="flex items-center justify-between mb-2.5">
+                          <span className="text-xs font-sans-ui font-bold text-stone-800 flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-700" />
+                            <span>월별 온기 결산 아카이브</span>
+                          </span>
+                          <span className="text-[11px] font-serif-warm text-stone-400">
+                            월을 누르면 상세 결산이 열립니다
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                          {monthlyDetails.map((m) => (
+                            <button
+                              key={m.monthKey}
+                              type="button"
+                              onClick={() => {
+                                setSelectedReportMonth(m.monthKey);
+                                soundEngine.playPaperRustle();
+                              }}
+                              className="p-3 rounded-xl bg-gradient-to-br from-[#FFFDF9] to-[#F7EFE4] hover:from-amber-50 hover:to-amber-100/70 border border-[#E8DFC8] hover:border-[#6B1724]/40 text-left transition-all cursor-pointer group shadow-2xs"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs text-stone-700 font-serif-warm font-bold">
+                                  {m.monthLabel}
+                                </span>
+                                <ChevronRight className="w-3.5 h-3.5 text-stone-400 group-hover:text-[#6B1724] group-hover:translate-x-0.5 transition-all" />
+                              </div>
+                              <div className="flex items-baseline gap-1.5 mt-1">
+                                <span className="text-sm font-bold text-[#6B1724] font-mono">
+                                  +{m.avgTemp.toFixed(1)}°C
+                                </span>
+                                <span className="text-[11px] text-stone-500 font-serif-warm">
+                                  {m.topStamp?.symbol} {m.topStamp?.name}
+                                </span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  /* B. 선택한 달의 [이달의 온기 결산 (Monthly Warmth Recap)] 상세 뷰 */
+                  <div className="space-y-4">
+                    {/* 캡처 및 공유 대상 결산 카드 영역 */}
+                    <div
+                      id="warmth-monthly-recap-card"
+                      className="p-4 sm:p-6 rounded-3xl bg-gradient-to-b from-[#FFFDF9] via-[#FAF6EE] to-[#F5ECE0] border border-[#E5DAC8] shadow-md paper-texture space-y-4"
+                    >
+                      {/* 결산 카드 상단 타이틀 헤더 */}
+                      <div className="text-center border-b border-[#E5DAC8]/80 pb-3.5">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100/80 border border-amber-300/80 text-[10px] font-sans-ui font-bold text-amber-950 tracking-widest uppercase">
+                          <Sparkles className="w-3 h-3 text-amber-700" />
+                          <span>Monthly Warmth Recap</span>
+                        </span>
+                        <h3 className="font-serif-warm font-bold text-stone-900 text-lg sm:text-xl mt-1.5">
+                          {currentMonthDetail.monthLabel}의 온기 결산
+                        </h3>
+                        <p className="text-xs text-stone-500 font-serif-warm mt-0.5">
+                          {currentUserName} ♥ {partnerName} · 우리 둘이 나눈 한 달의 기억
+                        </p>
+                      </div>
+
+                      {/* ① 한눈에 보는 이달의 숫자 (편지 수 분할 제외, 평균 온기 지수 & 대표 우표 2열 구성) */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {/* 이달의 평균 온기 지수 & 전월 대비 비교 */}
+                        <div className="p-4 rounded-2xl bg-white/90 border border-[#E8DFC8] shadow-2xs flex flex-col justify-between">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-sans-ui font-bold text-amber-900">
+                              🌡️ 이달의 평균 온기 지수
+                            </span>
+                            <TrendingUp className="w-3.5 h-3.5 text-[#6B1724]" />
+                          </div>
+                          <div className="my-1.5 flex items-baseline gap-2">
+                            <span className="font-mono text-3xl sm:text-4xl font-bold text-[#6B1724]">
+                              +{currentMonthDetail.avgTemp.toFixed(1)}°C
+                            </span>
+                          </div>
+                          <p className="text-[11px] font-serif-warm text-stone-600">
+                            {currentMonthDetail.prevMonthDiff !== null && currentMonthDetail.prevMonthShortLabel ? (
+                              currentMonthDetail.prevMonthDiff > 0 ? (
+                                <span>
+                                  지난 {currentMonthDetail.prevMonthShortLabel}보다{' '}
+                                  <strong className="text-[#6B1724] font-mono">
+                                    +{currentMonthDetail.prevMonthDiff.toFixed(1)}°C
+                                  </strong>{' '}
+                                  더 따뜻해졌어요 🔥
+                                </span>
+                              ) : currentMonthDetail.prevMonthDiff < 0 ? (
+                                <span>
+                                  지난 {currentMonthDetail.prevMonthShortLabel}과 비슷한 포근한 온기 (
+                                  <span className="font-mono">{currentMonthDetail.prevMonthDiff.toFixed(1)}°C</span>)
+                                </span>
+                              ) : (
+                                <span>
+                                  지난 {currentMonthDetail.prevMonthShortLabel}과 똑같은 온도로 다정함을 이어갔어요
+                                </span>
+                              )
+                            ) : (
+                              <span>우리가 함께 기록한 소중한 달의 평균 온도예요</span>
+                            )}
+                          </p>
+                        </div>
+
+                        {/* 이달의 대표 우표 */}
+                        <div className="p-4 rounded-2xl bg-white/90 border border-[#E8DFC8] shadow-2xs flex flex-col justify-between">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-sans-ui font-bold text-amber-900">
+                              📮 이달의 대표 우표
+                            </span>
+                            <span className="text-[11px] font-serif-warm text-stone-400">
+                              가장 많이 붙인 감정
+                            </span>
+                          </div>
+                          <div className="my-1.5 flex items-center gap-2.5">
+                            <span className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-center justify-center text-2xl shadow-2xs shrink-0">
+                              {currentMonthDetail.topStamp?.symbol || '☀️'}
+                            </span>
+                            <div>
+                              <div className="font-serif-warm font-bold text-stone-900 text-base">
+                                {currentMonthDetail.topStamp?.name || '따스한 온기'}
+                              </div>
+                              <div className="text-[11px] text-stone-500 font-serif-warm">
+                                {currentMonthDetail.monthShortLabel}의 편지를 가장 많이 장식한 우표
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* ② 이달의 온도 흐름 차트 (Interactive SVG Line Chart) */}
+                      {currentMonthDetail.chartPoints.length > 0 && (
+                        <div className="p-4 rounded-2xl bg-white/95 border border-[#E8DFC8] shadow-2xs">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-sans-ui font-bold text-stone-800 flex items-center gap-1.5">
+                              <TrendingUp className="w-3.5 h-3.5 text-[#6B1724]" />
+                              <span>📈 {currentMonthDetail.monthShortLabel}의 온도 흐름</span>
+                            </span>
+                            <span className="text-[10px] font-serif-warm text-stone-400 no-export">
+                              점을 누르면 그날의 편지가 펼쳐집니다
+                            </span>
+                          </div>
+
+                          {(() => {
+                            const pts = currentMonthDetail.chartPoints;
+                            const temps = pts.map((p) => p.temp);
+                            const minT = Math.min(...temps, 36.0) - 0.5;
+                            const maxT = Math.max(...temps, 38.0) + 0.5;
+                            const rangeT = Math.max(1, maxT - minT);
+                            const svgWidth = Math.max(280, pts.length * 56);
+                            const svgHeight = 128;
+                            const padX = 28;
+                            const padTop = 26;
+                            const padBottom = 26;
+                            const plotW = svgWidth - padX * 2;
+                            const plotH = svgHeight - padTop - padBottom;
+
+                            const coords = pts.map((p, i) => {
+                              const x =
+                                pts.length === 1
+                                  ? svgWidth / 2
+                                  : padX + (i / (pts.length - 1)) * plotW;
+                              const y = padTop + (1 - (p.temp - minT) / rangeT) * plotH;
+                              return { x, y, ...p };
+                            });
+
+                            const polylinePoints = coords.map((c) => `${c.x},${c.y}`).join(' ');
+                            const areaPoints =
+                              coords.length > 1
+                                ? `${coords[0].x},${svgHeight - padBottom} ${polylinePoints} ${
+                                    coords[coords.length - 1].x
+                                  },${svgHeight - padBottom}`
+                                : '';
+
+                            return (
+                              <div className="w-full overflow-x-auto pb-1 touch-pan-x">
+                                <svg
+                                  width={svgWidth}
+                                  height={svgHeight}
+                                  viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                                  className="min-w-full overflow-visible"
+                                >
+                                  <defs>
+                                    <linearGradient id="warmthAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                                      <stop offset="0%" stopColor="#6B1724" stopOpacity="0.22" />
+                                      <stop offset="100%" stopColor="#6B1724" stopOpacity="0.0" />
+                                    </linearGradient>
+                                  </defs>
+
+                                  {/* 가이드 수평선 */}
+                                  <line
+                                    x1={padX}
+                                    y1={padTop + plotH / 2}
+                                    x2={svgWidth - padX}
+                                    y2={padTop + plotH / 2}
+                                    stroke="#E8DFD3"
+                                    strokeDasharray="3 3"
+                                    strokeWidth="1"
+                                  />
+
+                                  {/* 영역 그라데이션 */}
+                                  {areaPoints && (
+                                    <polygon points={areaPoints} fill="url(#warmthAreaGrad)" />
+                                  )}
+
+                                  {/* 온도 연결 선 */}
+                                  {coords.length > 1 && (
+                                    <polyline
+                                      fill="none"
+                                      stroke="#6B1724"
+                                      strokeWidth="2.2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      points={polylinePoints}
+                                    />
+                                  )}
+
+                                  {/* 각 일기 온도 포인트 노드 */}
+                                  {coords.map((c, idx) => (
+                                    <g
+                                      key={`${c.diary.diaryId}-${idx}`}
+                                      onClick={() => {
+                                        soundEngine.playPaperRustle();
+                                        onSelectDiary(c.diary);
+                                      }}
+                                      className="cursor-pointer group"
+                                    >
+                                      <circle
+                                        cx={c.x}
+                                        cy={c.y}
+                                        r={5}
+                                        fill="#FFFDF9"
+                                        stroke="#6B1724"
+                                        strokeWidth="2.5"
+                                      />
+                                      <text
+                                        x={c.x}
+                                        y={c.y - 9}
+                                        textAnchor="middle"
+                                        className="fill-[#6B1724] font-mono text-[10px] font-bold select-none"
+                                      >
+                                        +{c.temp.toFixed(1)}°
+                                      </text>
+                                      <text
+                                        x={c.x}
+                                        y={svgHeight - 8}
+                                        textAnchor="middle"
+                                        className="fill-stone-500 font-sans-ui text-[10px] select-none"
+                                      >
+                                        {c.dateLabel}
+                                      </text>
+                                    </g>
+                                  ))}
+                                </svg>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+
+                      {/* ③ Gemini AI 온기 우체국 총평 & 이달의 베스트 문장 & 다음 달 제안 */}
+                      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-[#FFFDF9] to-[#F8EFE2] border border-amber-300/80 shadow-xs space-y-3.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 text-xs font-sans-ui font-bold text-[#6B1724]">
+                            <Sparkles className="w-4 h-4 text-amber-700" />
+                            <span>💌 온기 우체국이 전하는 {currentMonthDetail.monthShortLabel}의 이야기</span>
+                          </div>
+
+                          {currentMonthDetail.diaries.length >= 2 && (
+                            <button
+                              type="button"
+                              disabled={isGeneratingRecap}
+                              onClick={() => {
+                                soundEngine.playTileSlideSound();
+                                void runMonthlyRecapGeneration(currentMonthDetail, true);
+                              }}
+                              className="no-export px-2.5 py-1 rounded-lg bg-white/90 hover:bg-amber-50 border border-amber-300/80 text-[11px] font-serif-warm font-semibold text-amber-950 flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
+                            >
+                              <RefreshCw className={`w-3 h-3 ${isGeneratingRecap ? 'animate-spin' : ''}`} />
+                              <span>
+                                {currentRecap && currentRecap.analyzedCount < currentMonthDetail.diaries.length
+                                  ? '새 편지 반영하기'
+                                  : '다시 쓰기'}
+                              </span>
+                            </button>
+                          )}
+                        </div>
+
+                        {currentMonthDetail.diaries.length < 2 ? (
+                          <div className="p-4 rounded-xl bg-white/80 border border-amber-200/70 text-center space-y-1">
+                            <p className="text-xs font-serif-warm font-semibold text-stone-700">
+                              아직 {currentMonthDetail.monthShortLabel}에 주고받은 편지가 1통뿐이에요 ✉️
+                            </p>
+                            <p className="text-[11px] font-serif-warm text-stone-500 leading-relaxed">
+                              두 분의 이야기가 2통 이상 쌓이면 온기 우체국 AI가 그달의 다정한 회고록과 베스트 문장을 적어드립니다.
+                            </p>
+                          </div>
+                        ) : isGeneratingRecap && !currentRecap ? (
+                          <div className="py-8 px-4 rounded-xl bg-white/80 border border-amber-200/70 text-center space-y-2">
+                            <Loader2 className="w-6 h-6 animate-spin text-[#6B1724] mx-auto" />
+                            <p className="text-xs font-serif-warm font-semibold text-stone-700">
+                              온기 우체국이 두 분의 {currentMonthDetail.monthShortLabel} 편지를 읽으며 결산 편지를 적고 있어요...
+                            </p>
+                            <p className="text-[11px] font-serif-warm text-stone-400">
+                              잠시만 기다려 주시면 둘만의 다정한 한 달 회고가 완성됩니다
+                            </p>
+                          </div>
+                        ) : currentRecap ? (
+                          <>
+                            {/* AI 감성 요약문 */}
+                            <div className="p-3.5 sm:p-4 rounded-xl bg-white/90 border border-[#E8DFC8] font-serif-warm text-xs sm:text-sm text-stone-800 leading-relaxed whitespace-pre-line">
+                              {currentRecap.summary}
+                            </div>
+
+                            {/* 이달의 가장 다정했던 한 줄 (Best Quote) */}
+                            {currentRecap.bestQuote && (
+                              <div className="p-4 rounded-xl bg-[#FAF4ED] border border-amber-300/70 space-y-1.5">
+                                <div className="flex items-center gap-1.5 text-[11px] font-sans-ui font-bold text-amber-900">
+                                  <MessageSquareQuote className="w-3.5 h-3.5 text-[#6B1724]" />
+                                  <span>이달의 가장 다정했던 한 줄</span>
+                                </div>
+                                <p className="font-serif-warm font-bold text-stone-900 text-xs sm:text-sm italic leading-relaxed">
+                                  &ldquo;{currentRecap.bestQuote}&rdquo;
+                                </p>
+                                <p className="text-[11px] font-serif-warm text-stone-500 text-right">
+                                  — {currentRecap.bestQuoteDate ? `${currentRecap.bestQuoteDate}, ` : ''}
+                                  {currentRecap.bestQuoteAuthor} 님의 편지 중에서
+                                </p>
+                              </div>
+                            )}
+
+                            {/* 다음 달을 위한 작은 제안 */}
+                            {currentRecap.nextSuggestion && (
+                              <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200/80 flex items-start gap-2">
+                                <span className="text-sm shrink-0">🌱</span>
+                                <div className="text-xs font-serif-warm text-amber-950 leading-relaxed">
+                                  <strong className="font-bold">다음 달을 위한 작은 제안: </strong>
+                                  <span>{currentRecap.nextSuggestion}</span>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        ) : null}
+                      </div>
+
+                      {/* ④ 이달의 가장 뜨거웠던 순간 */}
+                      {currentMonthDetail.hottestDiary && (
+                        <div
+                          onClick={() => {
+                            if (!currentMonthDetail.hottestDiary) return;
+                            soundEngine.playPaperRustle();
+                            onSelectDiary(currentMonthDetail.hottestDiary);
+                          }}
+                          className="p-4 rounded-2xl bg-white/95 border border-[#E8DFC8] hover:border-[#6B1724]/40 transition-all cursor-pointer shadow-2xs"
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-1.5 text-xs font-sans-ui font-bold text-[#6B1724]">
+                              <Flame className="w-4 h-4 text-[#6B1724]" />
+                              <span>🔥 {currentMonthDetail.monthShortLabel}의 가장 뜨거웠던 순간</span>
+                            </div>
+                            <span className="font-mono font-bold text-sm text-[#6B1724]">
+                              +{currentMonthDetail.maxTemp.toFixed(1)}°C
+                            </span>
+                          </div>
+                          <h4 className="font-serif-warm font-bold text-stone-900 text-sm sm:text-base">
+                            「{currentMonthDetail.hottestDiary.title}」
+                          </h4>
+                          <p className="text-xs text-stone-500 font-serif-warm mt-0.5">
+                            {formatDate(currentMonthDetail.hottestDiary.createdAt)} · 작성자{' '}
+                            {currentMonthDetail.hottestDiary.authorName}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* ⑤ 이달의 다정한 키워드 */}
+                      {currentMonthDetail.topKeywords.length > 0 && (
+                        <div className="p-4 rounded-2xl bg-white/95 border border-[#E8DFC8] shadow-2xs">
+                          <div className="flex items-center gap-1.5 text-xs font-sans-ui font-bold text-stone-800 mb-2.5">
+                            <Heart className="w-3.5 h-3.5 text-rose-600" />
+                            <span>{currentMonthDetail.monthShortLabel}에 우리가 자주 나눈 마음들</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {currentMonthDetail.topKeywords.map(([kw, count], idx) => (
+                              <span
+                                key={kw}
+                                className={`px-2.5 py-1 rounded-xl font-serif-warm text-xs ${
+                                  idx < 3
+                                    ? 'bg-[#6B1724] text-amber-50 font-bold'
+                                    : 'bg-[#FAF4ED] text-stone-800 border border-[#E8DFD3]'
+                                }`}
+                              >
+                                {kw}
+                                <span
+                                  className={`text-[10px] ml-1 ${
+                                    idx < 3 ? 'text-amber-200' : 'text-stone-400'
+                                  }`}
+                                >
+                                  {count}
+                                </span>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ⑥ 이달의 폴라로이드 필름 롤 */}
+                      {currentMonthDetail.photos.length > 0 && (
+                        <div className="p-4 rounded-2xl bg-white/95 border border-[#E8DFC8] shadow-2xs space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5 text-xs font-sans-ui font-bold text-stone-800">
+                              <Camera className="w-3.5 h-3.5 text-[#6B1724]" />
+                              <span>
+                                🖼️ {currentMonthDetail.monthShortLabel}의 폴라로이드 필름 롤 (
+                                {currentMonthDetail.photos.length}장)
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex gap-3 overflow-x-auto pb-2 touch-pan-x">
+                            {currentMonthDetail.photos.map((photo, idx) => (
+                              <div
+                                key={`${photo.diary.diaryId}-photo-${idx}`}
+                                onClick={() => {
+                                  soundEngine.playPaperRustle();
+                                  onSelectDiary(photo.diary);
+                                }}
+                                className="w-36 sm:w-40 shrink-0 p-2 pb-2.5 rounded-xl bg-[#FFFDF9] border border-stone-200 shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                              >
+                                <div className="w-full h-28 rounded-lg overflow-hidden bg-stone-100 border border-stone-200/60">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={photo.url}
+                                    alt={photo.caption || '추억 사진'}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  />
+                                </div>
+                                <p className="text-[11px] font-serif-warm font-bold text-stone-800 truncate mt-2">
+                                  {photo.caption || '소중한 순간'}
+                                </p>
+                                <p className="text-[10px] font-serif-warm text-stone-400 mt-0.5">
+                                  {photo.dateLabel} · {photo.authorName}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 결산 카드 이미지 저장 버튼 */}
+                    <div className="flex justify-end no-print">
+                      <button
+                        type="button"
+                        disabled={isSavingRecapImage}
+                        onClick={handleSaveRecapImage}
+                        className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-xs font-serif-warm font-bold shadow-sm cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-60"
+                      >
+                        {isSavingRecapImage ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>결산 카드 이미지 만드는 중...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Download className="w-4 h-4" />
+                            <span>📸 {currentMonthDetail.monthShortLabel} 결산 카드 이미지로 저장</span>
+                          </>
+                        )}
+                      </button>
                     </div>
                   </div>
                 )}
