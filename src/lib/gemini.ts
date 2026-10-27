@@ -1002,32 +1002,3 @@ export async function generateLetterIllustration(content: string): Promise<{ dat
 
   return null;
 }
-
-/**
- * 🪄 업로드된 실제 사진을 분석하여 스튜디오 지브리 애니메이션 화풍으로 재탄생시킵니다.
- * (Gemini Flash Vision 구도 분석 + Pollinations FLUX 생성)
- */
-export async function convertPhotoToGhibli(dataUrl: string): Promise<{ dataUrl: string; prompt?: string } | null> {
-  if (!dataUrl || !dataUrl.startsWith('data:')) return null;
-
-  try {
-    const res = await fetch('/api/gemini/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'convertPhotoToGhibli',
-        payload: { dataUrl },
-      }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.dataUrl) {
-        return { dataUrl: data.dataUrl, prompt: data.prompt };
-      }
-    }
-  } catch (err) {
-    console.warn('Convert to Ghibli error:', err);
-  }
-
-  return null;
-}

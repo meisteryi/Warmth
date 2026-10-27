@@ -6,7 +6,7 @@ import { WaxColor, WAX_COLORS, MissionData, DiaryData, WarmthScore, WEATHER_STAM
 import { soundEngine } from '@/lib/audio';
 import { compressImage, compressDataUrl, uploadPhotoIfPossible, CompressedImageResult } from '@/lib/imageUtils';
 import { fetchAiQuiz, fetchWarmthScore, fetchDailyPrompt, getCachedDailyPrompt } from '@/lib/aiClient';
-import { generateFallbackWarmth, generateLetterIllustration, convertPhotoToGhibli } from '@/lib/gemini';
+import { generateFallbackWarmth, generateLetterIllustration } from '@/lib/gemini';
 import { getLatestReadDiaryForPartner } from '@/lib/roomService';
 import {
   X,
@@ -28,8 +28,6 @@ import {
   Paintbrush,
   RefreshCw,
   CheckCircle2,
-  Wand2,
-  Undo2,
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 
@@ -103,11 +101,6 @@ export default function WriteDiaryModal({
   const [isGeneratingIllustration, setIsGeneratingIllustration] = useState(false);
   const [illustrationStep, setIllustrationStep] = useState<number>(1);
   const [illustrationProgress, setIllustrationProgress] = useState<number>(0);
-  const [isTransformingGhibli, setIsTransformingGhibli] = useState(false);
-  const [originalPhotoBackup, setOriginalPhotoBackup] = useState<{
-    photoUrl: string;
-    photoInfo: CompressedImageResult;
-  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modalScrollRef = useRef<HTMLDivElement>(null);
   const modalBackdropRef = useRef<HTMLDivElement>(null);
@@ -134,8 +127,6 @@ export default function WriteDiaryModal({
     setIsGeneratingIllustration(false);
     setIllustrationStep(1);
     setIllustrationProgress(0);
-    setIsTransformingGhibli(false);
-    setOriginalPhotoBackup(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -480,51 +471,6 @@ export default function WriteDiaryModal({
     }
   };
 
-  // 🪄 실제 사진을 스튜디오 지브리 애니메이션풍으로 변환 (방법 A)
-  const handleConvertToGhibli = async () => {
-    if (isTransformingGhibli || isCompressing || !selectedPhoto) return;
-
-    setIsTransformingGhibli(true);
-    soundEngine.playTileSlideSound();
-
-    // 원본 사진 백업 (사용자가 원할 때 언제든 되돌릴 수 있도록)
-    if (!originalPhotoBackup && uploadedPhotoInfo) {
-      setOriginalPhotoBackup({
-        photoUrl: selectedPhoto,
-        photoInfo: uploadedPhotoInfo,
-      });
-    }
-
-    try {
-      const result = await convertPhotoToGhibli(selectedPhoto);
-      if (!result?.dataUrl) {
-        throw new Error('Ghibli transformation failed');
-      }
-
-      const compressed = await compressDataUrl(result.dataUrl, 800, 800, 0.82, 'ghibli-illustration.jpg');
-      setUploadedPhotoInfo(compressed);
-      setSelectedPhoto(compressed.dataUrl);
-      if (!photoCaption.trim()) {
-        setPhotoCaption(language === 'en' ? 'Ghibli animation style photo' : '지브리 애니메이션풍으로 물든 우리');
-      }
-      soundEngine.playMissionPassChime();
-    } catch (err) {
-      console.error('Failed to convert to Ghibli style:', err);
-      alert(language === 'en' ? 'Unable to convert to Ghibli style right now. Please try again in a moment.' : '지브리 화풍 변환 중 지연이 발생했습니다. 잠시 후 다시 시도해 주세요.');
-    } finally {
-      setIsTransformingGhibli(false);
-    }
-  };
-
-  // ↩️ 지브리 변환 전 원본 사진으로 되돌리기
-  const handleRestoreOriginalPhoto = () => {
-    if (!originalPhotoBackup) return;
-    soundEngine.playTileSlideSound();
-    setSelectedPhoto(originalPhotoBackup.photoUrl);
-    setUploadedPhotoInfo(originalPhotoBackup.photoInfo);
-    setOriginalPhotoBackup(null);
-  };
-
   // 기기 내 사진 파일 선택 시 클라이언트 사이드 압축 처리
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -551,7 +497,7 @@ export default function WriteDiaryModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !content.trim() || isSubmitting || isCompressing || isGeneratingIllustration || isTransformingGhibli) return;
+    if (!title.trim() || !content.trim() || isSubmitting || isCompressing || isGeneratingIllustration) return;
 
     // 사진 퍼즐 관문 선택 시 사진 첨부 필수 검증
     if (missionType === 'PUZZLE_PHOTO' && !selectedPhoto) {
@@ -1084,9 +1030,7 @@ export default function WriteDiaryModal({
                   </label>
                   {uploadedPhotoInfo && (
                     <span className="text-[11px] font-mono text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                      {uploadedPhotoInfo.fileName.includes('ghibli')
-                        ? `🪄 지브리 애니메이션풍 (${uploadedPhotoInfo.sizeKb}KB 최적화)`
-                        : uploadedPhotoInfo.fileName.includes('illustration')
+                      {uploadedPhotoInfo.fileName.includes('illustration')
                         ? `🎨 AI 감성 수채화 (${uploadedPhotoInfo.sizeKb}KB 최적화)`
                         : `직접 업로드됨 (${uploadedPhotoInfo.sizeKb}KB 압축)`}
                     </span>
@@ -1182,9 +1126,7 @@ export default function WriteDiaryModal({
                     </div>
                     <div className="flex-1 min-w-0 text-left">
                       <p className="text-xs font-serif-warm font-bold text-stone-800 truncate">
-                        {uploadedPhotoInfo.fileName.includes('ghibli')
-                          ? (language === 'en' ? 'Ghibli Style Animation Artwork' : '지브리풍 애니메이션 일러스트')
-                          : uploadedPhotoInfo.fileName.includes('illustration')
+                        {uploadedPhotoInfo.fileName.includes('illustration')
                           ? (language === 'en' ? 'AI Letter Watercolor Artwork' : 'AI 편지 감성 수채화 삽화')
                           : uploadedPhotoInfo.fileName}
                       </p>
@@ -1192,85 +1134,38 @@ export default function WriteDiaryModal({
                         {uploadedPhotoInfo.width}×{uploadedPhotoInfo.height}px · {uploadedPhotoInfo.sizeKb}KB로 자동 최적화됨
                       </p>
                       <div className="flex items-center flex-wrap gap-2 mt-2">
-                        {isTransformingGhibli ? (
-                          <div className="flex items-center gap-1.5 text-[11px] text-amber-800 font-serif-warm font-bold py-0.5">
-                            <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-700" />
-                            <span>지브리 화풍으로 변환하는 중...</span>
-                          </div>
+                        {uploadedPhotoInfo.fileName.includes('illustration') ? (
+                          <button
+                            type="button"
+                            onClick={handleGenerateIllustration}
+                            className="text-[11px] text-amber-900 font-medium hover:underline flex items-center gap-1 cursor-pointer"
+                          >
+                            <RefreshCw className="w-3 h-3 text-amber-700" />
+                            <span>다시 그리기</span>
+                          </button>
                         ) : (
-                          <>
-                            {uploadedPhotoInfo.fileName.includes('ghibli') ? (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={handleConvertToGhibli}
-                                  className="text-[11px] text-amber-900 font-medium hover:underline flex items-center gap-1 cursor-pointer"
-                                >
-                                  <RefreshCw className="w-3 h-3 text-amber-700" />
-                                  <span>다시 변환</span>
-                                </button>
-                                {originalPhotoBackup && (
-                                  <>
-                                    <span className="text-stone-300">|</span>
-                                    <button
-                                      type="button"
-                                      onClick={handleRestoreOriginalPhoto}
-                                      className="text-[11px] text-stone-600 font-medium hover:underline flex items-center gap-1 cursor-pointer"
-                                    >
-                                      <Undo2 className="w-3 h-3 text-stone-500" />
-                                      <span>원본 사진으로 복원</span>
-                                    </button>
-                                  </>
-                                )}
-                              </>
-                            ) : uploadedPhotoInfo.fileName.includes('illustration') ? (
-                              <button
-                                type="button"
-                                onClick={handleGenerateIllustration}
-                                className="text-[11px] text-amber-900 font-medium hover:underline flex items-center gap-1 cursor-pointer"
-                              >
-                                <RefreshCw className="w-3 h-3 text-amber-700" />
-                                <span>다시 그리기</span>
-                              </button>
-                            ) : (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={handleConvertToGhibli}
-                                  className="text-[11px] text-indigo-900 font-semibold bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/80 px-2 py-0.5 rounded-md flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                                  title="올린 사진의 구도와 색감을 스튜디오 지브리 애니메이션풍으로 변환합니다"
-                                >
-                                  <Wand2 className="w-3 h-3 text-indigo-700" />
-                                  <span>🪄 지브리풍으로 변환</span>
-                                </button>
-                                <span className="text-stone-300">|</span>
-                                <button
-                                  type="button"
-                                  onClick={() => fileInputRef.current?.click()}
-                                  className="text-[11px] text-amber-900 font-medium hover:underline flex items-center gap-1 cursor-pointer"
-                                >
-                                  <Camera className="w-3.5 h-3.5 text-amber-700" />
-                                  <span>다른 사진으로 변경</span>
-                                </button>
-                              </>
-                            )}
-
-                            <span className="text-stone-300">|</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setUploadedPhotoInfo(null);
-                                setSelectedPhoto(null);
-                                setPhotoCaption('');
-                                setOriginalPhotoBackup(null);
-                              }}
-                              className="text-[11px] text-rose-700 font-medium hover:underline flex items-center gap-1 cursor-pointer"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                              <span>사진 삭제</span>
-                            </button>
-                          </>
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="text-[11px] text-amber-900 font-medium hover:underline flex items-center gap-1 cursor-pointer"
+                          >
+                            <Camera className="w-3.5 h-3.5 text-amber-700" />
+                            <span>다른 사진으로 변경</span>
+                          </button>
                         )}
+                        <span className="text-stone-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUploadedPhotoInfo(null);
+                            setSelectedPhoto(null);
+                            setPhotoCaption('');
+                          }}
+                          className="text-[11px] text-rose-700 font-medium hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                          <span>사진 삭제</span>
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1556,7 +1451,7 @@ export default function WriteDiaryModal({
               <div className="pt-3 space-y-2">
                 <button
                   type="submit"
-                  disabled={isSubmitting || isCompressing || isGeneratingIllustration || isTransformingGhibli}
+                  disabled={isSubmitting || isCompressing || isGeneratingIllustration}
                   className="w-full py-3.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] active:scale-[0.99] disabled:opacity-50 text-amber-50 font-serif-warm font-semibold text-sm shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
                 >
                   {isSubmitting ? (
