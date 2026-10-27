@@ -62,6 +62,44 @@ export default function WriteDiaryModal({
   };
 
   const [diaryDate, setDiaryDate] = useState<string>(getTodayDateString);
+
+  // 날짜 기반 요일 및 상대 날짜(오늘/어제/내일 등) 상세 정보 계산
+  const getDateDetailInfo = useCallback((dateStr: string) => {
+    if (!dateStr) return null;
+    try {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const targetDate = new Date(y, m - 1, d);
+      if (isNaN(targetDate.getTime())) return null;
+
+      const now = new Date();
+      const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      const targetMidnight = new Date(y, m - 1, d).getTime();
+      const diffDays = Math.round((targetMidnight - todayMidnight) / (1000 * 60 * 60 * 24));
+
+      const dayIndex = targetDate.getDay();
+      const koDays = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+      const enDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+      const dayName = language === 'en' ? enDays[dayIndex] : koDays[dayIndex];
+
+      let relative = '';
+      if (diffDays === 0) {
+        relative = language === 'en' ? 'Today' : '오늘';
+      } else if (diffDays === -1) {
+        relative = language === 'en' ? 'Yesterday' : '어제';
+      } else if (diffDays === 1) {
+        relative = language === 'en' ? 'Tomorrow' : '내일';
+      } else if (diffDays < -1) {
+        relative = language === 'en' ? `${Math.abs(diffDays)}d ago` : `${Math.abs(diffDays)}일 전`;
+      } else if (diffDays > 1) {
+        relative = language === 'en' ? `in ${diffDays}d` : `${diffDays}일 후`;
+      }
+
+      return { dayName, relative, isToday: diffDays === 0, isYesterday: diffDays === -1 };
+    } catch {
+      return null;
+    }
+  }, [language]);
   const safeInitialTitle = typeof initialTitle === 'string' ? initialTitle : '';
   const [title, setTitle] = useState(safeInitialTitle);
   const [content, setContent] = useState('');
@@ -876,15 +914,46 @@ export default function WriteDiaryModal({
                     </button>
                   </div>
                 </div>
-                <div className="relative">
-                  <input
-                    type="date"
-                    value={diaryDate}
-                    onChange={(e) => {
-                      if (e.target.value) setDiaryDate(e.target.value);
-                    }}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-mono text-sm text-stone-900 cursor-pointer shadow-2xs"
-                  />
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1 min-w-0">
+                    <input
+                      type="date"
+                      value={diaryDate}
+                      onChange={(e) => {
+                        if (e.target.value) setDiaryDate(e.target.value);
+                      }}
+                      className="w-full px-3 sm:px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-mono text-sm text-stone-900 cursor-pointer shadow-2xs"
+                    />
+                  </div>
+                  {(() => {
+                    const info = getDateDetailInfo(diaryDate);
+                    if (!info) return null;
+                    return (
+                      <div
+                        className={`shrink-0 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-xl border text-xs font-serif-warm font-semibold flex items-center gap-1.5 shadow-2xs whitespace-nowrap transition-all ${
+                          info.isToday
+                            ? 'bg-amber-50/90 border-amber-300/80 text-[#6B1724] ring-1 ring-amber-300/50'
+                            : info.isYesterday
+                            ? 'bg-stone-100/90 border-stone-300 text-stone-800'
+                            : 'bg-white/90 border-stone-200 text-stone-700'
+                        }`}
+                        title={`${diaryDate} (${info.dayName})`}
+                      >
+                        <span className="font-bold">{info.dayName}</span>
+                        {info.relative && (
+                          <span
+                            className={`text-[10px] px-1.5 py-0.5 rounded-md font-sans-ui font-bold ${
+                              info.isToday
+                                ? 'bg-[#6B1724] text-amber-50 shadow-2xs'
+                                : 'bg-stone-200 text-stone-600'
+                            }`}
+                          >
+                            {info.relative}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
