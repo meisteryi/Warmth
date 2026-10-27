@@ -84,6 +84,69 @@ export async function compressImage(
 }
 
 /**
+ * Data URL (Base64) 이미지를 리사이징 및 압축합니다.
+ * - AI가 생성한 이미지를 웹/모바일 최적화 규격(최대 800x800, JPEG 0.82)으로 압축하여
+ *   Firestore 용량 및 슬라이딩 퍼즐 렌더링 성능을 보장합니다.
+ */
+export async function compressDataUrl(
+  dataUrl: string,
+  maxWidth = 800,
+  maxHeight = 800,
+  quality = 0.82,
+  fileName = 'ai-illustration.jpg'
+): Promise<CompressedImageResult> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Canvas context not available'));
+        return;
+      }
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, width, height);
+
+      const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+      const head = 'data:image/jpeg;base64,';
+      const base64Len = compressedDataUrl.length - head.length;
+      const sizeBytes = Math.round((base64Len * 3) / 4);
+      const sizeKb = Math.round(sizeBytes / 1024);
+
+      resolve({
+        dataUrl: compressedDataUrl,
+        sizeKb,
+        width,
+        height,
+        fileName,
+      });
+    };
+    img.onerror = (err) => reject(err);
+    img.src = dataUrl;
+  });
+}
+
+/**
  * Firebase Storage 업로드 시도 (1.5초 타임아웃 적용하여 무한 대기 방지, 실패 시 즉시 초경량 압축 dataUrl 반환)
  */
 export async function uploadPhotoIfPossible(roomCode: string, dataUrl: string): Promise<string> {

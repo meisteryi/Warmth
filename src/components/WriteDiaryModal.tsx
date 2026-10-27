@@ -4,9 +4,9 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WaxColor, WAX_COLORS, MissionData, DiaryData, WarmthScore, WEATHER_STAMPS, WeatherStamp, StampStyle, PaperTheme, PAPER_THEMES } from '@/types/diary';
 import { soundEngine } from '@/lib/audio';
-import { compressImage, uploadPhotoIfPossible, CompressedImageResult } from '@/lib/imageUtils';
+import { compressImage, compressDataUrl, uploadPhotoIfPossible, CompressedImageResult } from '@/lib/imageUtils';
 import { fetchAiQuiz, fetchWarmthScore, fetchDailyPrompt, getCachedDailyPrompt } from '@/lib/aiClient';
-import { generateFallbackWarmth } from '@/lib/gemini';
+import { generateFallbackWarmth, generateLetterIllustration } from '@/lib/gemini';
 import { getLatestReadDiaryForPartner } from '@/lib/roomService';
 import {
   X,
@@ -25,6 +25,9 @@ import {
   Calendar,
   PenLine,
   Palette,
+  Paintbrush,
+  RefreshCw,
+  CheckCircle2,
 } from 'lucide-react';
 import { useLanguage } from '@/lib/i18n';
 
@@ -95,6 +98,9 @@ export default function WriteDiaryModal({
   });
   const [isRefreshingPrompt, setIsRefreshingPrompt] = useState(false);
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
+  const [isGeneratingIllustration, setIsGeneratingIllustration] = useState(false);
+  const [illustrationStep, setIllustrationStep] = useState<number>(1);
+  const [illustrationProgress, setIllustrationProgress] = useState<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modalScrollRef = useRef<HTMLDivElement>(null);
   const modalBackdropRef = useRef<HTMLDivElement>(null);
@@ -118,6 +124,9 @@ export default function WriteDiaryModal({
     setCustomQuizHint('');
     setSelectedStamp(WEATHER_STAMPS[0]);
     setStampStyle('BADGE');
+    setIsGeneratingIllustration(false);
+    setIllustrationStep(1);
+    setIllustrationProgress(0);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -397,6 +406,71 @@ export default function WriteDiaryModal({
     }
   };
 
+  // 🎨 편지 내용 기반 AI 감성 삽화 생성 (4단계 프로세스 시각화)
+  const handleGenerateIllustration = async () => {
+    if (isGeneratingIllustration || isCompressing) return;
+    if (!content.trim() || content.trim().length < 10) {
+      alert(language === 'en' ? 'Please write at least 10 characters in your letter to draw an artwork.' : '편지 내용을 최소 10자 이상 작성하시면 그에 어울리는 감성 삽화를 그릴 수 있어요.');
+      return;
+    }
+
+    setPhotoError('');
+    setIsGeneratingIllustration(true);
+    setIllustrationStep(1);
+    setIllustrationProgress(10);
+    soundEngine.playTileSlideSound();
+
+    // 4단계 감성 진행 타이머 시뮬레이션
+    const startTime = Date.now();
+    const progressInterval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 2000) {
+        // 1단계: 감정 읽기
+        setIllustrationStep(1);
+        setIllustrationProgress(Math.min(25, 10 + Math.floor((elapsed / 2000) * 15)));
+      } else if (elapsed < 4200) {
+        // 2단계: 스케치 & 구도
+        setIllustrationStep(2);
+        setIllustrationProgress(Math.min(55, 25 + Math.floor(((elapsed - 2000) / 2200) * 30)));
+      } else if (elapsed < 8000) {
+        // 3단계: FLUX 채색
+        setIllustrationStep(3);
+        setIllustrationProgress(Math.min(88, 55 + Math.floor(((elapsed - 4200) / 3800) * 33)));
+      }
+    }, 200);
+
+    try {
+      const result = await generateLetterIllustration(content);
+      if (!result?.dataUrl) {
+        throw new Error('Illustration generation failed');
+      }
+
+      // 4단계: 마무리 & 최적화 압축
+      setIllustrationStep(4);
+      setIllustrationProgress(95);
+
+      const compressed = await compressDataUrl(result.dataUrl, 800, 800, 0.82, 'ai-illustration.jpg');
+
+      setIllustrationProgress(100);
+      await new Promise((r) => setTimeout(r, 400));
+
+      setUploadedPhotoInfo(compressed);
+      setSelectedPhoto(compressed.dataUrl);
+      if (!photoCaption.trim()) {
+        setPhotoCaption(language === 'en' ? 'Warm watercolor drawn from our letter' : '편지 속 온기를 담은 수채화');
+      }
+      soundEngine.playMissionPassChime();
+    } catch (err) {
+      console.error('Failed to generate illustration:', err);
+      alert(language === 'en' ? 'Unable to generate artwork right now. Please try again in a moment.' : '그림을 그리는 중 잠시 지연이 발생했습니다. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      clearInterval(progressInterval);
+      setIsGeneratingIllustration(false);
+      setIllustrationStep(1);
+      setIllustrationProgress(0);
+    }
+  };
+
   // 기기 내 사진 파일 선택 시 클라이언트 사이드 압축 처리
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -423,7 +497,7 @@ export default function WriteDiaryModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !content.trim() || isSubmitting || isCompressing) return;
+    if (!title.trim() || !content.trim() || isSubmitting || isCompressing || isGeneratingIllustration) return;
 
     // 사진 퍼즐 관문 선택 시 사진 첨부 필수 검증
     if (missionType === 'PUZZLE_PHOTO' && !selectedPhoto) {
@@ -947,7 +1021,7 @@ export default function WriteDiaryModal({
                 />
               </div>
 
-              {/* 사진 첨부 선택 (사용자 기기 직접 업로드) */}
+              {/* 사진 첨부 선택 (사용자 기기 직접 업로드 또는 AI 감성 삽화 생성) */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-sans-ui text-stone-600 flex items-center gap-1">
@@ -956,7 +1030,9 @@ export default function WriteDiaryModal({
                   </label>
                   {uploadedPhotoInfo && (
                     <span className="text-[11px] font-mono text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                      직접 업로드됨 ({uploadedPhotoInfo.sizeKb}KB 압축)
+                      {uploadedPhotoInfo.fileName.includes('illustration')
+                        ? `🎨 AI 감성 수채화 (${uploadedPhotoInfo.sizeKb}KB 최적화)`
+                        : `직접 업로드됨 (${uploadedPhotoInfo.sizeKb}KB 압축)`}
                     </span>
                   )}
                 </div>
@@ -970,8 +1046,75 @@ export default function WriteDiaryModal({
                   className="hidden"
                 />
 
-                {/* 업로드된 사진 미리보기 또는 업로드 버튼 */}
-                {selectedPhoto && uploadedPhotoInfo ? (
+                {/* 1) AI 삽화 실시간 4단계 프로세스 생성 중 인디케이터 */}
+                {isGeneratingIllustration ? (
+                  <div className="p-4 rounded-xl border border-amber-300/80 bg-gradient-to-b from-[#FFFDF9] to-[#FAF5EB] shadow-xs space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center text-amber-800 animate-pulse">
+                          <Paintbrush className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-serif-warm font-bold text-stone-800 flex items-center gap-1.5">
+                            <span>{language === 'en' ? 'Drawing watercolor artwork...' : '도화지에 감성 삽화를 그리는 중...'}</span>
+                            <span className="text-[10px] text-amber-800 font-mono font-bold bg-amber-100/70 px-1.5 py-0.2 rounded">
+                              {illustrationProgress}%
+                            </span>
+                          </p>
+                          <p className="text-[11px] text-stone-500 font-sans-ui">
+                            {language === 'en' ? 'Please wait a moment while creating' : '정성스레 수채화 물감을 올리고 있어요'}
+                          </p>
+                        </div>
+                      </div>
+                      <Loader2 className="w-5 h-5 text-amber-800 animate-spin" />
+                    </div>
+
+                    {/* 실시간 프로그레스 바 */}
+                    <div className="w-full bg-stone-200/80 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className="bg-gradient-to-r from-amber-600 to-[#6B1724] h-1.5 rounded-full transition-all duration-300 ease-out"
+                        style={{ width: `${illustrationProgress}%` }}
+                      />
+                    </div>
+
+                    {/* 4단계 상세 프로세스 진행 단계 리스트 */}
+                    <div className="space-y-1.5 pt-1 border-t border-amber-200/50">
+                      {[
+                        { step: 1, label: language === 'en' ? 'Reading warm moments in your letter' : '편지 속 따뜻한 순간과 감정 분석' },
+                        { step: 2, label: language === 'en' ? 'Sketching composition & color palette' : '수채화 화폭에 구도와 색감 스케치' },
+                        { step: 3, label: language === 'en' ? 'Painting delicate colors with fine brush' : '도화지 위에 고운 붓으로 채색' },
+                        { step: 4, label: language === 'en' ? 'Placing artwork into your letter' : '완성된 삽화를 편지에 조심스럽게 담기' },
+                      ].map((item) => {
+                        const isDone = illustrationStep > item.step || illustrationProgress >= 100;
+                        const isCurrent = illustrationStep === item.step && illustrationProgress < 100;
+                        return (
+                          <div
+                            key={item.step}
+                            className={`flex items-center gap-2 text-xs font-serif-warm transition-colors ${
+                              isDone
+                                ? 'text-emerald-700 font-medium'
+                                : isCurrent
+                                ? 'text-amber-900 font-bold'
+                                : 'text-stone-400'
+                            }`}
+                          >
+                            {isDone ? (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            ) : isCurrent ? (
+                              <Loader2 className="w-3.5 h-3.5 text-amber-700 animate-spin shrink-0" />
+                            ) : (
+                              <div className="w-3.5 h-3.5 rounded-full border border-stone-300 shrink-0 flex items-center justify-center text-[9px] text-stone-400">
+                                {item.step}
+                              </div>
+                            )}
+                            <span className="text-[11px] truncate">{item.label}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : selectedPhoto && uploadedPhotoInfo ? (
+                  /* 2) 사진 첨부 완료 상태 (직접 올린 사진 또는 AI 생성 삽화) */
                   <div className="flex items-center gap-3 p-3 bg-[#FAF6EE] rounded-xl border border-[#E0D3C1]">
                     <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-stone-300 shrink-0 shadow-xs">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -983,20 +1126,33 @@ export default function WriteDiaryModal({
                     </div>
                     <div className="flex-1 min-w-0 text-left">
                       <p className="text-xs font-serif-warm font-bold text-stone-800 truncate">
-                        {uploadedPhotoInfo.fileName}
+                        {uploadedPhotoInfo.fileName.includes('illustration')
+                          ? (language === 'en' ? 'AI Letter Watercolor Artwork' : 'AI 편지 감성 수채화 삽화')
+                          : uploadedPhotoInfo.fileName}
                       </p>
                       <p className="text-[11px] text-stone-500 font-sans-ui mt-0.5">
                         {uploadedPhotoInfo.width}×{uploadedPhotoInfo.height}px · {uploadedPhotoInfo.sizeKb}KB로 자동 최적화됨
                       </p>
-                      <div className="flex items-center gap-2.5 mt-2">
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="text-[11px] text-amber-900 font-medium hover:underline flex items-center gap-1 cursor-pointer"
-                        >
-                          <Camera className="w-3.5 h-3.5 text-amber-700" />
-                          <span>다른 사진으로 변경</span>
-                        </button>
+                      <div className="flex items-center flex-wrap gap-2 mt-2">
+                        {uploadedPhotoInfo.fileName.includes('illustration') ? (
+                          <button
+                            type="button"
+                            onClick={handleGenerateIllustration}
+                            className="text-[11px] text-amber-900 font-medium hover:underline flex items-center gap-1 cursor-pointer"
+                          >
+                            <RefreshCw className="w-3 h-3 text-amber-700" />
+                            <span>다시 그리기</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="text-[11px] text-amber-900 font-medium hover:underline flex items-center gap-1 cursor-pointer"
+                          >
+                            <Camera className="w-3.5 h-3.5 text-amber-700" />
+                            <span>다른 사진으로 변경</span>
+                          </button>
+                        )}
                         <span className="text-stone-300">|</span>
                         <button
                           type="button"
@@ -1014,33 +1170,64 @@ export default function WriteDiaryModal({
                     </div>
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    disabled={isCompressing}
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full py-5 px-4 rounded-xl border-2 border-dashed border-[#C4A882] hover:border-[#6B1724] bg-[#FAF6EE]/80 hover:bg-[#F5ECE0] text-stone-700 flex flex-col items-center justify-center gap-1.5 transition-all active:scale-[0.99] group cursor-pointer"
-                  >
-                    {isCompressing ? (
-                      <div className="flex flex-col items-center gap-1.5 py-1">
-                        <Loader2 className="w-6 h-6 text-[#6B1724] animate-spin" />
-                        <span className="text-xs font-serif-warm text-stone-700 font-bold">사진 최적화 압축 중...</span>
+                  /* 3) 사진이 등록되지 않은 초기 상태: [직접 올리기] vs [AI 감성 삽화 그리기] 2-Way 카드 */
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {/* 옵션 A: 내 앨범/카메라에서 사진 올리기 */}
+                    <button
+                      type="button"
+                      disabled={isCompressing}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="p-3.5 rounded-xl border border-dashed border-[#C4A882] hover:border-[#6B1724] bg-[#FAF6EE]/90 hover:bg-[#F5ECE0] text-stone-700 flex flex-col items-center justify-center gap-1 transition-all active:scale-[0.99] group cursor-pointer"
+                    >
+                      {isCompressing ? (
+                        <div className="flex flex-col items-center gap-1 py-1">
+                          <Loader2 className="w-5 h-5 text-[#6B1724] animate-spin" />
+                          <span className="text-xs font-serif-warm text-stone-700 font-bold">압축 중...</span>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="w-8 h-8 rounded-full bg-white shadow-xs border border-[#DECDBB] flex items-center justify-center group-hover:scale-105 transition-transform text-[#6B1724]">
+                            <Upload className="w-4 h-4 stroke-[1.8]" />
+                          </div>
+                          <div className="text-center">
+                            <p className="text-xs font-serif-warm font-bold text-stone-800">
+                              {language === 'en' ? 'Upload Photo' : '직접 사진 올리기'}
+                            </p>
+                            <p className="text-[10px] text-stone-500 font-sans-ui">
+                              {language === 'en' ? 'From album or camera' : '앨범이나 카메라 촬영'}
+                            </p>
+                          </div>
+                        </>
+                      )}
+                    </button>
+
+                    {/* 옵션 B: 편지 내용으로 AI 감성 삽화 그리기 */}
+                    <button
+                      type="button"
+                      onClick={handleGenerateIllustration}
+                      className="p-3.5 rounded-xl border border-dashed border-amber-300/90 hover:border-amber-600 bg-gradient-to-b from-[#FFFDF9] to-[#FAF4E8] text-stone-700 flex flex-col items-center justify-center gap-1 transition-all active:scale-[0.99] group cursor-pointer shadow-2xs hover:shadow-xs"
+                      title={
+                        content.trim().length >= 10
+                          ? '편지 내용으로 감성 수채화를 생성합니다'
+                          : '편지 내용을 10자 이상 작성하시면 삽화를 그릴 수 있어요'
+                      }
+                    >
+                      <div className="w-8 h-8 rounded-full bg-amber-50 shadow-xs border border-amber-200/80 flex items-center justify-center group-hover:scale-105 transition-transform text-amber-800">
+                        <Paintbrush className="w-4 h-4 stroke-[1.8]" />
                       </div>
-                    ) : (
-                      <>
-                        <div className="w-10 h-10 rounded-full bg-white shadow-xs border border-[#DECDBB] flex items-center justify-center group-hover:scale-105 transition-transform text-[#6B1724]">
-                          <Upload className="w-5 h-5 stroke-[1.8]" />
-                        </div>
-                        <div className="text-center">
-                          <p className="text-xs font-serif-warm font-bold text-stone-800">
-                            내 앨범이나 카메라에서 사진 올리기
-                          </p>
-                          <p className="text-[11px] text-stone-500 font-sans-ui mt-0.5">
-                            스마트폰 원본 사진을 올려도 용량이 자동으로 최적화됩니다
-                          </p>
-                        </div>
-                      </>
-                    )}
-                  </button>
+                      <div className="text-center">
+                        <p className="text-xs font-serif-warm font-bold text-stone-800 flex items-center justify-center gap-1">
+                          <span>{language === 'en' ? 'Draw AI Artwork' : 'AI 감성 삽화 그리기'}</span>
+                          <Sparkles className="w-3 h-3 text-amber-600" />
+                        </p>
+                        <p className="text-[10px] text-stone-500 font-sans-ui">
+                          {content.trim().length >= 10
+                            ? (language === 'en' ? 'Draws watercolor from letter' : '편지 내용으로 수채화 생성')
+                            : (language === 'en' ? 'Write 10+ letters first' : '편지 10자 이상 작성 후 가능')}
+                        </p>
+                      </div>
+                    </button>
+                  </div>
                 )}
 
                 {/* 사진 캡션 입력창 (50자 제한) */}
@@ -1264,7 +1451,7 @@ export default function WriteDiaryModal({
               <div className="pt-3 space-y-2">
                 <button
                   type="submit"
-                  disabled={isSubmitting || isCompressing}
+                  disabled={isSubmitting || isCompressing || isGeneratingIllustration}
                   className="w-full py-3.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] active:scale-[0.99] disabled:opacity-50 text-amber-50 font-serif-warm font-semibold text-sm shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
                 >
                   {isSubmitting ? (

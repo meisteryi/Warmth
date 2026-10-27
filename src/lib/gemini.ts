@@ -949,3 +949,56 @@ export async function generateMonthlyRecap(
     generatedAt: new Date().toISOString(),
   };
 }
+
+/**
+ * 🎨 편지 본문을 분석하여 아날로그 감성 수채화 삽화를 생성합니다.
+ * (Gemini 프롬프트 정제 + Pollinations FLUX 무료 이미지 파이프라인)
+ */
+export async function generateLetterIllustration(content: string): Promise<{ dataUrl: string; prompt?: string } | null> {
+  if (!content || content.trim().length < 5) return null;
+
+  // 1) 서버 프록시 우선 시도 (/api/gemini)
+  try {
+    const res = await fetch('/api/gemini/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'generateLetterIllustration',
+        payload: { content },
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.dataUrl) {
+        return { dataUrl: data.dataUrl, prompt: data.prompt };
+      }
+    }
+  } catch (err) {
+    console.warn('Server proxy illustration error, falling back:', err);
+  }
+
+  // 2) 정적 호스팅(GitHub Pages 등) 및 클라이언트 폴백:
+  // 클라이언트에서 직접 Pollinations FLUX 호출
+  try {
+    const fallbackPrompt = 'A warm nostalgic watercolor illustration of cozy moments, soft textured paper grain, gentle muted earth tones, no text, no letters';
+    const randomSeed = Math.floor(Math.random() * 1000000);
+    const pollUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(fallbackPrompt)}?width=768&height=768&model=flux&nologo=true&seed=${randomSeed}`;
+
+    const res = await fetch(pollUrl);
+    if (res.ok) {
+      const blob = await res.blob();
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          resolve({ dataUrl: reader.result as string, prompt: fallbackPrompt });
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    }
+  } catch (clientErr) {
+    console.error('Client direct illustration fallback failed:', clientErr);
+  }
+
+  return null;
+}
