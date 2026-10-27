@@ -1627,10 +1627,10 @@ export default function ArchiveModal({
 
                       {/* ③ Gemini AI 온기 우체국 총평 & 이달의 베스트 문장 & 다음 달 제안 */}
                       <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-[#FFFDF9] to-[#F8EFE2] border border-amber-300/80 shadow-xs space-y-3.5">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5 text-xs font-sans-ui font-bold text-[#6B1724] min-w-0">
-                            <Sparkles className="w-4 h-4 text-amber-700 shrink-0" />
-                            <span className="truncate">💌 온기 우체국이 전하는 {currentMonthDetail.monthShortLabel}의 이야기</span>
+                        <div className="flex items-center justify-between gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap">
+                          <div className="flex items-center gap-1 sm:gap-1.5 text-[11.5px] sm:text-xs font-sans-ui font-bold text-[#6B1724] shrink-0">
+                            <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-700 shrink-0" />
+                            <span className="whitespace-nowrap">💌 온기 우체국이 전하는 {currentMonthDetail.monthShortLabel}의 이야기</span>
                           </div>
 
                           {currentMonthDetail.diaries.length >= 2 && (
@@ -1641,7 +1641,7 @@ export default function ArchiveModal({
                                 soundEngine.playTileSlideSound();
                                 void runMonthlyRecapGeneration(currentMonthDetail, true);
                               }}
-                              className="no-export shrink-0 whitespace-nowrap px-2.5 py-1 rounded-lg bg-white/90 hover:bg-amber-50 border border-amber-300/80 text-[11px] font-serif-warm font-semibold text-amber-950 flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
+                              className="no-export shrink-0 whitespace-nowrap ml-auto px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-white/90 hover:bg-amber-50 border border-amber-300/80 text-[10.5px] sm:text-[11px] font-serif-warm font-semibold text-amber-950 flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
                             >
                               <RefreshCw className={`w-3 h-3 shrink-0 ${isGeneratingRecap ? 'animate-spin' : ''}`} />
                               <span className="whitespace-nowrap">

@@ -262,6 +262,101 @@ ${content.trim().slice(0, 1000)}
           { status: 504 }
         );
       }
+    } else if (action === 'convertPhotoToGhibli') {
+      const { dataUrl } = payload;
+      if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.includes('base64,')) {
+        return NextResponse.json({ error: '유효한 사진 데이터가 아닙니다.' }, { status: 400 });
+      }
+
+      // Base64 분리
+      const [header, base64Only] = dataUrl.split(';base64,');
+      const mimeType = header.replace('data:', '') || 'image/jpeg';
+
+      // 1) Gemini Flash Vision으로 사진 구도 및 피사체를 지브리 애니메이션 프롬프트로 변환
+      const visionPrompt = `당신은 스튜디오 지브리(Studio Ghibli)의 수석 배경 및 캐릭터 콘셉트 아티스트입니다.
+제공된 이 실제 사진의 '핵심 구도', '주요 피사체(인물 포즈나 사물 배치)', '전체적인 배경과 조명'을 매우 면밀히 관찰해주세요.
+그리고 이 사진의 구도와 내용을 1:1로 살려, 미야자키 하야오 감독의 스튜디오 지브리 극장판 애니메이션 스타일로 완벽하게 재탄생시킬 수 있는 영문 이미지 생성 프롬프트를 1개 작성해주세요.
+
+★ 필수 포함 스타일 규칙:
+1. "Studio Ghibli anime style, 1990s classic cel animation, Hayao Miyazaki aesthetic, Makoto Shinkai lighting"
+2. "vibrant hand-painted watercolor background, rich lush colors, nostalgic warm golden hour lighting"
+3. "gentle outlines, painterly anime texture, high detail 2D animation screenshot"
+4. 금지어: "no realistic photo, no 3D render, no text, no watermark, no typography"
+5. 출력 형식: 설명, 서론 없이 오직 완성된 영문 프롬프트 1문장만 출력하세요.`;
+
+      const visionResponse = await fetch(geminiEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: mimeType,
+                    data: base64Only,
+                  },
+                },
+                { text: visionPrompt },
+              ],
+            },
+          ],
+          generationConfig: { temperature: 0.7 },
+        }),
+      });
+
+      let ghibliPrompt = 'Studio Ghibli anime style, Hayao Miyazaki aesthetic, hand-drawn anime animation, cozy warm lighting, watercolor background, no text, no letters';
+      if (visionResponse.ok) {
+        const visionData = await visionResponse.json();
+        const rawText = visionData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        if (rawText) {
+          ghibliPrompt = rawText.replace(/^["'「\s]+|["'」\s]+$/g, '').trim();
+          if (!ghibliPrompt.toLowerCase().includes('no text')) {
+            ghibliPrompt += ', no text, no letters';
+          }
+        }
+      }
+
+      // 2) Pollinations FLUX로 지브리풍 이미지 생성
+      const randomSeed = Math.floor(Math.random() * 1000000);
+      const pollUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(ghibliPrompt)}?width=768&height=768&model=flux&nologo=true&seed=${randomSeed}`;
+
+      const imageController = new AbortController();
+      const imageTimeout = setTimeout(() => imageController.abort(), 22000);
+
+      try {
+        const imageRes = await fetch(pollUrl, {
+          signal: imageController.signal,
+          headers: { 'User-Agent': 'WarmthDiary/1.0' },
+        });
+        clearTimeout(imageTimeout);
+
+        if (!imageRes.ok) {
+          throw new Error(`Pollinations HTTP error ${imageRes.status}`);
+        }
+
+        const arrayBuffer = await imageRes.arrayBuffer();
+        const base64Data = Buffer.from(arrayBuffer).toString('base64');
+        const resMime = imageRes.headers.get('content-type') || 'image/jpeg';
+        const resultDataUrl = `data:${resMime};base64,${base64Data}`;
+
+        return NextResponse.json({
+          success: true,
+          dataUrl: resultDataUrl,
+          prompt: ghibliPrompt,
+        });
+      } catch (imageErr) {
+        clearTimeout(imageTimeout);
+        console.error('Pollinations Ghibli fetch error:', imageErr);
+        return NextResponse.json(
+          { error: '지브리 스타일 변환 중 통신 지연이 발생했습니다. 잠시 후 다시 시도해주세요.' },
+          { status: 504 }
+        );
+      }
     } else {
       return NextResponse.json({ error: '알 수 없는 action입니다.' }, { status: 400 });
     }
