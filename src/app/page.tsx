@@ -308,12 +308,12 @@ export default function HomePage() {
     isLastLeaverWarningOpen,
   ]);
 
-  // 앱 진입 시 스플래시 화면: 마운트 완료 시 부드러운 페이드아웃으로 앱 본문 즉시 노출 (불필요한 지연 및 덜컹거림 원천 차단)
+  // 앱 진입 시 스플래시 화면: 온기 브랜드 스플래시 화면을 850ms 유지 후 부드러운 페이드아웃
   useEffect(() => {
     setIsMounted(true);
     const splashTimer = setTimeout(() => {
       setShowSplash(false);
-    }, 150);
+    }, 850);
     return () => clearTimeout(splashTimer);
   }, []);
 
@@ -1373,7 +1373,7 @@ export default function HomePage() {
             initial={{ opacity: 1 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
+            transition={{ duration: 0.35, ease: 'easeInOut' }}
             className="fixed inset-0 z-[100] flex flex-col items-center justify-between bg-[#FDFBF7] text-[#2C2A29] pt-[max(env(safe-area-inset-top,0px),2.5rem)] pb-[max(env(safe-area-inset-bottom,0px),2.5rem)] px-6 select-none pointer-events-none"
           >
             <div className="w-full h-8" />

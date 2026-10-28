@@ -808,25 +808,21 @@ export default function ArchiveModal({
           ? 'px-2 sm:px-3 py-3 mb-2 bg-transparent border-b border-stone-200/50'
           : 'px-5 sm:px-6 py-4 border-b border-[#E8DFD3] bg-[#F4EFEA]'
       }`}>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-xs">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-xs shrink-0">
             <WarmthHanjaIcon className="w-5 h-5 text-amber-100" />
           </div>
-          <div>
-            <h2 className="text-lg sm:text-xl font-serif-warm font-bold text-stone-900 flex items-center gap-2">
-              <span>{t('archive.title')}</span>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-sans-ui font-medium">
-                <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                <span>E2EE 암호화</span>
-              </span>
+          <div className="flex items-baseline gap-2 min-w-0 flex-nowrap">
+            <h2 className="text-base sm:text-xl font-serif-warm font-bold text-stone-900 whitespace-nowrap shrink-0">
+              {t('archive.title')}
             </h2>
-            <p className="text-xs text-stone-500 font-sans-ui mt-0.5">
+            <span className="text-xs text-stone-500 font-sans-ui whitespace-nowrap">
               #{roomCode} · {currentUserName} & {partnerName}
-            </p>
+            </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => fetchDiaries()}
             disabled={isLoading}
@@ -838,7 +834,7 @@ export default function ArchiveModal({
           {isInlineView ? (
             <button
               onClick={onClose}
-              className="px-3 py-1.5 rounded-xl border border-stone-300 hover:border-stone-400 bg-white hover:bg-stone-50 text-stone-700 text-xs font-serif-warm font-medium transition-all active:scale-95 shadow-2xs flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl border border-stone-300 hover:border-stone-400 bg-white hover:bg-stone-50 text-stone-700 text-xs font-serif-warm font-medium transition-all active:scale-95 shadow-2xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
               title={language === 'en' ? 'Back to Desk' : '책상으로 돌아가기'}
             >
               <span>책상 복귀</span>
@@ -922,8 +918,8 @@ export default function ArchiveModal({
           <div ref={listContainerRef} className={isInlineView ? 'flex-1 space-y-3 pb-4' : 'flex-1 overflow-y-auto p-4 sm:p-6 space-y-3'}>
             {/* 날짜 필터 활성화 시 안내 배너 */}
             {selectedDateFilter && (
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-amber-100/90 border border-amber-300 text-stone-800 text-xs font-serif-warm shadow-2xs no-print">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between gap-2 p-2.5 sm:p-3 rounded-2xl bg-amber-100/90 border border-amber-300 text-stone-800 text-xs font-serif-warm shadow-2xs no-print whitespace-nowrap overflow-x-auto no-scrollbar">
+                <div className="flex items-center gap-2 shrink-0">
                   <Calendar className="w-4 h-4 text-[#6B1724]" />
                   <span>
                     <strong>{selectedDateFilter}</strong>에 작성된 편지 ({filteredDiaries.length}편)
@@ -936,7 +932,7 @@ export default function ArchiveModal({
                     setCurrentPage(1);
                     soundEngine.playTileSlideSound();
                   }}
-                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-stone-100 border border-stone-200 text-stone-700 font-semibold cursor-pointer text-[11px] transition-colors"
+                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-stone-100 border border-stone-200 text-stone-700 font-semibold cursor-pointer text-[11px] transition-colors shrink-0"
                 >
                   전체 편지 보기 ✕
                 </button>
@@ -1027,16 +1023,16 @@ export default function ArchiveModal({
                       className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-rose-50/70 via-amber-50/40 to-stone-50 border border-rose-200/90 hover:border-rose-300 hover:shadow-md transition-all cursor-pointer flex flex-col gap-2.5 shadow-2xs"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs text-stone-500 font-mono flex items-center gap-1">
+                        <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto no-scrollbar py-0.5 min-w-0">
+                          <span className="text-xs text-stone-500 font-mono flex items-center gap-1 whitespace-nowrap shrink-0">
                             <Calendar className="w-3.5 h-3.5 text-stone-400" />
                             {formattedDate}
                           </span>
-                          <span className="text-[11px] px-2.5 py-0.5 rounded-full font-serif-warm font-bold border bg-rose-100/90 text-rose-950 border-rose-300 animate-pulse flex items-center gap-1 whitespace-nowrap">
+                          <span className="text-[11px] px-2 py-0.5 rounded-full font-serif-warm font-bold border bg-rose-100/90 text-rose-950 border-rose-300 animate-pulse flex items-center gap-1 whitespace-nowrap shrink-0">
                             <Lock className="w-3 h-3 text-rose-800" />
                             <span>{t('archive.unopenedByMe')}</span>
                           </span>
-                          <span className="text-[11px] px-2 py-0.5 rounded-full font-serif-warm font-bold border bg-rose-50 text-rose-900 border-rose-200 whitespace-nowrap">
+                          <span className="text-[11px] px-2 py-0.5 rounded-full font-serif-warm font-bold border bg-rose-50 text-rose-900 border-rose-200 whitespace-nowrap shrink-0">
                             {language === 'en' ? `${item.authorName}'s Letter` : `${item.authorName}의 온기`}
                           </span>
                         </div>
@@ -1077,13 +1073,13 @@ export default function ArchiveModal({
                     className="group relative p-4 rounded-2xl bg-white border border-[#E8DFD3] hover:border-[#6B1724]/40 hover:shadow-md transition-all cursor-pointer flex flex-col gap-2"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs text-stone-500 font-mono flex items-center gap-1">
+                      <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto no-scrollbar py-0.5 min-w-0">
+                        <span className="text-xs text-stone-500 font-mono flex items-center gap-1 whitespace-nowrap shrink-0">
                           <Calendar className="w-3.5 h-3.5 text-stone-400" />
                           {formattedDate}
                         </span>
                         <span
-                          className={`text-[11px] px-2 py-0.5 rounded-full font-serif-warm font-bold border whitespace-nowrap ${
+                          className={`text-[11px] px-2 py-0.5 rounded-full font-serif-warm font-bold border whitespace-nowrap shrink-0 ${
                             isMine
                               ? 'bg-amber-100/80 text-amber-900 border-amber-200'
                               : 'bg-rose-50 text-rose-900 border-rose-200'
@@ -1093,7 +1089,7 @@ export default function ArchiveModal({
                         </span>
 
                         {isMyUnopenedLetter && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full font-serif-warm font-bold border bg-amber-50 text-amber-950 border-amber-200 whitespace-nowrap">
+                          <span className="text-[10px] px-2 py-0.5 rounded-full font-serif-warm font-bold border bg-amber-50 text-amber-950 border-amber-200 whitespace-nowrap shrink-0">
                             {t('badge.unopened')}
                           </span>
                         )}
@@ -1101,7 +1097,7 @@ export default function ArchiveModal({
                         {/* [3번 요구사항] 저장된 날씨·기분 잉크 도장 표시 */}
                         {item.stamp && item.stamp.style !== 'EMOJI_TITLE' && (
                           <span 
-                            className="text-[10px] px-2 py-0.5 rounded-full border border-dashed font-serif-warm inline-flex items-center gap-1 whitespace-nowrap"
+                            className="text-[10px] px-2 py-0.5 rounded-full border border-dashed font-serif-warm inline-flex items-center gap-1 whitespace-nowrap shrink-0"
                             style={{
                               borderColor: item.stamp.color || '#A83232',
                               color: item.stamp.color || '#A83232',
@@ -1113,9 +1109,8 @@ export default function ArchiveModal({
                           </span>
                         )}
 
-
                         {itemWarmth && typeof itemWarmth.temperature === 'number' && (
-                          <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-bold inline-flex items-center gap-1 whitespace-nowrap ${
+                          <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-bold inline-flex items-center gap-1 whitespace-nowrap shrink-0 ${
                             itemWarmth.temperature <= 0
                               ? 'bg-sky-50 text-sky-900 border border-sky-200'
                               : 'bg-amber-50 text-amber-900 border border-amber-200/60'
@@ -1447,18 +1442,18 @@ export default function ArchiveModal({
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {/* 이달의 평균 온기 지수 & 전월 대비 비교 */}
                         <div className="p-4 rounded-2xl bg-white/90 border border-[#E8DFC8] shadow-2xs flex flex-col justify-between">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-sans-ui font-bold text-amber-900">
+                          <div className="flex items-center justify-between gap-1 whitespace-nowrap">
+                            <span className="text-xs font-sans-ui font-bold text-amber-900 shrink-0">
                               🌡️ 이달의 평균 온기 지수
                             </span>
-                            <TrendingUp className="w-3.5 h-3.5 text-[#6B1724]" />
+                            <TrendingUp className="w-3.5 h-3.5 text-[#6B1724] shrink-0" />
                           </div>
                           <div className="my-1.5 flex items-baseline gap-2">
-                            <span className="font-mono text-3xl sm:text-4xl font-bold text-[#6B1724]">
+                            <span className="font-mono text-3xl sm:text-4xl font-bold text-[#6B1724] whitespace-nowrap">
                               +{currentMonthDetail.avgTemp.toFixed(1)}°C
                             </span>
                           </div>
-                          <p className="text-[11px] font-serif-warm text-stone-600">
+                          <p className="text-[11px] font-serif-warm text-stone-600 whitespace-nowrap overflow-x-auto no-scrollbar">
                             {currentMonthDetail.prevMonthDiff !== null && currentMonthDetail.prevMonthShortLabel ? (
                               currentMonthDetail.prevMonthDiff > 0 ? (
                                 <span>
@@ -1486,11 +1481,11 @@ export default function ArchiveModal({
 
                         {/* 이달의 대표 우표 */}
                         <div className="p-4 rounded-2xl bg-white/90 border border-[#E8DFC8] shadow-2xs flex flex-col justify-between">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-sans-ui font-bold text-amber-900">
+                          <div className="flex items-center justify-between gap-1 whitespace-nowrap">
+                            <span className="text-xs font-sans-ui font-bold text-amber-900 shrink-0">
                               📮 이달의 대표 우표
                             </span>
-                            <span className="text-[11px] font-serif-warm text-stone-400">
+                            <span className="text-[11px] font-serif-warm text-stone-400 shrink-0">
                               가장 많이 붙인 감정
                             </span>
                           </div>
@@ -1498,11 +1493,11 @@ export default function ArchiveModal({
                             <span className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200/80 flex items-center justify-center text-2xl shadow-2xs shrink-0">
                               {currentMonthDetail.topStamp?.symbol || '☀️'}
                             </span>
-                            <div>
-                              <div className="font-serif-warm font-bold text-stone-900 text-base">
+                            <div className="min-w-0">
+                              <div className="font-serif-warm font-bold text-stone-900 text-base whitespace-nowrap">
                                 {currentMonthDetail.topStamp?.name || '따스한 온기'}
                               </div>
-                              <div className="text-[11px] text-stone-500 font-serif-warm">
+                              <div className="text-[11px] text-stone-500 font-serif-warm whitespace-nowrap overflow-x-auto no-scrollbar">
                                 {currentMonthDetail.monthShortLabel}의 편지를 가장 많이 장식한 우표
                               </div>
                             </div>
