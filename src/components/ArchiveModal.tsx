@@ -30,7 +30,8 @@ import {
   MessageSquareQuote,
   Camera,
   TrendingUp,
-  Loader2
+  Loader2,
+  ShieldCheck
 } from 'lucide-react';
 import { soundEngine } from '@/lib/audio';
 import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
@@ -801,15 +802,23 @@ export default function ArchiveModal({
 
   const renderCardContent = () => (
     <>
-      {/* 모달 상단 헤더 */}
-      <div className="px-5 sm:px-6 py-4 border-b border-[#E8DFD3] bg-[#F4EFEA] flex items-center justify-between shrink-0 no-print">
+      {/* 서재 상단 헤더 (인라인 뷰일 때는 창 윤곽선 없이 자연스러운 섹션 헤더로 렌더링) */}
+      <div className={`flex items-center justify-between shrink-0 no-print ${
+        isInlineView
+          ? 'px-2 sm:px-3 py-3 mb-2 bg-transparent border-b border-stone-200/50'
+          : 'px-5 sm:px-6 py-4 border-b border-[#E8DFD3] bg-[#F4EFEA]'
+      }`}>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-sm">
+          <div className="w-10 h-10 rounded-2xl bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-xs">
             <WarmthHanjaIcon className="w-5 h-5 text-amber-100" />
           </div>
           <div>
-            <h2 className="text-lg sm:text-xl font-serif-warm font-bold text-stone-900">
-              {t('archive.title')}
+            <h2 className="text-lg sm:text-xl font-serif-warm font-bold text-stone-900 flex items-center gap-2">
+              <span>{t('archive.title')}</span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-sans-ui font-medium">
+                <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                <span>E2EE 암호화</span>
+              </span>
             </h2>
             <p className="text-xs text-stone-500 font-sans-ui mt-0.5">
               #{roomCode} · {currentUserName} & {partnerName}
@@ -817,7 +826,7 @@ export default function ArchiveModal({
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => fetchDiaries()}
             disabled={isLoading}
@@ -826,71 +835,91 @@ export default function ArchiveModal({
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl text-stone-600 hover:text-stone-900 hover:bg-stone-200/60 transition-colors cursor-pointer"
-            title={isInlineView ? (language === 'en' ? 'Back to Desk' : '책상으로 돌아가기') : t('common.close')}
-            aria-label={isInlineView ? (language === 'en' ? 'Back to Desk' : '책상으로 돌아가기') : t('common.close')}
-          >
-            <X className="w-5 h-5" />
-          </button>
+          {isInlineView ? (
+            <button
+              onClick={onClose}
+              className="px-3 py-1.5 rounded-xl border border-stone-300 hover:border-stone-400 bg-white hover:bg-stone-50 text-stone-700 text-xs font-serif-warm font-medium transition-all active:scale-95 shadow-2xs flex items-center gap-1.5 cursor-pointer"
+              title={language === 'en' ? 'Back to Desk' : '책상으로 돌아가기'}
+            >
+              <span>책상 복귀</span>
+            </button>
+          ) : (
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl text-stone-600 hover:text-stone-900 hover:bg-stone-200/60 transition-colors cursor-pointer"
+              title={t('common.close')}
+              aria-label={t('common.close')}
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </div>
 
-        {/* 상단 탭 전환 네비게이션 (모바일 화면 좌우 터치 스크롤 지원) */}
-        <div className="flex overflow-x-auto shrink-0 border-b border-[#E8DFD3] bg-[#FAF6EE] px-3 sm:px-6 gap-1.5 sm:gap-2 text-xs font-sans-ui no-print touch-pan-x">
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('LIST');
-              soundEngine.playTileSlideSound();
-            }}
-            className={`py-3 px-3 border-b-2 font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
-              activeTab === 'LIST'
-                ? 'border-[#6B1724] text-[#6B1724]'
-                : 'border-transparent text-stone-500 hover:text-stone-800'
-            }`}
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>{language === 'en' ? `Letters (${diaries.length})` : `일기 보관함 (${diaries.length})`}</span>
-          </button>
+      {/* 상단 탭 전환 네비게이션 (인라인 뷰일 때는 세련된 세그먼트 컨트롤 형태) */}
+      <div className={`flex overflow-x-auto shrink-0 gap-1.5 sm:gap-2 text-xs font-sans-ui no-print touch-pan-x ${
+        isInlineView
+          ? 'p-1.5 bg-stone-200/50 rounded-2xl mb-4 border border-stone-200/60'
+          : 'border-b border-[#E8DFD3] bg-[#FAF6EE] px-3 sm:px-6'
+      }`}>
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('LIST');
+            soundEngine.playTileSlideSound();
+          }}
+          className={`py-2 px-3.5 rounded-xl font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+            activeTab === 'LIST'
+              ? isInlineView
+                ? 'bg-white text-[#6B1724] shadow-xs font-bold'
+                : 'border-b-2 border-[#6B1724] text-[#6B1724]'
+              : 'text-stone-600 hover:text-stone-900'
+          }`}
+        >
+          <BookOpen className="w-3.5 h-3.5" />
+          <span>{language === 'en' ? `Letters (${diaries.length})` : `일기 보관함 (${diaries.length})`}</span>
+        </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('REPORT');
-              soundEngine.playTileSlideSound();
-            }}
-            className={`py-3 px-3 border-b-2 font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
-              activeTab === 'REPORT'
-                ? 'border-[#6B1724] text-[#6B1724]'
-                : 'border-transparent text-stone-500 hover:text-stone-800'
-            }`}
-          >
-            <BarChart3 className="w-3.5 h-3.5 text-amber-800" />
-            <span>{t('archive.tab.report')}</span>
-          </button>
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('REPORT');
+            soundEngine.playTileSlideSound();
+          }}
+          className={`py-2 px-3.5 rounded-xl font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+            activeTab === 'REPORT'
+              ? isInlineView
+                ? 'bg-white text-[#6B1724] shadow-xs font-bold'
+                : 'border-b-2 border-[#6B1724] text-[#6B1724]'
+              : 'text-stone-600 hover:text-stone-900'
+          }`}
+        >
+          <BarChart3 className="w-3.5 h-3.5 text-amber-800" />
+          <span>{t('archive.tab.report')}</span>
+        </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('BOOKLET');
-              soundEngine.playTileSlideSound();
-            }}
-            className={`py-3 px-3 border-b-2 font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
-              activeTab === 'BOOKLET'
-                ? 'border-[#6B1724] text-[#6B1724]'
-                : 'border-transparent text-stone-500 hover:text-stone-800'
-            }`}
-          >
-            <Printer className="w-3.5 h-3.5 text-stone-700" />
-            <span>{t('archive.tab.booklet')}</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('BOOKLET');
+            soundEngine.playTileSlideSound();
+          }}
+          className={`py-2 px-3.5 rounded-xl font-semibold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+            activeTab === 'BOOKLET'
+              ? isInlineView
+                ? 'bg-white text-[#6B1724] shadow-xs font-bold'
+                : 'border-b-2 border-[#6B1724] text-[#6B1724]'
+              : 'text-stone-600 hover:text-stone-900'
+          }`}
+        >
+          <Printer className="w-3.5 h-3.5 text-stone-700" />
+          <span>{t('archive.tab.booklet')}</span>
+        </button>
+      </div>
 
         {/* 탭 1: 일기 목록 영역 */}
         {activeTab === 'LIST' && (
-          <div ref={listContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3">
+          <div ref={listContainerRef} className={isInlineView ? 'flex-1 space-y-3 pb-4' : 'flex-1 overflow-y-auto p-4 sm:p-6 space-y-3'}>
             {/* 날짜 필터 활성화 시 안내 배너 */}
             {selectedDateFilter && (
               <div className="flex items-center justify-between p-3 rounded-2xl bg-amber-100/90 border border-amber-300 text-stone-800 text-xs font-serif-warm shadow-2xs no-print">
@@ -1203,7 +1232,7 @@ export default function ArchiveModal({
 
         {/* 탭 2: [5번 요구사항 & 이달의 온기 결산] 월간 온기 리포트 & 키워드 분석 영역 */}
         {activeTab === 'REPORT' && (
-          <div ref={reportContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+          <div ref={reportContainerRef} className={isInlineView ? 'flex-1 space-y-4 pb-4' : 'flex-1 overflow-y-auto p-4 sm:p-6 space-y-4'}>
             {!stats || stats.totalDiaries === 0 ? (
               <div className="py-16 text-center text-stone-500 font-serif-warm">
                 <BarChart3 className="w-8 h-8 mx-auto text-stone-400 mb-2" />
@@ -1829,7 +1858,7 @@ export default function ArchiveModal({
 
         {/* 탭 3: [2번 요구사항] 소책자 PDF / 인쇄 미리보기 영역 */}
         {activeTab === 'BOOKLET' && (
-          <div ref={bookletContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+          <div ref={bookletContainerRef} className={isInlineView ? 'flex-1 space-y-4 pb-4' : 'flex-1 overflow-y-auto p-4 sm:p-6 space-y-4'}>
             <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-300 text-stone-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs no-print">
               <div>
                 <h4 className="font-serif-warm font-bold text-sm sm:text-base text-stone-900 flex items-center gap-1.5">
@@ -2001,8 +2030,12 @@ export default function ArchiveModal({
           </div>
         )}
 
-        {/* 하단 닫기 바 & 달력 인터페이스 (iOS 홈 제스처 바 여백 확보) */}
-        <div className="px-4 sm:px-5 py-3 pb-[max(env(safe-area-inset-bottom,0px),0.75rem)] border-t border-[#E8DFD3] bg-[#FAF7F2] flex items-center justify-between gap-2 shrink-0 no-print relative">
+        {/* 하단 닫기 바 & 달력 인터페이스 (인라인 뷰일 때는 창 윤곽선 없이 자연스러운 하단 바로 렌더링) */}
+        <div className={`flex items-center justify-between gap-2 shrink-0 no-print relative ${
+          isInlineView
+            ? 'px-2 sm:px-3 py-4 mt-6 border-t border-stone-200/60 bg-transparent'
+            : 'px-4 sm:px-5 py-3 pb-[max(env(safe-area-inset-bottom,0px),0.75rem)] border-t border-[#E8DFD3] bg-[#FAF7F2]'
+        }`}>
           {/* 맨 왼쪽: 달력 인터페이스 */}
           <div className="relative">
             {isCalendarOpen && (
@@ -2189,11 +2222,11 @@ export default function ArchiveModal({
           isInlineView ? (
             <motion.div
               key="inline-archive-view"
-              initial={{ opacity: 0, y: 14 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3, ease: 'easeOut' }}
-              className="w-full max-w-2xl flex flex-col bg-[#FAF7F2] rounded-3xl shadow-sm border border-[#E8DFD3] overflow-hidden my-1 sm:my-2 min-h-[60vh]"
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="w-full max-w-2xl flex flex-col my-1 sm:my-2"
             >
               {renderCardContent()}
             </motion.div>

@@ -308,14 +308,12 @@ export default function HomePage() {
     isLastLeaverWarningOpen,
   ]);
 
-  // 앱 진입 시 온기 브랜드 스플래시 화면 (0.8초 동안 우아하게 유지 후 부드러운 페이드아웃)
+  // 앱 진입 시 스플래시 화면: 마운트 완료 시 부드러운 페이드아웃으로 앱 본문 즉시 노출 (불필요한 지연 및 덜컹거림 원천 차단)
   useEffect(() => {
-    queueMicrotask(() => {
-      setIsMounted(true);
-    });
+    setIsMounted(true);
     const splashTimer = setTimeout(() => {
       setShowSplash(false);
-    }, 850);
+    }, 150);
     return () => clearTimeout(splashTimer);
   }, []);
 
@@ -1367,23 +1365,19 @@ export default function HomePage() {
 
   return (
     <div className="h-screen h-dvh max-h-dvh flex flex-col overflow-hidden bg-[#FAF7F2] text-[#2C2A29] selection:bg-[#6B1724]/20 selection:text-[#6B1724]">
-      {/* 앱 시작 시 온기 감성 스플래시 화면 (0.85초 유지 후 0.35초 페이드아웃) */}
+      {/* 앱 시작 시 온기 감성 스플래시 화면 (자연스러운 단일 페이드아웃) */}
       <AnimatePresence>
         {showSplash && (
           <motion.div
             key="warmth-splash"
             initial={{ opacity: 1 }}
+            animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.35, ease: 'easeInOut' }}
-            className="fixed inset-0 z-[100] flex flex-col items-center justify-between bg-[#FDFBF7] text-[#2C2A29] pt-[max(env(safe-area-inset-top,0px),2.5rem)] pb-[max(env(safe-area-inset-bottom,0px),2.5rem)] px-6 select-none pointer-events-auto"
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className="fixed inset-0 z-[100] flex flex-col items-center justify-between bg-[#FDFBF7] text-[#2C2A29] pt-[max(env(safe-area-inset-top,0px),2.5rem)] pb-[max(env(safe-area-inset-bottom,0px),2.5rem)] px-6 select-none pointer-events-none"
           >
             <div className="w-full h-8" />
-            <motion.div
-              initial={{ scale: 0.92, opacity: 0, y: 8 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, ease: 'easeOut' }}
-              className="flex flex-col items-center text-center space-y-4"
-            >
+            <div className="flex flex-col items-center text-center space-y-4">
               <div className="relative">
                 <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-2xl shadow-[#6B1724]/25 border border-amber-300/30">
                   <WarmthHanjaIcon className="w-10 h-10 sm:w-12 sm:h-12 text-amber-100" />
@@ -1398,17 +1392,12 @@ export default function HomePage() {
                   W A R M T H
                 </p>
               </div>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.2, duration: 0.4 }}
-              className="text-center"
-            >
+            </div>
+            <div className="text-center">
               <p className="font-serif-warm text-xs text-stone-400/90 tracking-widest">
                 둘만의 다정한 아날로그 교환일기
               </p>
-            </motion.div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

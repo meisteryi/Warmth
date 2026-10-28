@@ -257,10 +257,10 @@ export default function HomeView({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 25, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 15, scale: 0.98 }}
-      transition={{ duration: 0.4, ease: 'easeOut' }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 6 }}
+      transition={{ duration: 0.3, ease: 'easeOut' }}
       className="w-full max-w-xl mx-auto px-4 py-6 sm:py-8 space-y-6"
     >
       {/* 1. 커플 D-Day 메인 카드 (우리가 온기로 이어진 지 N일 차) */}
