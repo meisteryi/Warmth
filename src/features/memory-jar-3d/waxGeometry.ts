@@ -34,29 +34,6 @@ function createWaxCoinGeometry(radius: number, thickness: number): THREE.BufferG
 }
 
 /**
- * 3D 깨진 왁스 파편 지오메트리 생성 (불규칙한 각진 단면)
- */
-function createWaxFragmentGeometry(size: number): THREE.BufferGeometry {
-  const geo = new THREE.DodecahedronGeometry(size * 0.45, 0);
-  // 꼭짓점 좌표에 불규칙한 노이즈를 주어 깨진 단면 생성
-  const pos = geo.attributes.position;
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i);
-    const y = pos.getY(i);
-    const z = pos.getZ(i);
-    pos.setXYZ(
-      i,
-      x * (0.8 + Math.random() * 0.4),
-      y * (0.5 + Math.random() * 0.4), // 납작하게 파편화
-      z * (0.8 + Math.random() * 0.4)
-    );
-  }
-  geo.computeVertexNormals();
-  geo.center();
-  return geo;
-}
-
-/**
  * 리렌더링 시 흔들림 없이 일관된 유기적 배치를 보장하는 결정론적 의사 난수 생성기
  */
 function pseudoRandom(seed: number): number {
