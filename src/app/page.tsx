@@ -1357,6 +1357,14 @@ export default function HomePage() {
     forceScrollToTop(mainRef.current);
   };
 
+  // 둘만의 서재 뷰 전환 헬퍼 (상단바 고정 인라인 뷰 모드)
+  const handleOpenArchive = (tab?: 'LIST' | 'REPORT' | 'BOOKLET', month?: string) => {
+    setArchiveInitialTab(tab);
+    setArchiveInitialMonth(month);
+    setUiState('VIEW_ARCHIVE');
+    forceScrollToTop(mainRef.current);
+  };
+
   return (
     <div className="h-screen h-dvh max-h-dvh flex flex-col overflow-hidden bg-[#FAF7F2] text-[#2C2A29] selection:bg-[#6B1724]/20 selection:text-[#6B1724]">
       {/* 앱 시작 시 온기 감성 스플래시 화면 (0.85초 유지 후 0.35초 페이드아웃) */}
@@ -1408,7 +1416,7 @@ export default function HomePage() {
       <RoomHeader
         currentState={uiState}
         onOpenWriteModal={handleOpenWriteModal}
-        onOpenArchive={() => setIsArchiveOpen(true)}
+        onOpenArchive={() => handleOpenArchive()}
         onLeaveRoom={handleLeaveRoom}
         onGoHome={handleGoHome}
         onOpenMemoryJar={() => {
@@ -1493,16 +1501,8 @@ export default function HomePage() {
               userRole={userRole}
               userBirthDate={userBirthDate}
               onOpenWriteModal={handleOpenWriteModal}
-              onOpenArchive={() => {
-                setArchiveInitialTab(undefined);
-                setArchiveInitialMonth(undefined);
-                setIsArchiveOpen(true);
-              }}
-              onOpenMonthlyRecap={(monthKey) => {
-                setArchiveInitialTab('REPORT');
-                setArchiveInitialMonth(monthKey);
-                setIsArchiveOpen(true);
-              }}
+              onOpenArchive={() => handleOpenArchive()}
+              onOpenMonthlyRecap={(monthKey) => handleOpenArchive('REPORT', monthKey)}
               onSendKnock={() => handleSendKnock('오늘의 편지를 기다리고 있어요 ✉️')}
               onOpenSealedLetter={() => {
                 if (!diary) return;
@@ -1600,7 +1600,15 @@ export default function HomePage() {
                 key={selectedArchiveDiary ? `view-opened-${selectedArchiveDiary.diaryId || selectedArchiveDiary.createdAt || 'archive'}` : (diary ? `view-opened-${diary.diaryId || diary.createdAt || 'latest'}` : 'view-opened')}
                 diary={selectedArchiveDiary || diary!}
                 onWriteReply={handleOpenWriteModal}
-                onResetView={handleGoHome}
+                onResetView={() => {
+                  if (selectedArchiveDiary) {
+                    setSelectedArchiveDiary(null);
+                    setUiState('VIEW_ARCHIVE');
+                    forceScrollToTop(mainRef.current);
+                  } else {
+                    handleGoHome();
+                  }
+                }}
                 userName={userName}
                 roomCode={activeRoomCode}
                 onUpdateDiaryReaction={handleUpdateDiaryReaction}
@@ -1645,10 +1653,37 @@ export default function HomePage() {
               }}
             />
           )}
+
+          {/* 8. VIEW_ARCHIVE: 둘만의 서재 (상단바 고정 인라인 뷰) */}
+          {uiState === 'VIEW_ARCHIVE' && (
+            <ArchiveModal
+              key="view-archive"
+              isOpen={true}
+              isInlineView={true}
+              onClose={handleGoHome}
+              roomCode={activeRoomCode}
+              currentUserName={userName}
+              partnerName={partnerName}
+              initialTab={archiveInitialTab}
+              initialReportMonth={archiveInitialMonth}
+              onSelectDiary={(selectedDiary) => {
+                setSelectedArchiveDiary(selectedDiary);
+                setUiState('VIEW_OPENED_DIARY');
+                forceScrollToTop(mainRef.current);
+                showToast(`📖 ${selectedDiary.authorName} 님의 '${selectedDiary.title}' 일기를 서재에서 펼쳤습니다.`);
+              }}
+              onOpenSealedLetter={() => {
+                if (!diary) return;
+                setSelectedArchiveDiary(null);
+                setUiState(diary.mission?.isPassed ? 'VIEW_WAX_READY' : 'VIEW_SEALED_LETTER');
+                forceScrollToTop(mainRef.current);
+              }}
+            />
+          )}
         </AnimatePresence>
 
-        {/* 푸터 (스크롤 맨 아래로 내렸을 때만 자연스럽게 노출 - 하단 고정 바 아님, 왁스 병 탭에서는 비표시) */}
-        {uiState !== 'VIEW_MEMORY_JAR' && (
+        {/* 푸터 (스크롤 맨 아래로 내렸을 때만 자연스럽게 노출 - 하단 고정 바 아님, 왁스 병/서재 탭에서는 비표시) */}
+        {uiState !== 'VIEW_MEMORY_JAR' && uiState !== 'VIEW_ARCHIVE' && (
           <footer className="w-full mt-10 pt-6 pb-2 text-center text-[10px] sm:text-[11px] text-stone-400 font-serif-warm border-t border-[#EAE1D5]/40 flex flex-col items-center gap-1 select-none">
             <p>온기 (Warmth) · 하루걸러 띄우는 우리 둘만의 아날로그 비밀 교환일기</p>
             <p className="text-[10px] text-stone-400/90 font-sans-ui flex items-center justify-center gap-2 flex-wrap">

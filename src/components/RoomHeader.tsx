@@ -246,11 +246,21 @@ export default function RoomHeader({
               </button>
             )}
 
-            {/* 둘만의 서재 버튼 */}
+            {/* 둘만의 서재 버튼 (상단바 고정 뷰 토글 대응) */}
             <button
-              onClick={onOpenArchive}
-              title={t('nav.archive')}
-              className="h-9 sm:h-10 px-2 sm:px-3 rounded-xl border border-stone-300/90 hover:border-[#6B1724]/40 bg-white hover:bg-stone-50 text-stone-800 text-xs font-serif-warm font-bold shadow-2xs flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap active:scale-95 transition-all cursor-pointer"
+              onClick={() => {
+                if (currentState === 'VIEW_ARCHIVE') {
+                  onGoHome?.();
+                } else if (onOpenArchive) {
+                  onOpenArchive();
+                }
+              }}
+              title={currentState === 'VIEW_ARCHIVE' ? (language === 'en' ? 'Back to Desk' : '책상으로 돌아가기') : t('nav.archive')}
+              className={`h-9 sm:h-10 px-2 sm:px-3 rounded-xl border text-xs font-serif-warm font-bold shadow-2xs flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap active:scale-95 transition-all cursor-pointer ${
+                currentState === 'VIEW_ARCHIVE'
+                  ? 'bg-[#6B1724]/10 text-[#6B1724] border-[#6B1724]/40 font-bold ring-1 ring-[#6B1724]/20'
+                  : 'border-stone-300/90 hover:border-[#6B1724]/40 bg-white hover:bg-stone-50 text-stone-800'
+              }`}
             >
               <BookOpen className="w-4 h-4 text-[#6B1724] shrink-0" />
               <span className="hidden sm:inline">{t('nav.archive')}</span>

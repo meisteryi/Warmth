@@ -82,6 +82,7 @@ interface ArchiveModalProps {
   onOpenSealedLetter?: () => void;
   initialTab?: 'LIST' | 'REPORT' | 'BOOKLET';
   initialReportMonth?: string;
+  isInlineView?: boolean;
 }
 
 // 상대방이 보낸 미개봉 비밀 편지는 React State/메모리 레벨에서도 완전히 마스킹 (F12/DevTools 스포일러 원천 차단)
@@ -115,6 +116,7 @@ export default function ArchiveModal({
   onOpenSealedLetter,
   initialTab,
   initialReportMonth,
+  isInlineView = false,
 }: ArchiveModalProps) {
   const { language, t } = useLanguage();
   // SWR(Stale-While-Revalidate): 메모리 캐시가 있으면 즉시 초기값으로 렌더링
@@ -797,59 +799,43 @@ export default function ArchiveModal({
     }
   };
 
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.25 }}
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center p-3 sm:p-4 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] bg-stone-900/60 backdrop-blur-sm overflow-y-auto overscroll-contain"
-          onClick={onClose}
-        >
-          <motion.div 
-            initial={{ opacity: 0, y: 20, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 15, scale: 0.96 }}
-            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="w-full max-w-2xl my-auto flex flex-col bg-[#FAF7F2] rounded-3xl shadow-2xl border border-[#E8DFD3] overflow-hidden max-h-[calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-1.75rem)] sm:max-h-[88vh]"
-            onClick={(e) => e.stopPropagation()}
-          >
-        {/* 모달 상단 헤더 */}
-        <div className="px-5 sm:px-6 py-4 border-b border-[#E8DFD3] bg-[#F4EFEA] flex items-center justify-between shrink-0 no-print">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-sm">
-              <WarmthHanjaIcon className="w-5 h-5 text-amber-100" />
-            </div>
-            <div>
-              <h2 className="text-lg sm:text-xl font-serif-warm font-bold text-stone-900">
-                {t('archive.title')}
-              </h2>
-              <p className="text-xs text-stone-500 font-sans-ui mt-0.5">
-                #{roomCode} · {currentUserName} & {partnerName}
-              </p>
-            </div>
+  const renderCardContent = () => (
+    <>
+      {/* 모달 상단 헤더 */}
+      <div className="px-5 sm:px-6 py-4 border-b border-[#E8DFD3] bg-[#F4EFEA] flex items-center justify-between shrink-0 no-print">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-sm">
+            <WarmthHanjaIcon className="w-5 h-5 text-amber-100" />
           </div>
-
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => fetchDiaries()}
-              disabled={isLoading}
-              title={language === 'en' ? 'Refresh' : '새로고침'}
-              className="p-2 rounded-xl text-stone-600 hover:text-stone-900 hover:bg-stone-200/60 transition-colors disabled:opacity-50 cursor-pointer"
-            >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            </button>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-xl text-stone-600 hover:text-stone-900 hover:bg-stone-200/60 transition-colors cursor-pointer"
-              aria-label={t('common.close')}
-            >
-              <X className="w-5 h-5" />
-            </button>
+          <div>
+            <h2 className="text-lg sm:text-xl font-serif-warm font-bold text-stone-900">
+              {t('archive.title')}
+            </h2>
+            <p className="text-xs text-stone-500 font-sans-ui mt-0.5">
+              #{roomCode} · {currentUserName} & {partnerName}
+            </p>
           </div>
         </div>
+
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => fetchDiaries()}
+            disabled={isLoading}
+            title={language === 'en' ? 'Refresh' : '새로고침'}
+            className="p-2 rounded-xl text-stone-600 hover:text-stone-900 hover:bg-stone-200/60 transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-xl text-stone-600 hover:text-stone-900 hover:bg-stone-200/60 transition-colors cursor-pointer"
+            title={isInlineView ? (language === 'en' ? 'Back to Desk' : '책상으로 돌아가기') : t('common.close')}
+            aria-label={isInlineView ? (language === 'en' ? 'Back to Desk' : '책상으로 돌아가기') : t('common.close')}
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
 
         {/* 상단 탭 전환 네비게이션 (모바일 화면 좌우 터치 스크롤 지원) */}
         <div className="flex overflow-x-auto shrink-0 border-b border-[#E8DFD3] bg-[#FAF6EE] px-3 sm:px-6 gap-1.5 sm:gap-2 text-xs font-sans-ui no-print touch-pan-x">
@@ -2189,12 +2175,51 @@ export default function ArchiveModal({
             onClick={onClose}
             className="px-5 py-2 rounded-xl bg-stone-200 hover:bg-stone-300 active:scale-95 text-stone-800 text-xs font-serif-warm font-bold transition-all cursor-pointer shrink-0"
           >
-            {language === 'en' ? 'Close' : '닫기'}
+            {isInlineView
+              ? (language === 'en' ? 'Back to Desk' : '책상으로 돌아가기')
+              : (language === 'en' ? 'Close' : '닫기')}
           </button>
         </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
+      </>
+    );
+
+    return (
+      <AnimatePresence>
+        {isOpen && (
+          isInlineView ? (
+            <motion.div
+              key="inline-archive-view"
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              className="w-full max-w-2xl flex flex-col bg-[#FAF7F2] rounded-3xl shadow-sm border border-[#E8DFD3] overflow-hidden my-1 sm:my-2 min-h-[60vh]"
+            >
+              {renderCardContent()}
+            </motion.div>
+          ) : (
+            <motion.div
+              key="modal-archive-popup"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="fixed inset-0 z-50 flex flex-col items-center justify-center p-3 sm:p-4 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] bg-stone-900/60 backdrop-blur-sm overflow-y-auto overscroll-contain"
+              onClick={onClose}
+            >
+              <motion.div 
+                initial={{ opacity: 0, y: 20, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 15, scale: 0.96 }}
+                transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                className="w-full max-w-2xl my-auto flex flex-col bg-[#FAF7F2] rounded-3xl shadow-2xl border border-[#E8DFD3] overflow-hidden max-h-[calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-1.75rem)] sm:max-h-[88vh]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {renderCardContent()}
+              </motion.div>
+            </motion.div>
+          )
+        )}
+      </AnimatePresence>
+    );
+  }
