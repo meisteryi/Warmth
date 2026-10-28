@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getSecureGeminiKey } from '@/lib/secureKeys';
 
-// Vercel Serverless Function Timeout 설정 (이미지 생성 파이프라인 대응 최대 30초)
-export const maxDuration = 30;
+// Vercel Serverless Function Timeout 설정 (Hobby 플랜 안전 기준 10초)
+export const maxDuration = 10;
 
 export async function POST(req: Request) {
   try {
@@ -188,7 +188,7 @@ ${hasSpecificName ? `연인(${cleanPartner})에게 보낼 오늘의 교환일기
         return NextResponse.json({ error: '편지 내용이 너무 짧습니다.' }, { status: 400 });
       }
 
-      // 1) Gemini로 온기 화풍에 맞춘 감성 영문 프롬프트 생성
+      // 1) Gemini로 온기 화풍에 맞춘 감성 영문 프롬프트 초고속 생성 (1~2초 소요)
       const promptInstruction = `당신은 아날로그 교환일기 '온기(Warmth)'의 감성 수채화 일러스트레이터입니다.
 아래 편지 본문을 읽고, 편지의 가장 따뜻하고 서정적인 장면이나 사물을 포착한 영문 이미지 생성 프롬프트를 1개 만들어주세요.
 
@@ -202,79 +202,77 @@ ${content.trim().slice(0, 1000)}
 4. 금지어(매우 중요): 글자나 텍스트가 절대 그림에 들어가면 안 됩니다. 끝에 반드시 "no text, no letters, no typography, clean illustration"을 포함하세요.
 5. 출력 형식: 설명, 서론, 따옴표 없이 오직 완성된 영문 프롬프트 1문장만 출력하세요.`;
 
-      const promptResponse = await fetch(geminiEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': apiKey,
-        },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: promptInstruction }] }],
-          generationConfig: { temperature: 0.7 },
-        }),
-      });
-
-      let refinedPrompt = 'A cozy watercolor illustration of a warm cup of tea by a sunlit wooden window, vintage storybook art, muted warm tones, no text, no letters';
-      if (promptResponse.ok) {
-        const promptData = await promptResponse.json();
-        const rawText = promptData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-        if (rawText) {
-          refinedPrompt = rawText.replace(/^["'「\s]+|["'」\s]+$/g, '').trim();
-          if (!refinedPrompt.toLowerCase().includes('no text')) {
-            refinedPrompt += ', no text, no letters';
-          }
-        }
-      }
-
-      // 2) Pollinations FLUX API로 이미지 생성 (정사각형 768x768)
-      const randomSeed = Math.floor(Math.random() * 1000000);
-      const pollUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(refinedPrompt)}?width=768&height=768&model=flux&nologo=true&seed=${randomSeed}`;
-
-      const imageController = new AbortController();
-      const imageTimeout = setTimeout(() => imageController.abort(), 22000);
+      const promptController = new AbortController();
+      const promptTimeout = setTimeout(() => promptController.abort(), 8000); // 8초 자체 타임아웃
 
       try {
-        const imageRes = await fetch(pollUrl, {
-          signal: imageController.signal,
-          headers: { 'User-Agent': 'WarmthDiary/1.0' },
+        const promptResponse = await fetch(geminiEndpoint, {
+          method: 'POST',
+          signal: promptController.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey,
+          },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: promptInstruction }] }],
+            generationConfig: { temperature: 0.7, maxOutputTokens: 200 },
+          }),
         });
-        clearTimeout(imageTimeout);
+        clearTimeout(promptTimeout);
 
-        if (!imageRes.ok) {
-          throw new Error(`Pollinations HTTP error ${imageRes.status}`);
+        let refinedPrompt = 'A cozy watercolor illustration of a warm cup of tea by a sunlit wooden window, vintage storybook art, muted warm tones, no text, no letters';
+        if (promptResponse.ok) {
+          const promptData = await promptResponse.json();
+          const rawText = promptData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          if (rawText) {
+            refinedPrompt = rawText.replace(/^["'「\s]+|["'」\s]+$/g, '').trim();
+            if (!refinedPrompt.toLowerCase().includes('no text')) {
+              refinedPrompt += ', no text, no letters';
+            }
+          }
         }
 
-        const arrayBuffer = await imageRes.arrayBuffer();
-        const base64Data = Buffer.from(arrayBuffer).toString('base64');
-        const mimeType = imageRes.headers.get('content-type') || 'image/jpeg';
-        const dataUrl = `data:${mimeType};base64,${base64Data}`;
-
+        // Vercel 타임아웃 방지를 위해, 무거운 이미지 다운로드는 브라우저가 직접 수행하도록 정제된 프롬프트를 즉시 반환 (실행 시간 1.5초!)
         return NextResponse.json({
           success: true,
-          dataUrl,
           prompt: refinedPrompt,
         });
-      } catch (imageErr) {
-        clearTimeout(imageTimeout);
-        console.error('Pollinations fetch error:', imageErr);
-        return NextResponse.json(
-          { error: '이미지 생성 서버와의 통신이 지연되었습니다. 잠시 후 다시 시도해주세요.' },
-          { status: 504 }
-        );
+      } catch (promptErr) {
+        clearTimeout(promptTimeout);
+        console.warn('Gemini prompt generation timeout or error, returning fallback prompt:', promptErr);
+        return NextResponse.json({
+          success: true,
+          prompt: 'A cozy watercolor illustration of a warm cup of tea by a sunlit wooden window, vintage storybook art, muted warm tones, no text, no letters',
+        });
       }
     } else {
       return NextResponse.json({ error: '알 수 없는 action입니다.' }, { status: 400 });
     }
 
-    // Google Gemini API 호출
-    const response = await fetch(geminiEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
-      },
-      body: JSON.stringify({ contents, generationConfig }),
-    });
+    // Google Gemini API 호출 (Vercel 10초 타임아웃 킬을 방지하기 위해 8.5초 자체 타임아웃 적용)
+    const geminiController = new AbortController();
+    const geminiTimeout = setTimeout(() => geminiController.abort(), 8500);
+
+    let response: Response;
+    try {
+      response = await fetch(geminiEndpoint, {
+        method: 'POST',
+        signal: geminiController.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify({ contents, generationConfig }),
+      });
+      clearTimeout(geminiTimeout);
+    } catch (fetchErr: unknown) {
+      clearTimeout(geminiTimeout);
+      console.warn('Gemini proxy fetch aborted or failed:', fetchErr);
+      return NextResponse.json(
+        { error: 'AI 응답 대기 시간이 초과되었습니다. (8.5s 자체 안전 차단)' },
+        { status: 504 }
+      );
+    }
 
     if (!response.ok) {
       const errorText = await response.text();

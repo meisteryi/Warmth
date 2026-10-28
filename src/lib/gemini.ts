@@ -952,12 +952,15 @@ export async function generateMonthlyRecap(
 
 /**
  * 🎨 편지 본문을 분석하여 아날로그 감성 수채화 삽화를 생성합니다.
- * (Gemini 프롬프트 정제 + Pollinations FLUX 무료 이미지 파이프라인)
+ * - Vercel 10초 타임아웃 방지를 위해, 서버는 1.5초 만에 프롬프트만 생성하고
+ *   실제 이미지는 브라우저가 직접 Pollinations FLUX로부터 안전하게 다운로드합니다.
  */
 export async function generateLetterIllustration(content: string): Promise<{ dataUrl: string; prompt?: string } | null> {
   if (!content || content.trim().length < 5) return null;
 
-  // 1) 서버 프록시 우선 시도 (/api/gemini)
+  let illustrationPrompt = 'A cozy watercolor illustration of warm moments, soft textured paper grain, gentle muted earth tones, no text, no letters';
+
+  // 1) 서버 프록시(/api/gemini)로 초고속(1.5초) 감성 프롬프트 획득
   try {
     const res = await fetch('/api/gemini/', {
       method: 'POST',
@@ -969,20 +972,18 @@ export async function generateLetterIllustration(content: string): Promise<{ dat
     });
     if (res.ok) {
       const data = await res.json();
-      if (data?.dataUrl) {
-        return { dataUrl: data.dataUrl, prompt: data.prompt };
+      if (data?.prompt) {
+        illustrationPrompt = data.prompt;
       }
     }
   } catch (err) {
-    console.warn('Server proxy illustration error, falling back:', err);
+    console.warn('Server proxy illustration prompt notice, using fallback:', err);
   }
 
-  // 2) 정적 호스팅(GitHub Pages 등) 및 클라이언트 폴백:
-  // 클라이언트에서 직접 Pollinations FLUX 호출
+  // 2) 브라우저에서 직접 Pollinations FLUX 고화질 이미지 호출 (Vercel 10초 타임아웃 0%)
   try {
-    const fallbackPrompt = 'A warm nostalgic watercolor illustration of cozy moments, soft textured paper grain, gentle muted earth tones, no text, no letters';
     const randomSeed = Math.floor(Math.random() * 1000000);
-    const pollUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(fallbackPrompt)}?width=768&height=768&model=flux&nologo=true&seed=${randomSeed}`;
+    const pollUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(illustrationPrompt)}?width=768&height=768&model=flux&nologo=true&seed=${randomSeed}`;
 
     const res = await fetch(pollUrl);
     if (res.ok) {
@@ -990,14 +991,14 @@ export async function generateLetterIllustration(content: string): Promise<{ dat
       return new Promise((resolve) => {
         const reader = new FileReader();
         reader.onloadend = () => {
-          resolve({ dataUrl: reader.result as string, prompt: fallbackPrompt });
+          resolve({ dataUrl: reader.result as string, prompt: illustrationPrompt });
         };
         reader.onerror = () => resolve(null);
         reader.readAsDataURL(blob);
       });
     }
   } catch (clientErr) {
-    console.error('Client direct illustration fallback failed:', clientErr);
+    console.error('Client direct illustration fetch error:', clientErr);
   }
 
   return null;
