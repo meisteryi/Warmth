@@ -812,13 +812,10 @@ export default function ArchiveModal({
           <div className="w-10 h-10 rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-xs shrink-0">
             <WarmthHanjaIcon className="w-5 h-5 text-amber-100" />
           </div>
-          <div className="flex items-baseline gap-2 min-w-0 flex-nowrap">
+          <div className="flex items-center min-w-0">
             <h2 className="text-base sm:text-xl font-serif-warm font-bold text-stone-900 whitespace-nowrap shrink-0">
               {t('archive.title')}
             </h2>
-            <span className="text-xs text-stone-500 font-sans-ui whitespace-nowrap">
-              #{roomCode} · {currentUserName} & {partnerName}
-            </span>
           </div>
         </div>
 
@@ -1022,25 +1019,18 @@ export default function ArchiveModal({
                       }}
                       className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-rose-50/70 via-amber-50/40 to-stone-50 border border-rose-200/90 hover:border-rose-300 hover:shadow-md transition-all cursor-pointer flex flex-col gap-2.5 shadow-2xs"
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto no-scrollbar py-0.5 min-w-0">
-                          <span className="text-xs text-stone-500 font-mono flex items-center gap-1 whitespace-nowrap shrink-0">
-                            <Calendar className="w-3.5 h-3.5 text-stone-400" />
-                            {formattedDate}
-                          </span>
-                          <span className="text-[11px] px-2 py-0.5 rounded-full font-serif-warm font-bold border bg-rose-100/90 text-rose-950 border-rose-300 animate-pulse flex items-center gap-1 whitespace-nowrap shrink-0">
-                            <Lock className="w-3 h-3 text-rose-800" />
-                            <span>{t('archive.unopenedByMe')}</span>
-                          </span>
-                          <span className="text-[11px] px-2 py-0.5 rounded-full font-serif-warm font-bold border bg-rose-50 text-rose-900 border-rose-200 whitespace-nowrap shrink-0">
-                            {language === 'en' ? `${item.authorName}'s Letter` : `${item.authorName}의 온기`}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-1 text-xs font-serif-warm font-bold text-rose-900 group-hover:translate-x-0.5 transition-transform shrink-0 whitespace-nowrap">
-                          <span>{t('archive.openOnMain')}</span>
-                          <ChevronRight className="w-4 h-4" />
-                        </div>
+                      <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto no-scrollbar py-0.5 min-w-0">
+                        <span className="text-xs text-stone-500 font-mono flex items-center gap-1 whitespace-nowrap shrink-0">
+                          <Calendar className="w-3.5 h-3.5 text-stone-400" />
+                          {formattedDate}
+                        </span>
+                        <span className="text-[11px] px-2 py-0.5 rounded-full font-serif-warm font-bold border bg-rose-100/90 text-rose-950 border-rose-300 animate-pulse flex items-center gap-1 whitespace-nowrap shrink-0">
+                          <Lock className="w-3 h-3 text-rose-800" />
+                          <span>{t('archive.unopenedByMe')}</span>
+                        </span>
+                        <span className="text-[11px] px-2 py-0.5 rounded-full font-serif-warm font-bold border bg-rose-50 text-rose-900 border-rose-200 whitespace-nowrap shrink-0">
+                          {language === 'en' ? `${item.authorName}'s Letter` : `${item.authorName}의 온기`}
+                        </span>
                       </div>
 
                       <h3 className="font-serif-warm font-bold text-stone-900 text-base leading-snug flex items-center gap-2">
@@ -1072,59 +1062,52 @@ export default function ArchiveModal({
                     }}
                     className="group relative p-4 rounded-2xl bg-white border border-[#E8DFD3] hover:border-[#6B1724]/40 hover:shadow-md transition-all cursor-pointer flex flex-col gap-2"
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto no-scrollbar py-0.5 min-w-0">
-                        <span className="text-xs text-stone-500 font-mono flex items-center gap-1 whitespace-nowrap shrink-0">
-                          <Calendar className="w-3.5 h-3.5 text-stone-400" />
-                          {formattedDate}
+                    <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto no-scrollbar py-0.5 min-w-0">
+                      <span className="text-xs text-stone-500 font-mono flex items-center gap-1 whitespace-nowrap shrink-0">
+                        <Calendar className="w-3.5 h-3.5 text-stone-400" />
+                        {formattedDate}
+                      </span>
+                      <span
+                        className={`text-[11px] px-2 py-0.5 rounded-full font-serif-warm font-bold border whitespace-nowrap shrink-0 ${
+                          isMine
+                            ? 'bg-amber-100/80 text-amber-900 border-amber-200'
+                            : 'bg-rose-50 text-rose-900 border-rose-200'
+                        }`}
+                      >
+                        {language === 'en' ? `${item.authorName}'s Journal` : `${item.authorName}의 기록`}
+                      </span>
+
+                      {isMyUnopenedLetter && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-serif-warm font-bold border bg-amber-50 text-amber-950 border-amber-200 whitespace-nowrap shrink-0">
+                          {t('badge.unopened')}
                         </span>
-                        <span
-                          className={`text-[11px] px-2 py-0.5 rounded-full font-serif-warm font-bold border whitespace-nowrap shrink-0 ${
-                            isMine
-                              ? 'bg-amber-100/80 text-amber-900 border-amber-200'
-                              : 'bg-rose-50 text-rose-900 border-rose-200'
-                          }`}
+                      )}
+
+                      {/* [3번 요구사항] 저장된 날씨·기분 잉크 도장 표시 */}
+                      {item.stamp && item.stamp.style !== 'EMOJI_TITLE' && (
+                        <span 
+                          className="text-[10px] px-2 py-0.5 rounded-full border border-dashed font-serif-warm inline-flex items-center gap-1 whitespace-nowrap shrink-0"
+                          style={{
+                            borderColor: item.stamp.color || '#A83232',
+                            color: item.stamp.color || '#A83232',
+                            backgroundColor: `${item.stamp.color || '#A83232'}0D`,
+                          }}
                         >
-                          {language === 'en' ? `${item.authorName}'s Journal` : `${item.authorName}의 기록`}
+                          <span>{item.stamp.symbol}</span>
+                          <span>{item.stamp.name}</span>
                         </span>
+                      )}
 
-                        {isMyUnopenedLetter && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full font-serif-warm font-bold border bg-amber-50 text-amber-950 border-amber-200 whitespace-nowrap shrink-0">
-                            {t('badge.unopened')}
-                          </span>
-                        )}
-
-                        {/* [3번 요구사항] 저장된 날씨·기분 잉크 도장 표시 */}
-                        {item.stamp && item.stamp.style !== 'EMOJI_TITLE' && (
-                          <span 
-                            className="text-[10px] px-2 py-0.5 rounded-full border border-dashed font-serif-warm inline-flex items-center gap-1 whitespace-nowrap shrink-0"
-                            style={{
-                              borderColor: item.stamp.color || '#A83232',
-                              color: item.stamp.color || '#A83232',
-                              backgroundColor: `${item.stamp.color || '#A83232'}0D`,
-                            }}
-                          >
-                            <span>{item.stamp.symbol}</span>
-                            <span>{item.stamp.name}</span>
-                          </span>
-                        )}
-
-                        {itemWarmth && typeof itemWarmth.temperature === 'number' && (
-                          <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-bold inline-flex items-center gap-1 whitespace-nowrap shrink-0 ${
-                            itemWarmth.temperature <= 0
-                              ? 'bg-sky-50 text-sky-900 border border-sky-200'
-                              : 'bg-amber-50 text-amber-900 border border-amber-200/60'
-                          }`}>
-                            <Sparkles className={`w-3 h-3 ${itemWarmth.temperature <= 0 ? 'text-sky-600' : 'text-amber-600'}`} />
-                            {itemWarmth.temperature > 0 ? `+${itemWarmth.temperature.toFixed(1)}` : itemWarmth.temperature.toFixed(1)}°C
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-1 text-xs font-serif-warm text-[#6B1724] group-hover:translate-x-0.5 transition-transform shrink-0 whitespace-nowrap">
-                        <span>{t('archive.readDiary')}</span>
-                        <ChevronRight className="w-4 h-4" />
-                      </div>
+                      {itemWarmth && typeof itemWarmth.temperature === 'number' && (
+                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-bold inline-flex items-center gap-1 whitespace-nowrap shrink-0 ${
+                          itemWarmth.temperature <= 0
+                            ? 'bg-sky-50 text-sky-900 border border-sky-200'
+                            : 'bg-amber-50 text-amber-900 border border-amber-200/60'
+                        }`}>
+                          <Sparkles className={`w-3 h-3 ${itemWarmth.temperature <= 0 ? 'text-sky-600' : 'text-amber-600'}`} />
+                          {itemWarmth.temperature > 0 ? `+${itemWarmth.temperature.toFixed(1)}` : itemWarmth.temperature.toFixed(1)}°C
+                        </span>
+                      )}
                     </div>
 
                     <h3 className="font-serif-warm font-bold text-stone-900 text-base leading-snug group-hover:text-[#6B1724] transition-colors flex items-center gap-1.5">
