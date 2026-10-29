@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DiaryData, DiaryReaction, sanitizeDiaryReaction, isDiaryWrittenByMe } from '@/types/diary';
 import { generateFallbackWarmth } from '@/lib/gemini';
@@ -47,6 +47,14 @@ export default function OpenedLetter({
      (currentReaction.reactorId && currentUserId && currentReaction.reactorId === currentUserId))
   );
 
+  // "내"가 "이 일기"에 작성 중이던 포스트잇만 1:1로 식별하는 독립 키 (방, 일기 ID, 내 식별자 귀속 -> 다른 일기/상대방에 절대 미노출)
+  const postitDraftKey = useMemo(() => {
+    if (!diary.diaryId || !roomCode) return '';
+    const myId = currentUserId || userName || 'me';
+    return `warmth_postit_draft_${roomCode}_${diary.diaryId}_${myId}`;
+  }, [roomCode, diary.diaryId, currentUserId, userName]);
+
+  const [hasDraftRestored, setHasDraftRestored] = useState(false);
   const [isReactionModalOpen, setIsReactionModalOpen] = useState(false);
   const [reactionEmoji, setReactionEmoji] = useState(() => diary.reaction?.emoji || '❤️');
   const [reactionComment, setReactionComment] = useState(() => diary.reaction?.comment || '');
@@ -107,11 +115,46 @@ export default function OpenedLetter({
         setReactionEmoji(sanitized.reaction.emoji || '❤️');
         setReactionComment(sanitized.reaction.comment || '');
       } else {
-        setReactionEmoji('❤️');
-        setReactionComment('');
+        // "내"가 이 일기에 쓰다 만 임시저장본이 있으면 복원
+        let draftEmoji = '❤️';
+        let draftComment = '';
+        if (typeof window !== 'undefined' && postitDraftKey) {
+          try {
+            const raw = localStorage.getItem(postitDraftKey);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (parsed && (parsed.comment !== undefined || parsed.emoji)) {
+                draftEmoji = parsed.emoji || '❤️';
+                draftComment = parsed.comment || '';
+              }
+            }
+          } catch {}
+        }
+        setReactionEmoji(draftEmoji);
+        setReactionComment(draftComment);
       }
     });
-  }, [diary, diary.diaryId, diary.reaction, roomCode]);
+  }, [diary, diary.diaryId, diary.reaction, roomCode, postitDraftKey]);
+
+  // 포스트잇 작성 중 실시간 자동 임시저장 (핸드폰이 꺼지거나 앱이 닫혀도 "내" 작성본 1:1 보존)
+  useEffect(() => {
+    if (!postitDraftKey || typeof window === 'undefined' || !isReactionModalOpen) return;
+    try {
+      const isContentPresent = reactionComment.trim().length > 0 || (reactionEmoji && reactionEmoji !== '❤️');
+      if (isContentPresent) {
+        localStorage.setItem(
+          postitDraftKey,
+          JSON.stringify({
+            emoji: reactionEmoji,
+            comment: reactionComment,
+            savedAt: Date.now(),
+          })
+        );
+      } else {
+        localStorage.removeItem(postitDraftKey);
+      }
+    } catch {}
+  }, [isReactionModalOpen, reactionEmoji, reactionComment, postitDraftKey]);
 
   const handleSaveReaction = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -131,6 +174,14 @@ export default function OpenedLetter({
       setCurrentReaction(newReaction);
       setIsReactionModalOpen(false);
       soundEngine.playMissionPassChime();
+
+      // "내" 임시 저장본 정상 저장 완료 후 즉시 정리
+      try {
+        if (postitDraftKey && typeof window !== 'undefined') {
+          localStorage.removeItem(postitDraftKey);
+        }
+      } catch {}
+      setHasDraftRestored(false);
 
       // 부모 상태(diary / selectedArchiveDiary) 및 로컬 캐시를 즉시 동기화하여 화면 전환 시 증발 방지
       void onUpdateDiaryReaction?.(diary.diaryId, newReaction, diary.title);
@@ -155,6 +206,14 @@ export default function OpenedLetter({
       setIsReactionModalOpen(false);
       soundEngine.playPaperRustle();
 
+      // "내" 임시 저장본도 함께 삭제
+      try {
+        if (postitDraftKey && typeof window !== 'undefined') {
+          localStorage.removeItem(postitDraftKey);
+        }
+      } catch {}
+      setHasDraftRestored(false);
+
       void onUpdateDiaryReaction?.(diary.diaryId, null, diary.title);
 
       if (roomCode && diary.diaryId) {
@@ -170,14 +229,37 @@ export default function OpenedLetter({
   const handleOpenReactionModal = () => {
     // 상대방이 등록한 포스트잇인 경우 수정 모달 진입 차단
     if (currentReaction && !isReactionOwner) return;
-    if (currentReaction) {
-      setReactionEmoji(currentReaction.emoji || '❤️');
-      setReactionComment(currentReaction.comment || '');
-    } else {
-      setReactionEmoji('❤️');
-      setReactionComment('');
+
+    // 1. "내"가 "이 일기"에 쓰다 만 임시저장본이 있는지 우선 복원 확인
+    let restored = false;
+    if (typeof window !== 'undefined' && postitDraftKey) {
+      try {
+        const raw = localStorage.getItem(postitDraftKey);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && (parsed.comment !== undefined || parsed.emoji)) {
+            setReactionEmoji(parsed.emoji || '❤️');
+            setReactionComment(parsed.comment || '');
+            restored = Boolean(parsed.comment?.trim());
+          }
+        }
+      } catch {}
     }
+
+    // 2. 임시저장본이 없는 경우 기존 등록된 반응 또는 기본값
+    if (!restored) {
+      if (currentReaction) {
+        setReactionEmoji(currentReaction.emoji || '❤️');
+        setReactionComment(currentReaction.comment || '');
+      } else {
+        setReactionEmoji('❤️');
+        setReactionComment('');
+      }
+    }
+
+    setHasDraftRestored(restored);
     setIsReactionModalOpen(true);
+    soundEngine.playTileSlideSound();
   };
 
   const formatReactionTime = (iso?: string) => {
@@ -711,8 +793,13 @@ export default function OpenedLetter({
                 {/* 2. 공백 포함 100자 이내의 코멘트 */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-serif-warm font-semibold !text-stone-800" style={{ color: '#292524' }}>
-                      {language === 'en' ? 'Short Note (within 100 chars)' : '한 줄 코멘트 (공백 포함 100자 이내)'}
+                    <label className="text-xs font-serif-warm font-semibold !text-stone-800 flex items-center gap-1.5" style={{ color: '#292524' }}>
+                      <span>{language === 'en' ? 'Short Note (within 100 chars)' : '한 줄 코멘트 (공백 포함 100자 이내)'}</span>
+                      {hasDraftRestored && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-200/80 text-amber-900 border border-amber-300 font-sans-ui font-medium">
+                          {language === 'en' ? 'Draft Restored' : '작성 중이던 메모'}
+                        </span>
+                      )}
                     </label>
                     <span className={`text-[11px] font-sans-ui ${reactionComment.length >= 100 ? 'text-rose-500 font-bold' : '!text-stone-500'}`} style={{ color: reactionComment.length >= 100 ? '#F43F5E' : '#78716C' }}>
                       {reactionComment.length}/100자
