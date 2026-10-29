@@ -54,9 +54,7 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
   }
 }
 
-export const VAPID_PUBLIC_KEY =
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
-  'BHTiYvqZhhwycXbqZBrkSi5P-YtHN-47QN1FJ-5cgY6mKSJ1oH3TSNcDu8MAPFpi9w3-grVbL6PdITNjk40FWc0';
+export const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -85,6 +83,10 @@ export async function subscribeToWebPush(): Promise<PushSubscription | null> {
 
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
+      if (!VAPID_PUBLIC_KEY) {
+        console.warn('VAPID public key is not configured.');
+        return null;
+      }
       const convertedKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
