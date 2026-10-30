@@ -245,6 +245,7 @@ export default function HomePage() {
   const currentDiaryRef = useRef<DiaryData | null>(null);
   const isInitialDiarySyncDoneRef = useRef<boolean>(false);
   const notifiedDiaryArrivalIdRef = useRef<string | null>(null);
+  const hasInitialPushSyncedRef = useRef<boolean>(false);
 
   // 상대방 연결 해제 수신 모달 상태
   const [isPartnerDisconnectedModalOpen, setIsPartnerDisconnectedModalOpen] = useState(false);
@@ -677,13 +678,10 @@ export default function HomePage() {
         setIsLastPersonRemaining(false);
       }
 
-      // 0-2. 내 Web Push 구독 정보가 방에 아직 저장되지 않았고 권한이 허용된 경우 자동 동기화
-      if (room.memberInfo) {
-        const myUid = getOrCreateUserId();
-        const myInfo =
-          room.memberInfo[myUid] ||
-          Object.values(room.memberInfo).find((info) => info?.nickname === userName);
-        if (!myInfo?.pushSubscription && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      // 0-2. 내 Web Push 구독 정보 동기화 (VAPID 키 회전 시 구버전 구독 자동 재발급 및 최신화 포함)
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        if (!hasInitialPushSyncedRef.current) {
+          hasInitialPushSyncedRef.current = true;
           syncPushSubscription(roomCode);
         }
       }

@@ -1,25 +1,74 @@
 import { NextResponse } from 'next/server';
 import webpush from 'web-push';
 
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:warmth-couple@gmail.com';
+function getVapidConfig() {
+  const publicKey = (
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
+    process.env.VAPID_PUBLIC_KEY ||
+    ''
+  ).trim();
+  const privateKey = (process.env.VAPID_PRIVATE_KEY || '').trim();
+  const subject = (
+    process.env.VAPID_SUBJECT ||
+    'mailto:yjh020701@gmail.com'
+  ).trim();
+
+  return { publicKey, privateKey, subject };
+}
 
 let isVapidConfigured = false;
-if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+
+function ensureVapidConfigured(): boolean {
+  if (isVapidConfigured) return true;
+
+  const { publicKey, privateKey, subject } = getVapidConfig();
+  if (!publicKey || !privateKey) {
+    console.warn('[WebPush] VAPID keys missing in runtime env. hasPublicKey:', Boolean(publicKey), 'hasPrivateKey:', Boolean(privateKey));
+    return false;
+  }
+
   try {
-    webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+    webpush.setVapidDetails(subject, publicKey, privateKey);
     isVapidConfigured = true;
+    return true;
   } catch (err) {
-    console.error('Failed to configure VAPID details:', err);
+    console.error('[WebPush] Failed to configure VAPID details:', err);
+    return false;
   }
 }
 
+// 1. GET /api/push: 클라이언트가 VAPID Public Key를 동적으로 획득 (Vercel 환경변수 접두어 누락 대응)
+export async function GET() {
+  const { publicKey, privateKey } = getVapidConfig();
+  const configured = Boolean(publicKey && privateKey);
+
+  return NextResponse.json(
+    {
+      configured,
+      publicKey: publicKey || '',
+    },
+    {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
+    }
+  );
+}
+
+// 2. POST /api/push: 웹 푸시 발송
 export async function POST(req: Request) {
   try {
-    if (!isVapidConfigured) {
+    const configured = ensureVapidConfigured();
+    if (!configured) {
+      const { publicKey, privateKey } = getVapidConfig();
       return NextResponse.json(
-        { error: '서버에 Web Push VAPID 키가 올바르게 설정되지 않았습니다.' },
+        {
+          error: '서버에 Web Push VAPID 키가 올바르게 설정되지 않았습니다.',
+          details: {
+            hasPublicKey: Boolean(publicKey),
+            hasPrivateKey: Boolean(privateKey),
+          },
+        },
         { status: 500 }
       );
     }
@@ -46,7 +95,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('Web Push 발송 에러:', error);
+    console.error('[WebPush] 발송 에러:', error);
     if (error.statusCode === 410 || error.statusCode === 404) {
       return NextResponse.json(
         { error: '구독이 만료되었거나 취소되었습니다.', expired: true },

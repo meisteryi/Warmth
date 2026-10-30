@@ -954,6 +954,9 @@ export async function savePushSubscriptionToRoom(
 
     // 1. 전달된 uid가 이미 방의 memberInfo 슬롯에 존재하는 경우 업데이트
     if (memberInfo[uid]) {
+      if (memberInfo[uid]?.pushSubscription === subString) {
+        return; // 이미 동일한 최신 구독 정보가 동기화되어 있음
+      }
       updates[`memberInfo.${uid}.pushSubscription`] = subString;
       targetMatched = true;
     }
@@ -965,6 +968,9 @@ export async function savePushSubscriptionToRoom(
         (entry) => (entry[1]?.nickname || '').trim().toLowerCase() === cleanNick
       );
       if (matchedEntry) {
+        if (matchedEntry[1]?.pushSubscription === subString) {
+          return; // 이미 동일한 최신 구독 정보가 동기화되어 있음
+        }
         updates[`memberInfo.${matchedEntry[0]}.pushSubscription`] = subString;
         targetMatched = true;
       }

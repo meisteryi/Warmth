@@ -54,6 +54,34 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
   }
 }
 
+let memoryCachedVapidKey = (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '').trim();
+
+/**
+ * VAPID Public Key 조회
+ * - 클라이언트 빌드 시점에 inlining된 NEXT_PUBLIC_VAPID_PUBLIC_KEY를 1차 확인
+ * - Vercel에서 NEXT_PUBLIC_ 접두어 없이 VAPID_PUBLIC_KEY로 등록되었거나 환경변수 갱신 직후인 경우 /api/push/를 통해 동적 획득
+ */
+export async function getVapidPublicKey(): Promise<string> {
+  if (memoryCachedVapidKey) return memoryCachedVapidKey;
+
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch('/api/push/', { method: 'GET', cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.publicKey) {
+          memoryCachedVapidKey = String(data.publicKey).trim();
+          return memoryCachedVapidKey;
+        }
+      }
+    } catch (e) {
+      console.warn('[WebPush] Failed to fetch VAPID public key from API:', e);
+    }
+  }
+
+  return '';
+}
+
 export const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
@@ -69,7 +97,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 
 /**
  * 브라우저 백그라운드 웹 푸시(Web Push) 구독 등록 및 PushSubscription 객체 반환
- * iOS Safari PWA 및 Chrome에서 Service Worker가 완전히 활성화된 상태(ready)에서만 안전하게 구독을 요청합니다.
+ * - VAPID 키 교체(회전) 시 브라우저 내 구버전 구독을 자동 감지하고 구독을 재발급하여 알림 불통을 원천 해결합니다.
  */
 export async function subscribeToWebPush(): Promise<PushSubscription | null> {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -81,21 +109,49 @@ export async function subscribeToWebPush(): Promise<PushSubscription | null> {
     const reg = await navigator.serviceWorker.ready;
     if (!reg || !reg.pushManager) return null;
 
+    const currentVapidKey = await getVapidPublicKey();
+    if (!currentVapidKey) {
+      console.warn('[WebPush] VAPID public key is not configured.');
+      return null;
+    }
+    const convertedKey = urlBase64ToUint8Array(currentVapidKey);
+
     let sub = await reg.pushManager.getSubscription();
-    if (!sub) {
-      if (!VAPID_PUBLIC_KEY) {
-        console.warn('VAPID public key is not configured.');
-        return null;
+
+    // VAPID 키 회전(재발급) 감지: 기존 브라우저 구독의 applicationServerKey가 현재 VAPID 키와 불일치하면 구독 재발급
+    if (sub && sub.options && sub.options.applicationServerKey) {
+      const existingKeyBytes = new Uint8Array(sub.options.applicationServerKey);
+      let isKeyMatched = existingKeyBytes.length === convertedKey.length;
+      if (isKeyMatched) {
+        for (let i = 0; i < convertedKey.length; i++) {
+          if (existingKeyBytes[i] !== convertedKey[i]) {
+            isKeyMatched = false;
+            break;
+          }
+        }
       }
-      const convertedKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+
+      if (!isKeyMatched) {
+        console.info('[WebPush] VAPID key rotation detected. Unsubscribing outdated subscription...');
+        try {
+          await sub.unsubscribe();
+        } catch (unsubErr) {
+          console.warn('[WebPush] Failed to unsubscribe outdated subscription:', unsubErr);
+        }
+        sub = null;
+      }
+    }
+
+    if (!sub) {
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: convertedKey as unknown as BufferSource,
       });
+      console.info('[WebPush] Successfully subscribed with current VAPID key.');
     }
     return sub;
   } catch (err) {
-    console.warn('Web push subscription registration failed:', err);
+    console.warn('[WebPush] Web push subscription registration failed:', err);
     return null;
   }
 }
