@@ -37,6 +37,9 @@ function ensureVapidConfigured(): boolean {
   }
 }
 
+// GitHub Actions 정적 내보내기(output: export) 호환 및 Vercel 배포 호환
+export const dynamic = 'force-static';
+
 // 1. GET /api/push: 클라이언트가 VAPID Public Key를 동적으로 획득 (Vercel 환경변수 접두어 누락 대응)
 export async function GET() {
   const { publicKey, privateKey } = getVapidConfig();
