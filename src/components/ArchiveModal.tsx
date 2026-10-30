@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DiaryData, MonthlyRecapData, sanitizeDiaryReaction, isDiaryWrittenByMe } from '@/types/diary';
+import { DiaryData, MonthlyRecapData, sanitizeDiaryReaction, isDiaryWrittenByMe, WEATHER_STAMPS } from '@/types/diary';
 import {
   getRoomDiariesFromFirestore,
   getCachedRoomDiaries,
@@ -360,10 +360,15 @@ export default function ArchiveModal({
           });
         }
 
-        if (d.stamp?.symbol && d.stamp?.name) {
-          const sKey = `${d.stamp.symbol}|${d.stamp.name}`;
+        if (d.stamp?.symbol) {
+          const matched = WEATHER_STAMPS.find(
+            (s) => s.symbol === d.stamp?.symbol || (d.stamp?.id && s.id === d.stamp.id)
+          );
+          const symbol = d.stamp.symbol || matched?.symbol || '☀️';
+          const name = d.stamp.name || matched?.name || '맑고 화창한 날';
+          const sKey = `${symbol}|${name}`;
           if (!stampCounts[sKey]) {
-            stampCounts[sKey] = { count: 0, symbol: d.stamp.symbol, name: d.stamp.name };
+            stampCounts[sKey] = { count: 0, symbol, name };
           }
           stampCounts[sKey].count += 1;
         }
@@ -724,10 +729,17 @@ export default function ArchiveModal({
     return map;
   }, [diaries]);
 
-  // 날짜 필터가 적용된 일기 목록
+  // 날짜 필터가 적용된 일기 목록 (1차: createdAt 내림차순 최신순, 2차: 동일 시각 시 diaryId 내림차순)
   const filteredDiaries = useMemo(() => {
-    if (!selectedDateFilter) return diaries;
-    return diaries.filter((d) => getDiaryLocalDateKey(d.createdAt) === selectedDateFilter);
+    const base = selectedDateFilter
+      ? diaries.filter((d) => getDiaryLocalDateKey(d.createdAt) === selectedDateFilter)
+      : diaries;
+
+    return [...base].sort((a, b) => {
+      const timeDiff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      if (timeDiff !== 0) return timeDiff;
+      return (b.diaryId || '').localeCompare(a.diaryId || '');
+    });
   }, [diaries, selectedDateFilter]);
 
   // 총 페이지 수 (10개씩)
@@ -808,11 +820,15 @@ export default function ArchiveModal({
           ? 'px-2 sm:px-3 py-3 mb-2 bg-transparent border-b border-stone-200/50'
           : 'px-5 sm:px-6 py-4 border-b border-[#E8DFD3] bg-[#F4EFEA]'
       }`}>
-        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-xs shrink-0">
-            <WarmthHanjaIcon className="w-5 h-5 text-amber-100" />
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 select-none">
+          <div 
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-sm border border-amber-200/20 shrink-0 select-none pointer-events-none"
+            role="img"
+            aria-label="온기 로고"
+          >
+            <WarmthHanjaIcon className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-amber-100 select-none pointer-events-none" />
           </div>
-          <div className="flex items-center min-w-0">
+          <div className="flex items-center min-w-0 select-none">
             <h2 className="text-base sm:text-xl font-serif-warm font-bold text-stone-900 whitespace-nowrap shrink-0">
               {t('archive.title')}
             </h2>
@@ -1083,20 +1099,30 @@ export default function ArchiveModal({
                         </span>
                       )}
 
-                      {/* [3번 요구사항] 저장된 날씨·기분 잉크 도장 표시 */}
-                      {item.stamp && item.stamp.style !== 'EMOJI_TITLE' && (
-                        <span 
-                          className="text-[10px] px-2 py-0.5 rounded-full border border-dashed font-serif-warm inline-flex items-center gap-1 whitespace-nowrap shrink-0"
-                          style={{
-                            borderColor: item.stamp.color || '#A83232',
-                            color: item.stamp.color || '#A83232',
-                            backgroundColor: `${item.stamp.color || '#A83232'}0D`,
-                          }}
-                        >
-                          <span>{item.stamp.symbol}</span>
-                          <span>{item.stamp.name}</span>
-                        </span>
-                      )}
+                      {/* 저장된 날씨·기분 잉크 도장 및 스티커 표시 */}
+                      {item.stamp && (() => {
+                        const matched = WEATHER_STAMPS.find(
+                          (s) => s.symbol === item.stamp?.symbol || (item.stamp?.id && s.id === item.stamp.id)
+                        );
+                        const symbol = item.stamp.symbol || matched?.symbol || '☀️';
+                        const name = item.stamp.name || matched?.name || '맑고 화창한 날';
+                        const color = item.stamp.color || matched?.color || '#A83232';
+
+                        return (
+                          <span 
+                            className="text-[10px] px-2 py-0.5 rounded-full border border-dashed font-serif-warm inline-flex items-center gap-1 whitespace-nowrap shrink-0 select-none shadow-2xs"
+                            style={{
+                              borderColor: color,
+                              color: color,
+                              backgroundColor: `${color}0D`,
+                            }}
+                            title={`${symbol} ${name}`}
+                          >
+                            <span className="text-xs inline-block select-none">{symbol}</span>
+                            <span className="font-medium">{name}</span>
+                          </span>
+                        );
+                      })()}
 
                       {itemWarmth && typeof itemWarmth.temperature === 'number' && (
                         <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-bold inline-flex items-center gap-1 whitespace-nowrap shrink-0 ${
@@ -1951,11 +1977,18 @@ export default function ArchiveModal({
                     <div className="flex items-center justify-between text-xs text-stone-500 pb-2 border-b border-stone-200">
                       <span>#{idx + 1}편 · {formatDate(diary.createdAt)}</span>
                       <div className="flex items-center gap-2">
-                        {diary.stamp && diary.stamp.style !== 'EMOJI_TITLE' && (
-                          <span className="px-2 py-0.5 rounded-full border border-stone-300 text-[10px]">
-                            {diary.stamp.symbol} {diary.stamp.name}
-                          </span>
-                        )}
+                        {diary.stamp && (() => {
+                          const matched = WEATHER_STAMPS.find(
+                            (s) => s.symbol === diary.stamp?.symbol || (diary.stamp?.id && s.id === diary.stamp.id)
+                          );
+                          const symbol = diary.stamp.symbol || matched?.symbol || '☀️';
+                          const name = diary.stamp.name || matched?.name || '맑고 화창한 날';
+                          return (
+                            <span className="px-2 py-0.5 rounded-full border border-stone-300 text-[10px] select-none">
+                              {symbol} {name}
+                            </span>
+                          );
+                        })()}
                         <span className="font-semibold text-stone-800">작성자: {diary.authorName}</span>
                       </div>
                     </div>
