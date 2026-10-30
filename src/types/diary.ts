@@ -180,7 +180,14 @@ export interface DiaryData {
  *   정상 등록된 포스트잇이 삭제되지 않도록 타임스탬프 역전 비교로 반응을 폐기하지 않음
  */
 export function sanitizeDiaryReaction(diary: DiaryData): DiaryData {
-  if (!diary || !diary.reaction) return diary;
+  if (!diary) return diary;
+
+  // 아직 실링 왁스가 개봉되지 않은 비밀 편지는 포스트잇 반응 노출 원천 차단
+  if (!diary.isWaxBroken) {
+    return { ...diary, reaction: null };
+  }
+
+  if (!diary.reaction) return diary;
 
   // 최소 필수 필드(emoji) 검증
   if (typeof diary.reaction.emoji !== 'string' || !diary.reaction.emoji.trim()) {
