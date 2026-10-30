@@ -22,7 +22,7 @@ export default function Envelope({
   onGoHome,
 }: EnvelopeProps) {
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 30, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
@@ -65,7 +65,7 @@ export default function Envelope({
         transition={{ duration: 0.5, ease: 'easeOut' }}
       >
         {/* 종이 표면 그레인 & 빈티지 그라데이션 */}
-        <div 
+        <div
           className="absolute inset-0 opacity-40 pointer-events-none"
           style={{
             backgroundImage: 'radial-gradient(#D6C6B2 1px, transparent 1px)',
@@ -98,7 +98,7 @@ export default function Envelope({
         </div>
 
         {/* 봉투 날개 폴딩 섀도우 (하단 & 측면 삼각 폴드 라인) */}
-        <div 
+        <div
           className="absolute inset-x-0 bottom-0 h-1/2 pointer-events-none"
           style={{
             background: 'linear-gradient(to top, rgba(230, 218, 202, 0.45), transparent)',
@@ -111,7 +111,7 @@ export default function Envelope({
         </svg>
 
         {/* 봉투 상단 덮개 (삼각형) */}
-        <div 
+        <div
           className="absolute top-0 inset-x-0 h-1/2 pointer-events-none"
           style={{
             clipPath: 'polygon(0 0, 100% 0, 50% 100%)',
@@ -156,7 +156,7 @@ export default function Envelope({
             onClick={onGoHome}
             className="text-xs text-stone-400 hover:text-stone-700 font-serif-warm py-1 px-3 rounded-lg hover:bg-stone-200/50 transition-colors cursor-pointer mt-1"
           >
-            ← 홈 화면으로
+            ← 이전으로
           </button>
         )}
       </div>
