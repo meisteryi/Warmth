@@ -318,9 +318,31 @@ export default function ArchiveModal({
     const chronologicalKeys = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
     const computedAsc: MonthlyDetailStats[] = [];
 
+    // [서재 온기 결산 규칙]: 월마다 말일에 단 한 번만 생성되도록 필터링
+    // 1) 이미 지나간 과거의 달(이전 달)은 이미 말일을 거쳤으므로 결산에 포함
+    // 2) 이번 달(현재 달)인 경우에는 "말일(당월 마지막 날)"에만 모든 일기를 종합하여 결산 항목으로 생성
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1; // 1 ~ 12
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const isTodayLastDayOfCurrentMonth = tomorrow.getDate() === 1;
+
     chronologicalKeys.forEach((mKey, idx) => {
       const [yStr, mStr] = mKey.split('-');
+      const yNum = parseInt(yStr, 10);
       const monthNum = parseInt(mStr, 10);
+
+      // 미래 월 제외
+      if (yNum > currentYear || (yNum === currentYear && monthNum > currentMonth)) {
+        return;
+      }
+
+      // 이번 달(현재 월)인 경우: 말일이 아니라면 결산 항목을 생성하지 않고 대기
+      const isCurrentMonth = yNum === currentYear && monthNum === currentMonth;
+      if (isCurrentMonth && !isTodayLastDayOfCurrentMonth) {
+        return;
+      }
+
       const monthLabel = `${yStr}년 ${monthNum}월`;
       const monthShortLabel = `${monthNum}월`;
 
@@ -397,6 +419,12 @@ export default function ArchiveModal({
           });
         }
       });
+
+      // 🎞️ 사진들을 자연스럽게 무작위 셔플 (Fisher-Yates 알고리즘 기반 고른 섞기)
+      for (let pIdx = photos.length - 1; pIdx > 0; pIdx--) {
+        const j = Math.floor(Math.random() * (pIdx + 1));
+        [photos[pIdx], photos[j]] = [photos[j], photos[pIdx]];
+      }
 
       const avgTemp =
         validTempCount > 0 ? Number((totalTemp / validTempCount).toFixed(1)) : 36.5;
@@ -1664,9 +1692,7 @@ export default function ArchiveModal({
                             >
                               <RefreshCw className={`w-3 h-3 shrink-0 ${isGeneratingRecap ? 'animate-spin' : ''}`} />
                               <span className="whitespace-nowrap">
-                                {currentRecap && currentRecap.analyzedCount < currentMonthDetail.diaries.length
-                                  ? '새 편지 반영하기'
-                                  : '다시 쓰기'}
+                                결산 다시 쓰기
                               </span>
                             </button>
                           )}
@@ -1789,44 +1815,70 @@ export default function ArchiveModal({
                         </div>
                       )}
 
-                      {/* ⑥ 이달의 폴라로이드 필름 롤 */}
+                      {/* ⑥ 이달의 35mm 빈티지 필름 롤 (진짜 카메라 필름 레이아웃) */}
                       {currentMonthDetail.photos.length > 0 && (
-                        <div className="p-4 rounded-2xl bg-white/95 border border-[#E8DFC8] shadow-2xs space-y-2.5">
+                        <div className="p-4 rounded-2xl bg-white/95 border border-[#E8DFC8] shadow-2xs space-y-3">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5 text-xs font-sans-ui font-bold text-stone-800">
                               <Camera className="w-3.5 h-3.5 text-[#6B1724]" />
                               <span>
-                                🖼️ {currentMonthDetail.monthShortLabel}의 폴라로이드 필름 롤 (
-                                {currentMonthDetail.photos.length}장)
+                                🎞️ {currentMonthDetail.monthShortLabel}의 빈티지 필름 롤 (
+                                {currentMonthDetail.photos.length}컷)
                               </span>
                             </div>
+                            <span className="text-[10px] font-mono text-stone-400 no-export">
+                              35mm WARMTH FILM · ISO 400
+                            </span>
                           </div>
-                          <div className="flex gap-3 overflow-x-auto pb-2 touch-pan-x">
-                            {currentMonthDetail.photos.map((photo, idx) => (
-                              <div
-                                key={`${photo.diary.diaryId}-photo-${idx}`}
-                                onClick={() => {
-                                  soundEngine.playPaperRustle();
-                                  onSelectDiary(photo.diary);
-                                }}
-                                className="w-36 sm:w-40 shrink-0 p-2 pb-2.5 rounded-xl bg-[#FFFDF9] border border-stone-200 shadow-sm hover:shadow-md transition-all cursor-pointer group"
-                              >
-                                <div className="w-full h-28 rounded-lg overflow-hidden bg-stone-100 border border-stone-200/60">
+
+                          {/* 실제 35mm 카메라 필름 스트립 컨테이너 */}
+                          <div className="relative rounded-2xl bg-[#181615] p-2.5 sm:p-3 shadow-inner overflow-hidden border border-stone-800">
+                            {/* 상단 필름 퍼포레이션 구멍 띠 */}
+                            <div className="flex items-center gap-2.5 overflow-hidden pb-2 opacity-85 select-none pointer-events-none" aria-hidden="true">
+                              {Array.from({ length: 40 }).map((_, i) => (
+                                <span
+                                  key={`sprocket-top-${i}`}
+                                  className="w-3 h-2 rounded-xs bg-[#FAF7F2]/90 border border-stone-700/60 shrink-0 shadow-2xs"
+                                />
+                              ))}
+                            </div>
+
+                            {/* 가로 스크롤 필름 컷들 (무작위 셔플, 캡션 없이 균일한 간격 배치) */}
+                            <div className="flex gap-3 overflow-x-auto py-1 px-1 touch-pan-x no-scrollbar">
+                              {currentMonthDetail.photos.map((photo, idx) => (
+                                <div
+                                  key={`${photo.diary.diaryId}-photo-${idx}`}
+                                  onClick={() => {
+                                    soundEngine.playPaperRustle();
+                                    onSelectDiary(photo.diary);
+                                  }}
+                                  className="relative shrink-0 w-44 sm:w-48 aspect-[4/3] rounded-lg overflow-hidden bg-[#242120] border-2 border-stone-700/80 shadow-md hover:border-amber-300 transition-all cursor-pointer group"
+                                  title={`「${photo.diary.title}」 그날의 편지 펼치기`}
+                                >
+                                  {/* 프레임 번호 워터마크 (필름 감성) */}
+                                  <span className="absolute top-1 left-1.5 z-10 text-[9px] font-mono font-bold text-amber-200/90 tracking-widest drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] select-none pointer-events-none">
+                                    {(idx + 1).toString().padStart(2, '0')}A
+                                  </span>
+
                                   {/* eslint-disable-next-line @next/next/no-img-element */}
                                   <img
                                     src={photo.url}
-                                    alt={photo.caption || '추억 사진'}
+                                    alt="추억 필름 컷"
                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                   />
                                 </div>
-                                <p className="text-[11px] font-serif-warm font-bold text-stone-800 truncate mt-2">
-                                  {photo.caption || '소중한 순간'}
-                                </p>
-                                <p className="text-[10px] font-serif-warm text-stone-400 mt-0.5">
-                                  {photo.dateLabel} · {photo.authorName}
-                                </p>
-                              </div>
-                            ))}
+                              ))}
+                            </div>
+
+                            {/* 하단 필름 퍼포레이션 구멍 띠 */}
+                            <div className="flex items-center gap-2.5 overflow-hidden pt-2 opacity-85 select-none pointer-events-none" aria-hidden="true">
+                              {Array.from({ length: 40 }).map((_, i) => (
+                                <span
+                                  key={`sprocket-bottom-${i}`}
+                                  className="w-3 h-2 rounded-xs bg-[#FAF7F2]/90 border border-stone-700/60 shrink-0 shadow-2xs"
+                                />
+                              ))}
+                            </div>
                           </div>
                         </div>
                       )}
