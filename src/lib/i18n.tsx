@@ -120,7 +120,7 @@ export const translations = {
     // 열람 화면
     'opened.replyBtn': '답장 쓰기',
     'opened.waitingReply': '⏳ {name} 님의 답장을 기다리는 중입니다',
-    'opened.backHome': '← 홈 화면으로',
+    'opened.backHome': '← 이전으로',
     'opened.warmthTemp': '온기 지수',
 
     // 프로필 편집 모달
@@ -258,7 +258,7 @@ export const translations = {
     // Opened Letter View
     'opened.replyBtn': 'Write Reply',
     'opened.waitingReply': '⏳ Awaiting reply from {name}',
-    'opened.backHome': '← Back to Home',
+    'opened.backHome': '← Back',
     'opened.warmthTemp': 'Warmth Index',
 
     // Profile Edit Modal

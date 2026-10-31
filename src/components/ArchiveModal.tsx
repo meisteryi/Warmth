@@ -420,9 +420,28 @@ export default function ArchiveModal({
         }
       });
 
-      // 🎞️ 사진들을 자연스럽게 무작위 셔플 (Fisher-Yates 알고리즘 기반 고른 섞기)
+      // 🎞️ 빈티지 필름 롤 사진 무작위 셔플 (월 결산이 생성될 때 1회 섞이고, 이후 새로고침/재방문 시에도 영구 고정)
+      // 방 코드(roomCode)와 해당 월(mKey)을 시드(Seed)로 사용하는 의사난수(PRNG) 셔플 적용
+      const getSeedFromString = (str: string) => {
+        let hash = 2166136261;
+        for (let i = 0; i < str.length; i++) {
+          hash ^= str.charCodeAt(i);
+          hash = Math.imul(hash, 16777619);
+        }
+        return hash >>> 0;
+      };
+
+      let seed = getSeedFromString(`${roomCode || 'warmth'}_film_roll_${mKey}`);
+      const seededRandom = () => {
+        // Mulberry32 결정론적 의사난수 알고리즘 (동일한 월 결산에서는 항상 동일한 셔플 순서 영구 유지)
+        seed = (seed + 0x6d2b79f5) | 0;
+        let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+
       for (let pIdx = photos.length - 1; pIdx > 0; pIdx--) {
-        const j = Math.floor(Math.random() * (pIdx + 1));
+        const j = Math.floor(seededRandom() * (pIdx + 1));
         [photos[pIdx], photos[j]] = [photos[j], photos[pIdx]];
       }
 

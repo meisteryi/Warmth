@@ -181,7 +181,7 @@ export default function WaitingLetter({
           )}
         </AnimatePresence>
 
-        {/* 홈 화면으로 돌아가기 버튼 */}
+        {/* 이전으로 돌아가기 버튼 */}
         {onGoHome && (
           <div className="mt-4 pt-3 border-t border-[#E3DACB]/60">
             <button
@@ -189,7 +189,7 @@ export default function WaitingLetter({
               onClick={onGoHome}
               className="w-full py-2.5 rounded-xl border border-stone-300 hover:bg-white text-stone-700 text-xs font-serif-warm font-semibold transition-all cursor-pointer shadow-2xs active:scale-98"
             >
-              ← 홈 화면으로 돌아가기
+              ← 이전으로
             </button>
           </div>
         )}
