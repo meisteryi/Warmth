@@ -376,3 +376,24 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     backdrop-filter: none !important;
   }
 }
+
+/* 📜 배너 텍스트 무한 자동 롤링(Marquee) 애니메이션 */
+@keyframes warmth-marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: warmth-marquee 16s linear infinite;
+  will-change: transform;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}

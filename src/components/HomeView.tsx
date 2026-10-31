@@ -363,27 +363,52 @@ export default function HomeView({
               onOpenArchive();
             }
           }}
-          className="w-full text-left rounded-2xl p-4 bg-gradient-to-r from-[#FFFDF9] via-[#FDF5E8] to-[#F7E8D0] border border-amber-300/90 shadow-sm hover:shadow-md hover:border-[#6B1724]/40 transition-all cursor-pointer flex items-center justify-between gap-3 group"
+          className="w-full text-left rounded-2xl p-3.5 sm:p-4 bg-gradient-to-r from-[#FFFDF9] via-[#FDF5E8] to-[#F7E8D0] border border-amber-300/90 shadow-sm hover:shadow-md hover:border-[#6B1724]/40 transition-all cursor-pointer flex items-center justify-between gap-3 group overflow-hidden"
         >
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
             <div className="w-10 h-10 rounded-2xl bg-[#6B1724] text-amber-100 flex items-center justify-center shrink-0 shadow-xs">
               <Sparkles className="w-5 h-5 text-amber-200" />
             </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-sans-ui font-bold px-2 py-0.5 rounded-full bg-amber-200/70 text-amber-950">
-                  MONTHLY RECAP
-                </span>
-                <span className="text-xs sm:text-sm font-serif-warm font-bold text-stone-900 truncate">
-                  💌 {monthlyRecapBannerInfo.monthNum}월의 온기 결산 편지가 도착했어요
-                </span>
+
+            {/* 본문 텍스트 영역: 내용 생략(...) 없이 스르르 흐르는 무한 롤링 텍스트 적용 */}
+            <div className="min-w-0 flex-1 overflow-hidden">
+              {/* 상단: MONTHLY RECAP 뱃지 + 제목 한 줄 흐름 */}
+              <div className="relative overflow-hidden w-full flex items-center [mask-image:linear-gradient(to_right,black_85%,transparent_100%)]">
+                <div className="animate-marquee items-center gap-1.5 py-0.5">
+                  <div className="flex items-center gap-1.5 shrink-0 pr-8">
+                    <span className="text-[10px] font-sans-ui font-bold px-2 py-0.5 rounded-full bg-amber-200/80 text-amber-950 border border-amber-300/60 shadow-2xs">
+                      MONTHLY RECAP
+                    </span>
+                    <span className="text-xs sm:text-sm font-serif-warm font-bold text-stone-900 whitespace-nowrap">
+                      💌 {monthlyRecapBannerInfo.monthNum}월의 온기 결산 편지가 도착했어요
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0 pr-8" aria-hidden="true">
+                    <span className="text-[10px] font-sans-ui font-bold px-2 py-0.5 rounded-full bg-amber-200/80 text-amber-950 border border-amber-300/60 shadow-2xs">
+                      MONTHLY RECAP
+                    </span>
+                    <span className="text-xs sm:text-sm font-serif-warm font-bold text-stone-900 whitespace-nowrap">
+                      💌 {monthlyRecapBannerInfo.monthNum}월의 온기 결산 편지가 도착했어요
+                    </span>
+                  </div>
+                </div>
               </div>
-              <p className="text-[11px] sm:text-xs font-serif-warm text-stone-600 mt-0.5 truncate">
-                이번 달 우리가 함께 나눈 평균 온도와 다정한 문장을 확인해보세요
-              </p>
+
+              {/* 하단 설명문: 생략 없이 부드럽게 흐르는 안내 문구 */}
+              <div className="relative overflow-hidden w-full mt-0.5 [mask-image:linear-gradient(to_right,black_85%,transparent_100%)]">
+                <div className="animate-marquee py-0.5 text-[11px] sm:text-xs font-serif-warm text-stone-600">
+                  <span className="shrink-0 pr-10 whitespace-nowrap">
+                    이번 달 우리가 함께 나눈 평균 온도와 다정한 문장들을 확인해보세요 ✨
+                  </span>
+                  <span className="shrink-0 pr-10 whitespace-nowrap" aria-hidden="true">
+                    이번 달 우리가 함께 나눈 평균 온도와 다정한 문장들을 확인해보세요 ✨
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-1 text-xs font-serif-warm font-bold text-[#6B1724] shrink-0 group-hover:translate-x-0.5 transition-transform">
+
+          <div className="flex items-center gap-1 text-xs font-serif-warm font-bold text-[#6B1724] shrink-0 pl-1 group-hover:translate-x-0.5 transition-transform">
             <span className="hidden sm:inline">결산 열기</span>
             <ChevronRight className="w-4 h-4" />
           </div>
@@ -402,12 +427,12 @@ export default function HomeView({
             <div className="w-8 h-8 rounded-xl bg-amber-100/70 border border-amber-200 flex items-center justify-center text-amber-900 shrink-0">
               <Mail className="w-4 h-4" />
             </div>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 overflow-hidden">
               <h3 className="font-serif-warm font-bold text-stone-900 text-sm sm:text-base truncate">
                 {t('home.widgetTitle')}
               </h3>
-              <p className="text-[10px] sm:text-[11px] text-stone-500 font-sans-ui truncate">
-                {hasIncomingSealedLetter
+              {(() => {
+                const statusText = hasIncomingSealedLetter
                   ? t('home.status.sealedArrived', { partner: partnerName })
                   : isMyLetterUnopenedByPartner
                     ? t('home.status.unopened', { partner: partnerName })
@@ -417,8 +442,21 @@ export default function HomeView({
                         ? t('home.status.quotaUsed')
                         : isMyTurn
                           ? t('home.status.myTurn')
-                          : t('home.status.partnerTurn', { partner: partnerName })}
-              </p>
+                          : t('home.status.partnerTurn', { partner: partnerName });
+
+                return (
+                  <div className="relative overflow-hidden w-full [mask-image:linear-gradient(to_right,black_85%,transparent_100%)]">
+                    <div className="animate-marquee py-0.5 text-[10px] sm:text-[11px] text-stone-500 font-sans-ui">
+                      <span className="shrink-0 pr-8 whitespace-nowrap">
+                        {statusText}
+                      </span>
+                      <span className="shrink-0 pr-8 whitespace-nowrap" aria-hidden="true">
+                        {statusText}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
