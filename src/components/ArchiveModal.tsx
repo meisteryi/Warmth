@@ -552,7 +552,7 @@ export default function ArchiveModal({
     });
   }, [isOpen, activeTab, currentMonthDetail, recapMap, runMonthlyRecapGeneration]);
 
-  // 월간 온기 결산 카드를 고화질 PNG 이미지로 저장 / 공유
+  // 월간 온기 결산 카드를 고화질 PNG 이미지로 저장 / 공유 (모바일 PWA, iOS 웹뷰, 데스크톱 완벽 대응)
   const handleSaveRecapImage = async () => {
     if (!currentMonthDetail || isSavingRecapImage) return;
     soundEngine.playMissionPassChime();
@@ -578,34 +578,56 @@ export default function ArchiveModal({
       );
       if (!blob) return;
 
+      // 1. 모바일 환경 (iOS Safari, PWA, 웹뷰 등): Web Share API로 '이미지 저장 / 사진 앱에 저장 / 공유' 시스템 시트 호출
       if (
         typeof navigator !== 'undefined' &&
         navigator.share &&
-        navigator.canShare &&
-        navigator.canShare({
-          files: [new File([blob], fileName, { type: 'image/png' })],
-        })
+        navigator.canShare
       ) {
         try {
           const file = new File([blob], fileName, { type: 'image/png' });
-          await navigator.share({
-            title: `온기 (Warmth) · ${currentMonthDetail.monthLabel}의 온기 결산`,
-            text: `${currentUserName} & ${partnerName} 두 사람의 ${currentMonthDetail.monthLabel} 온기 결산 카드입니다.`,
-            files: [file],
-          });
-          return;
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              title: `온기 (Warmth) · ${currentMonthDetail.monthLabel}의 온기 결산`,
+              text: `${currentUserName} & ${partnerName} 두 사람의 ${currentMonthDetail.monthLabel} 온기 결산 카드입니다.`,
+              files: [file],
+            });
+            return;
+          }
         } catch (shareErr: unknown) {
           if ((shareErr as Error)?.name === 'AbortError') return;
+          console.warn('Web Share failed, attempting fallback download:', shareErr);
         }
       }
 
+      // 2. 모바일 웹뷰 / PWA 폴백 (Data URL 또는 Blob URL 새 창 열기 / 다운로드)
+      const isMobile = typeof window !== 'undefined' && (
+        window.innerWidth < 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+      );
+
       const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+
+      if (isMobile) {
+        // iOS Safari PWA / 모바일 웹뷰에서는 <a download>가 사일런트 무시되므로, 새 창 탭으로 이미지를 직접 띄워 롱프레스 '사진 앱에 저장' 지원
+        const opened = window.open(url, '_blank');
+        if (!opened || opened.closed || typeof opened.closed === 'undefined') {
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = fileName;
+          link.target = '_blank';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      } else {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (e) {
       console.warn('Failed to save monthly recap image:', e);
