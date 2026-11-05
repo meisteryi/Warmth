@@ -24,7 +24,12 @@ import {
   FileText,
 } from 'lucide-react';
 import Link from 'next/link';
-import { getNotificationStatus, requestNotificationPermission } from '@/lib/notifications';
+import {
+  getNotificationStatus,
+  requestNotificationPermission,
+  refreshNotificationPermissionAsync,
+} from '@/lib/notifications';
+import { Capacitor } from '@capacitor/core';
 import { soundEngine } from '@/lib/audio';
 import { useLanguage } from '@/lib/i18n';
 import EulaModal from '@/components/EulaModal';
@@ -142,6 +147,19 @@ export default function RoomHeader({
     };
   }, [isMenuOpen]);
 
+  // 초기 알림 권한 비동기 정밀 감지 (iOS 네이티브 앱 및 브라우저 지원)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const status = getNotificationStatus();
+      setNotifPermission(status.permission);
+      refreshNotificationPermissionAsync()
+        .then((p) => {
+          if (p) setNotifPermission(p);
+        })
+        .catch(() => {});
+    }
+  }, []);
+
   const handleCopyCode = async () => {
     try {
       await navigator.clipboard.writeText(roomCode);
@@ -164,9 +182,13 @@ export default function RoomHeader({
     const result = await requestNotificationPermission();
     setNotifPermission(result);
     if (result === 'granted') {
-      alert('🔔 알림이 켜졌습니다! 상대방이 보낸 새 편지와 노크를 백그라운드에서도 받아보실 수 있습니다.');
+      alert('🔔 알림이 켜졌습니다! 상대방이 보낸 새 편지와 노크를 실시간으로 받아보실 수 있습니다.');
     } else if (result === 'denied') {
-      alert('기기 설정에서 알림 권한이 차단되어 있습니다. 브라우저 설정에서 알림 권한을 허용해주세요.');
+      if (Capacitor.isNativePlatform()) {
+        alert('기기 설정에서 알림 권한이 차단되어 있습니다. 아이폰 [설정 > 온기]에서 알림 권한을 허용해주세요.');
+      } else {
+        alert('기기 설정에서 알림 권한이 차단되어 있습니다. 브라우저 설정에서 알림 권한을 허용해주세요.');
+      }
     }
   };
 

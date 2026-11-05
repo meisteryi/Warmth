@@ -1,19 +1,63 @@
-// 웹 푸시 및 브라우저 알림 매니저
+import { Capacitor } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
+
+// 웹 푸시 및 브라우저 / iOS 네이티브 알림 매니저
 
 export interface NotificationStatus {
   isSupported: boolean;
   permission: NotificationPermission;
   isStandalonePWA: boolean;
+  isNativeApp?: boolean;
+}
+
+// 네이티브 앱 환경에서의 권한 캐시 (동기식 상태 반환용)
+let cachedNativePermission: NotificationPermission = 'default';
+
+/**
+ * 네이티브 및 웹 알림 권한 비동기 재확인 및 캐시 갱신
+ */
+export async function refreshNotificationPermissionAsync(): Promise<NotificationPermission> {
+  if (typeof window === 'undefined') return 'default';
+
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const perm = await LocalNotifications.checkPermissions();
+      const mapped: NotificationPermission =
+        perm.display === 'granted' ? 'granted' : perm.display === 'denied' ? 'denied' : 'default';
+      cachedNativePermission = mapped;
+      return mapped;
+    } catch {
+      return cachedNativePermission;
+    }
+  }
+
+  if ('Notification' in window) {
+    return Notification.permission;
+  }
+  return 'denied';
 }
 
 /**
- * 현재 기기/브라우저의 알림 지원 여부 확인
+ * 현재 기기/브라우저/네이티브 앱의 알림 지원 여부 확인
  */
 export function getNotificationStatus(): NotificationStatus {
   if (typeof window === 'undefined') {
-    return { isSupported: false, permission: 'default', isStandalonePWA: false };
+    return { isSupported: false, permission: 'default', isStandalonePWA: false, isNativeApp: false };
   }
 
+  const isNativeApp = Capacitor.isNativePlatform();
+
+  // 네이티브 iOS (Capacitor IPA) 환경
+  if (isNativeApp) {
+    return {
+      isSupported: true,
+      permission: cachedNativePermission,
+      isStandalonePWA: false,
+      isNativeApp: true,
+    };
+  }
+
+  // 웹 브라우저 / Safari PWA 환경
   const isStandalonePWA =
     window.matchMedia('(display-mode: standalone)').matches ||
     (window.navigator as unknown as { standalone?: boolean }).standalone === true;
@@ -25,6 +69,7 @@ export function getNotificationStatus(): NotificationStatus {
     isSupported,
     permission,
     isStandalonePWA,
+    isNativeApp: false,
   };
 }
 
@@ -97,10 +142,16 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 
 /**
  * 브라우저 백그라운드 웹 푸시(Web Push) 구독 등록 및 PushSubscription 객체 반환
+ * - 네이티브 앱(IPA) 환경에서는 W3C Web Push 대신 Capacitor Local Notifications를 사용하므로 건너뜁니다.
  * - VAPID 키 교체(회전) 시 브라우저 내 구버전 구독을 자동 감지하고 구독을 재발급하여 알림 불통을 원천 해결합니다.
  */
 export async function subscribeToWebPush(): Promise<PushSubscription | null> {
-  if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+  if (
+    typeof window === 'undefined' ||
+    Capacitor.isNativePlatform() ||
+    !('serviceWorker' in navigator) ||
+    !('PushManager' in window)
+  ) {
     return null;
   }
 
@@ -157,10 +208,32 @@ export async function subscribeToWebPush(): Promise<PushSubscription | null> {
 }
 
 /**
- * 웹 푸시 / 브라우저 알림 권한 요청 및 백그라운드 푸시 구독 동시 진행
+ * 웹 푸시 / 브라우저 및 iOS 네이티브 알림 권한 요청
  */
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
-  if (typeof window === 'undefined' || !('Notification' in window)) {
+  if (typeof window === 'undefined') {
+    return 'denied';
+  }
+
+  // 1. iOS 네이티브(Capacitor IPA) 앱 환경
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const res = await LocalNotifications.requestPermissions();
+      const mapped: NotificationPermission =
+        res.display === 'granted' ? 'granted' : res.display === 'denied' ? 'denied' : 'default';
+      cachedNativePermission = mapped;
+      if (mapped === 'granted') {
+        window.dispatchEvent(new CustomEvent('warmth-notification-permission-granted'));
+      }
+      return mapped;
+    } catch (err) {
+      console.warn('[NativeNotif] Permission request failed:', err);
+      return 'denied';
+    }
+  }
+
+  // 2. 웹 브라우저 / Safari PWA 환경 (기존 로직 100% 동일 유지)
+  if (!('Notification' in window)) {
     return 'denied';
   }
 
@@ -209,27 +282,93 @@ export async function sendServerWebPush(
   }
 }
 
+// 중복 알림 방지용 캐시 (태그 기준 4초 내 동일 이벤트 중복 발송 원천 차단)
+const recentNotificationTags = new Map<string, number>();
+
+function isDuplicateNotification(tag: string): boolean {
+  const now = Date.now();
+  const last = recentNotificationTags.get(tag);
+  for (const [k, t] of recentNotificationTags.entries()) {
+    if (now - t > 60000) recentNotificationTags.delete(k);
+  }
+  if (last && now - last < 4000) {
+    return true;
+  }
+  recentNotificationTags.set(tag, now);
+  return false;
+}
+
+function hashStringToId(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash) % 2147483647 || 1;
+}
+
 /**
  * 로컬 시스템 알림 발송 (새 일기 도착, 실링 개봉, 포스트잇 반응, 노크 등)
- * iOS 16.4+ PWA에서는 new Notification()이 지원되지 않으므로 반드시 ServiceWorkerRegistration.showNotification()을 사용합니다.
+ * - iOS 네이티브(IPA): UNUserNotificationCenter 기반 네이티브 배너/사운드 알림
+ * - 웹 PWA: ServiceWorkerRegistration.showNotification()을 사용
  */
 export async function sendLocalNotification(
   title: string,
   body: string,
   tag?: string
 ): Promise<boolean> {
-  if (typeof window === 'undefined' || !('Notification' in window)) {
-    return false;
-  }
-
-  if (Notification.permission !== 'granted') {
+  if (typeof window === 'undefined') {
     return false;
   }
 
   const notificationTag = tag || `warmth-${Date.now()}`;
 
+  // 웹과 네이티브 모두에서 4초 내 동일 이벤트 중복 알림 원천 차단
+  if (isDuplicateNotification(notificationTag)) {
+    return false;
+  }
+
+  // 1. 네이티브 iOS (Capacitor IPA) 환경: UNUserNotificationCenter를 통한 실시간 시스템 알림 발송
+  if (Capacitor.isNativePlatform()) {
+    try {
+      let perm = await LocalNotifications.checkPermissions();
+      if (perm.display === 'prompt') {
+        perm = await LocalNotifications.requestPermissions();
+      }
+      if (perm.display !== 'granted') {
+        return false;
+      }
+
+      const notifId = hashStringToId(notificationTag);
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            title,
+            body,
+            id: notifId,
+            schedule: { at: new Date(Date.now() + 50) },
+            sound: 'default',
+            extra: {
+              tag: notificationTag,
+              url: '/',
+            },
+          },
+        ],
+      });
+      return true;
+    } catch (err) {
+      console.warn('[NativeNotif] Failed to schedule local notification:', err);
+      return false;
+    }
+  }
+
+  // 2. 웹 브라우저 / Safari PWA 환경 (기존 로직 100% 동일 유지)
+  if (!('Notification' in window) || Notification.permission !== 'granted') {
+    return false;
+  }
+
   try {
-    // 1. Service Worker 등록 객체를 통해 알림 띄우기 (PWA 및 모바일 표준)
+    // 1) Service Worker 등록 객체를 통해 알림 띄우기 (PWA 및 모바일 표준)
     if ('serviceWorker' in navigator) {
       let reg: ServiceWorkerRegistration | null | undefined = null;
       try {
@@ -253,7 +392,7 @@ export async function sendLocalNotification(
       }
     }
 
-    // 2. 데스크톱 브라우저 일반 Notification 생성자 폴백 (iOS는 Notification 생성자가 없어 TypeError 방지)
+    // 2) 데스크톱 브라우저 일반 Notification 생성자 폴백
     try {
       new Notification(title, {
         body,

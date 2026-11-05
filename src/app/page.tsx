@@ -59,7 +59,9 @@ import {
   sendServerWebPush,
   sendLocalNotification,
   requestNotificationPermission,
+  refreshNotificationPermissionAsync,
 } from '@/lib/notifications';
+import { Capacitor } from '@capacitor/core';
 
 // 초기 PRD 스펙 기반 샘플 일기 데이터 (데모 전환 및 폴백용)
 const INITIAL_DIARY: DiaryData = {
@@ -404,10 +406,11 @@ export default function HomePage() {
 
   const [showNotifPromptBanner, setShowNotifPromptBanner] = useState(false);
 
-  // 백그라운드 Web Push 구독 정보 Firestore 동기화
+  // 백그라운드 Web Push 구독 정보 Firestore 동기화 (웹 브라우저/PWA 전용)
   const syncPushSubscription = useCallback(async (targetCode?: string) => {
     const code = targetCode || roomCode;
-    if (!code || typeof window === 'undefined') return;
+    // 네이티브 앱(IPA)은 W3C Web Push 대신 Capacitor Local Notifications를 사용하므로 건너뜀
+    if (!code || typeof window === 'undefined' || Capacitor.isNativePlatform()) return;
     try {
       if ('Notification' in window && Notification.permission === 'granted') {
         const sub = await subscribeToWebPush();
@@ -442,7 +445,10 @@ export default function HomePage() {
         syncPushSubscription();
       } else if (res === 'denied') {
         setShowNotifPromptBanner(false);
-        showToast('알림 권한이 차단되어 있습니다. 브라우저 설정에서 알림을 허용해주세요.');
+        const deniedMsg = Capacitor.isNativePlatform()
+          ? '알림 권한이 차단되어 있습니다. 기기 [설정 > 온기]에서 알림을 허용해주세요.'
+          : '알림 권한이 차단되어 있습니다. 브라우저 설정에서 알림을 허용해주세요.';
+        showToast(deniedMsg);
       }
     } catch {
       setShowNotifPromptBanner(false);
@@ -456,19 +462,22 @@ export default function HomePage() {
     } catch {}
   };
 
-  // 알림 권한이 아직 'default'인 경우 상단 배너 노출 체크
+  // 알림 권한이 아직 'default'인 경우 상단 배너 노출 체크 (iOS 네이티브 및 웹 통합 지원)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
       const isDismissed = sessionStorage.getItem('warmth_dismiss_notif_banner') === 'true';
-      const shouldShow =
-        !isDismissed &&
-        'Notification' in window &&
-        Notification.permission === 'default' &&
-        uiState !== 'VIEW_ONBOARDING';
-      queueMicrotask(() => {
-        setShowNotifPromptBanner(shouldShow);
-      });
+      if (isDismissed || uiState === 'VIEW_ONBOARDING') {
+        setShowNotifPromptBanner(false);
+        return;
+      }
+      refreshNotificationPermissionAsync()
+        .then((perm) => {
+          queueMicrotask(() => {
+            setShowNotifPromptBanner(perm === 'default');
+          });
+        })
+        .catch(() => {});
     } catch {}
   }, [uiState]);
 
@@ -678,8 +687,13 @@ export default function HomePage() {
         setIsLastPersonRemaining(false);
       }
 
-      // 0-2. 내 Web Push 구독 정보 동기화 (VAPID 키 회전 시 구버전 구독 자동 재발급 및 최신화 포함)
-      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      // 0-2. 내 Web Push 구독 정보 동기화 (웹 PWA 환경 한정, VAPID 키 회전 시 구버전 구독 자동 재발급 및 최신화)
+      if (
+        typeof window !== 'undefined' &&
+        !Capacitor.isNativePlatform() &&
+        'Notification' in window &&
+        Notification.permission === 'granted'
+      ) {
         if (!hasInitialPushSyncedRef.current) {
           hasInitialPushSyncedRef.current = true;
           syncPushSubscription(roomCode);
