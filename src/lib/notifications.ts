@@ -148,7 +148,6 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 export async function subscribeToWebPush(): Promise<PushSubscription | null> {
   if (
     typeof window === 'undefined' ||
-    Capacitor.isNativePlatform() ||
     !('serviceWorker' in navigator) ||
     !('PushManager' in window)
   ) {
@@ -346,7 +345,6 @@ export async function sendLocalNotification(
             title,
             body,
             id: notifId,
-            schedule: { at: new Date(Date.now() + 50) },
             sound: 'default',
             extra: {
               tag: notificationTag,

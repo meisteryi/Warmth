@@ -13,6 +13,13 @@ const config: CapacitorConfig = {
     contentInset: 'never',
     backgroundColor: '#FDFBF7',
   },
+  plugins: {
+    LocalNotifications: {
+      smallIcon: 'icon',
+      iconColor: '#6B1724',
+      sound: 'default',
+    },
+  },
 };
 
 export default config;

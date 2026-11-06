@@ -5,6 +5,7 @@ import Capacitor
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
+    var backgroundTask: UIBackgroundTaskIdentifier = .invalid
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
@@ -17,12 +18,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func applicationDidEnterBackground(_ application: UIApplication) {
-        // Use this method to release shared resources, save user data, invalidate timers, and store enough application state information to restore your application to its current state in case it is terminated later.
-        // If your application supports background execution, this method is called instead of applicationWillTerminate: when the user quits.
+        // 백그라운드 진입 시 iOS 백그라운드 태스크 연장 (화면 잠금/앱 전환 후에도 실시간 일기/반응/노크 리스너 지속 수신 보장)
+        backgroundTask = application.beginBackgroundTask(withName: "WarmthBackgroundSync") {
+            application.endBackgroundTask(self.backgroundTask)
+            self.backgroundTask = .invalid
+        }
     }
 
     func applicationWillEnterForeground(_ application: UIApplication) {
-        // Called as part of the transition from the background to the active state; here you can undo many of the changes made on entering the background.
+        // 포그라운드 복귀 시 백그라운드 태스크 정상 종료
+        if backgroundTask != .invalid {
+            application.endBackgroundTask(backgroundTask)
+            backgroundTask = .invalid
+        }
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {

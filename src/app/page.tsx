@@ -406,11 +406,10 @@ export default function HomePage() {
 
   const [showNotifPromptBanner, setShowNotifPromptBanner] = useState(false);
 
-  // 백그라운드 Web Push 구독 정보 Firestore 동기화 (웹 브라우저/PWA 전용)
+  // 백그라운드 Web Push 구독 정보 Firestore 동기화
   const syncPushSubscription = useCallback(async (targetCode?: string) => {
     const code = targetCode || roomCode;
-    // 네이티브 앱(IPA)은 W3C Web Push 대신 Capacitor Local Notifications를 사용하므로 건너뜀
-    if (!code || typeof window === 'undefined' || Capacitor.isNativePlatform()) return;
+    if (!code || typeof window === 'undefined') return;
     try {
       if ('Notification' in window && Notification.permission === 'granted') {
         const sub = await subscribeToWebPush();
@@ -687,10 +686,9 @@ export default function HomePage() {
         setIsLastPersonRemaining(false);
       }
 
-      // 0-2. 내 Web Push 구독 정보 동기화 (웹 PWA 환경 한정, VAPID 키 회전 시 구버전 구독 자동 재발급 및 최신화)
+      // 0-2. 내 Web Push 구독 정보 동기화 (VAPID 키 회전 시 구버전 구독 자동 재발급 및 최신화)
       if (
         typeof window !== 'undefined' &&
-        !Capacitor.isNativePlatform() &&
         'Notification' in window &&
         Notification.permission === 'granted'
       ) {
@@ -720,9 +718,10 @@ export default function HomePage() {
             setIsKnockModalOpen(true);
             const knockSender = decryptedKnock?.senderName || partnerName || '상대방';
             const knockMsg = decryptedKnock?.message || '똑똑, 교환일기 왔어요!';
-            // 앱이 백그라운드이거나 다른 창을 사용 중(포커스 없음)일 때 로컬 시스템 알림 발송
+            // 앱이 백그라운드이거나 다른 창 사용 중일 때 (iOS 네이티브 앱은 항상 시스템 알림 발송)
             const isAppNotFocused = typeof document !== 'undefined' && (document.hidden || !document.hasFocus());
-            if (isAppNotFocused) {
+            const shouldNotify = isAppNotFocused || Capacitor.isNativePlatform();
+            if (shouldNotify) {
               sendLocalNotification('🔔 노크가 도착했습니다!', `${knockSender}: "${knockMsg}"`, 'warmth-knock');
             }
           }
@@ -741,11 +740,12 @@ export default function HomePage() {
           // 백그라운드/비포커스 상태에서 상대방의 새 일기 도착이 감지되면, 무거운 사진 복호화 전에 노크처럼 즉시(1ms) OS 알림 발송
           const isTurnForMe = room.currentTurn === userName || room.currentTurn === getOrCreateUserId();
           const isAppNotFocusedNow = typeof document !== 'undefined' && (document.hidden || !document.hasFocus());
+          const shouldNotifyFast = isAppNotFocusedNow || Capacitor.isNativePlatform();
           if (
             isInitialDiarySyncDoneRef.current &&
             prevHandledId !== room.latestDiaryId &&
             isTurnForMe &&
-            isAppNotFocusedNow &&
+            shouldNotifyFast &&
             notifiedDiaryArrivalIdRef.current !== room.latestDiaryId
           ) {
             notifiedDiaryArrivalIdRef.current = room.latestDiaryId;
@@ -764,6 +764,7 @@ export default function HomePage() {
           diaryUnsubRef.current = subscribeDiary(roomCode, room.latestDiaryId, (latestDiary) => {
             const prev = currentDiaryRef.current;
             const isAppNotFocused = typeof document !== 'undefined' && (document.hidden || !document.hasFocus());
+            const shouldNotify = isAppNotFocused || Capacitor.isNativePlatform();
 
             // 앱 최초 로드 시점(첫 동기화)에는 현재 상태만 저장하고 중복 알림은 발송하지 않음 (단, 빈방에서 도착한 '첫 편지'는 알림 발송)
             if (!prev && !isInitialDiarySyncDoneRef.current) {
@@ -787,7 +788,7 @@ export default function HomePage() {
               soundEngine.playWaxCrackSound();
               const toastMsg = `💌 ${partnerName} 님이 내가 보낸 편지의 실링 왁스를 개봉했습니다! 💖`;
               showToast(toastMsg);
-              if (isAppNotFocused) {
+              if (shouldNotify) {
                 sendLocalNotification(
                   '💌 편지 개봉 알림',
                   `${partnerName} 님이 내가 보낸 편지의 실링 왁스를 개봉했습니다!`,
@@ -805,7 +806,7 @@ export default function HomePage() {
               soundEngine.playPaperRustle();
               const toastMsg = `📬 ${latestDiary.authorName} 님에게서 새 편지가 도착했습니다!`;
               showToast(toastMsg);
-              if (isAppNotFocused && notifiedDiaryArrivalIdRef.current !== latestDiary.diaryId) {
+              if (shouldNotify && notifiedDiaryArrivalIdRef.current !== latestDiary.diaryId) {
                 notifiedDiaryArrivalIdRef.current = latestDiary.diaryId;
                 sendLocalNotification(
                   '📬 새 편지가 도착했습니다!',
@@ -829,7 +830,7 @@ export default function HomePage() {
               const cleanComment = latestDiary.reaction.comment ? `: "${latestDiary.reaction.comment.trim()}"` : '';
               const toastMsg = `💌 ${reactor} 님이 편지에 ${latestDiary.reaction.emoji} 반응을 남겼습니다! ✨${cleanComment}`;
               showToast(toastMsg);
-              if (isAppNotFocused) {
+              if (shouldNotify) {
                 sendLocalNotification(
                   '📌 포스트잇 마음 알림',
                   `${reactor} 님이 편지에 ${latestDiary.reaction.emoji} 포스트잇을 남겼어요${cleanComment}`,
@@ -866,6 +867,15 @@ export default function HomePage() {
           setPartnerDisconnectedNickname(leaver);
           setIsPartnerDisconnectedModalOpen(true);
           showToast(`💔 ${leaver} 님이 일기장 연결을 해제했습니다.`);
+          const isAppNotFocusedDisc = typeof document !== 'undefined' && (document.hidden || !document.hasFocus());
+          const shouldNotify = isAppNotFocusedDisc || Capacitor.isNativePlatform();
+          if (shouldNotify) {
+            sendLocalNotification(
+              '💔 일기장 연결 해제 알림',
+              `${leaver} 님이 일기장 연결을 해제했습니다.`,
+              `warmth-leave-${disc.disconnectedAt}`
+            );
+          }
         }
       }
     });
