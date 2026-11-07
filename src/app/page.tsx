@@ -406,6 +406,30 @@ export default function HomePage() {
 
   const [showNotifPromptBanner, setShowNotifPromptBanner] = useState(false);
 
+  // 앱 복귀(백그라운드 -> 포그라운드) 시 밀린 알림이 한꺼번에 쏟아지는 현상 방지용 Ref
+  const isResumingRef = useRef(false);
+  const resumeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        isResumingRef.current = true;
+        if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
+        resumeTimeoutRef.current = setTimeout(() => {
+          isResumingRef.current = false;
+        }, 3000);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
+      if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
+    };
+  }, []);
+
   // 백그라운드 Web Push 구독 정보 Firestore 동기화
   const syncPushSubscription = useCallback(async (targetCode?: string) => {
     const code = targetCode || roomCode;
@@ -718,9 +742,9 @@ export default function HomePage() {
             setIsKnockModalOpen(true);
             const knockSender = decryptedKnock?.senderName || partnerName || '상대방';
             const knockMsg = decryptedKnock?.message || '똑똑, 교환일기 왔어요!';
-            // 앱이 백그라운드이거나 다른 창 사용 중일 때 (iOS 네이티브 앱은 항상 시스템 알림 발송)
+            // 앱이 백그라운드이거나 다른 창 사용 중일 때만 로컬 시스템 알림 발송 (앱 복귀 직후 밀린 알림 폭탄 방지)
             const isAppNotFocused = typeof document !== 'undefined' && (document.hidden || !document.hasFocus());
-            const shouldNotify = isAppNotFocused || Capacitor.isNativePlatform();
+            const shouldNotify = isAppNotFocused && !isResumingRef.current;
             if (shouldNotify) {
               sendLocalNotification('🔔 노크가 도착했습니다!', `${knockSender}: "${knockMsg}"`, 'warmth-knock');
             }
@@ -740,7 +764,7 @@ export default function HomePage() {
           // 백그라운드/비포커스 상태에서 상대방의 새 일기 도착이 감지되면, 무거운 사진 복호화 전에 노크처럼 즉시(1ms) OS 알림 발송
           const isTurnForMe = room.currentTurn === userName || room.currentTurn === getOrCreateUserId();
           const isAppNotFocusedNow = typeof document !== 'undefined' && (document.hidden || !document.hasFocus());
-          const shouldNotifyFast = isAppNotFocusedNow || Capacitor.isNativePlatform();
+          const shouldNotifyFast = isAppNotFocusedNow && !isResumingRef.current;
           if (
             isInitialDiarySyncDoneRef.current &&
             prevHandledId !== room.latestDiaryId &&
@@ -764,7 +788,7 @@ export default function HomePage() {
           diaryUnsubRef.current = subscribeDiary(roomCode, room.latestDiaryId, (latestDiary) => {
             const prev = currentDiaryRef.current;
             const isAppNotFocused = typeof document !== 'undefined' && (document.hidden || !document.hasFocus());
-            const shouldNotify = isAppNotFocused || Capacitor.isNativePlatform();
+            const shouldNotify = isAppNotFocused && !isResumingRef.current;
 
             // 앱 최초 로드 시점(첫 동기화)에는 현재 상태만 저장하고 중복 알림은 발송하지 않음 (단, 빈방에서 도착한 '첫 편지'는 알림 발송)
             if (!prev && !isInitialDiarySyncDoneRef.current) {
@@ -868,7 +892,7 @@ export default function HomePage() {
           setIsPartnerDisconnectedModalOpen(true);
           showToast(`💔 ${leaver} 님이 일기장 연결을 해제했습니다.`);
           const isAppNotFocusedDisc = typeof document !== 'undefined' && (document.hidden || !document.hasFocus());
-          const shouldNotify = isAppNotFocusedDisc || Capacitor.isNativePlatform();
+          const shouldNotify = isAppNotFocusedDisc && !isResumingRef.current;
           if (shouldNotify) {
             sendLocalNotification(
               '💔 일기장 연결 해제 알림',
