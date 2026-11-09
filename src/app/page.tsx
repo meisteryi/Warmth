@@ -447,6 +447,9 @@ export default function HomePage() {
     }
   }, [roomCode, userName]);
 
+  const syncPushSubscriptionRef = useRef(syncPushSubscription);
+  syncPushSubscriptionRef.current = syncPushSubscription;
+
   // 알림 권한 허용 이벤트 수신 시 구독 동기화
   useEffect(() => {
     const handlePermissionGranted = () => {
@@ -521,7 +524,7 @@ export default function HomePage() {
           setRoomCode(savedRoom);
           setUserName(savedUser);
           setPartnerName(savedPartner);
-          setUiState('VIEW_HOME'); // ★ 지연 없이 즉시 둘만의 서재 홈으로 세팅 (온보딩 깜빡임 원천 차단)
+          setUiState((curr) => (curr === 'VIEW_ONBOARDING' ? 'VIEW_HOME' : curr));
         });
 
         (async () => {
@@ -566,7 +569,7 @@ export default function HomePage() {
               }
 
               // 본인 실제 방 UID 바인딩 완료 후 푸시 구독 동기화 (3번째 멤버 키 생성으로 인한 보안 규칙 거부 원천 방지)
-              syncPushSubscription(savedRoom);
+              syncPushSubscriptionRef.current(savedRoom);
 
               // 🍎 24시간 동안 매칭되지 않고 방치된 미연결 방인지 안전 검증 (연결된 방은 절대 만료되지 않음)
               if (isRoomUnmatchedExpired(loadedRoomData)) {
@@ -599,7 +602,7 @@ export default function HomePage() {
                   handledDiaryIdRef.current = loadedRoomData.latestDiaryId;
                   isInitialDiarySyncDoneRef.current = true;
                   setDiary(decrypted);
-                  setUiState('VIEW_HOME');
+                  setUiState((curr) => (curr === 'VIEW_ONBOARDING' ? 'VIEW_HOME' : curr));
                   return;
                 }
               }
@@ -608,7 +611,7 @@ export default function HomePage() {
               handledDiaryIdRef.current = null;
               isInitialDiarySyncDoneRef.current = true;
               setDiary(null);
-              setUiState('VIEW_HOME');
+              setUiState((curr) => (curr === 'VIEW_ONBOARDING' ? 'VIEW_HOME' : curr));
               setIsWriteModalOpen(false);
             } else {
               // 방이 삭제되었거나 존재하지 않는 경우 초기화
@@ -626,7 +629,7 @@ export default function HomePage() {
     } catch (e) {
       console.warn('Failed to load session:', e);
     }
-  }, [syncPushSubscription, showToast]);
+  }, []);
 
   // 실시간 Firestore 룸 및 일기 구독 (상대방의 노크 및 새 일기 실시간 감지 + E2EE 복호화 + 웹 푸시 알림)
   useEffect(() => {
@@ -1099,20 +1102,19 @@ export default function HomePage() {
   // 1. 미션 통과 처리 -> Firestore 동기화 & VIEW_WAX_READY
   const handlePassMission = async (submissionText: string) => {
     if (!diary) return;
-    setDiary((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        mission: {
-          ...prev.mission,
-          isPassed: true,
-          submission: {
-            text: submissionText,
-            submittedAt: new Date().toISOString(),
-          },
+    const updatedDiary: DiaryData = {
+      ...diary,
+      mission: {
+        ...diary.mission,
+        isPassed: true,
+        submission: {
+          text: submissionText,
+          submittedAt: new Date().toISOString(),
         },
-      };
-    });
+      },
+    };
+    currentDiaryRef.current = updatedDiary;
+    setDiary(updatedDiary);
     setUiState('VIEW_WAX_READY');
     showToast('✨ 미션을 완료했습니다! 이제 실링 왁스를 3초 동안 눌러 봉인을 풀어보세요.');
 
@@ -1578,45 +1580,20 @@ export default function HomePage() {
             />
           )}
 
-          {/* 4. VIEW_SEALED_LETTER: 편지가 있을 때 -> 편지를 까는 메뉴 (미션 게이트 대기) */}
-          {uiState === 'VIEW_SEALED_LETTER' && (
+          {/* 4. VIEW_SEALED_LETTER & VIEW_WAX_READY: 봉인된 편지 및 미션 클리어 후 3초 실링 왁스 롱프레스 개봉 */}
+          {(uiState === 'VIEW_SEALED_LETTER' || uiState === 'VIEW_WAX_READY') && (
             diary ? (
               <Envelope
-                key="view-sealed"
+                key="view-envelope"
                 diary={diary}
-                isLocked={true}
+                isLocked={uiState === 'VIEW_SEALED_LETTER' && !diary.mission?.isPassed}
                 onOpenMission={() => setIsMissionModalOpen(true)}
                 onUnsealComplete={handleUnsealComplete}
                 onGoHome={handleGoHome}
               />
             ) : (
               <EmptyDeskView
-                key="view-sealed-empty"
-                partnerName={partnerName}
-                userName={userName}
-                onOpenWriteModal={handleOpenWriteModal}
-                onSendKnock={() => handleSendKnock('첫 번째 편지를 기다리고 있어요 ✉️')}
-                roomCode={roomCode}
-                isMyTurn={isMyTurn}
-                userRole={userRole}
-              />
-            )
-          )}
-
-          {/* 5. VIEW_WAX_READY: 미션 클리어 후 3초 실링 왁스 롱프레스 개봉 */}
-          {uiState === 'VIEW_WAX_READY' && (
-            diary ? (
-              <Envelope
-                key="view-wax"
-                diary={diary}
-                isLocked={false}
-                onOpenMission={() => setIsMissionModalOpen(true)}
-                onUnsealComplete={handleUnsealComplete}
-                onGoHome={handleGoHome}
-              />
-            ) : (
-              <EmptyDeskView
-                key="view-wax-empty"
+                key="view-envelope-empty"
                 partnerName={partnerName}
                 userName={userName}
                 onOpenWriteModal={handleOpenWriteModal}
