@@ -43,7 +43,7 @@ export const WAX_COLORS: WaxOption[] = [
   },
 ];
 
-export type PaperTheme = 'IVORY' | 'KRAFT' | 'GRID' | 'AIRMAIL' | 'MIDNIGHT';
+export type PaperTheme = 'IVORY' | 'KRAFT' | 'GRID' | 'AIRMAIL' | 'MIDNIGHT' | 'CHERRY' | 'SAGE';
 
 export interface PaperThemeOption {
   id: PaperTheme;
@@ -100,6 +100,24 @@ export const PAPER_THEMES: PaperThemeOption[] = [
     previewColor: '#181F2B',
     previewBorder: '#324058',
     className: 'paper-theme-midnight',
+  },
+  {
+    id: 'CHERRY',
+    name: '벚꽃 로즈',
+    desc: '은은한 벚꽃잎과 봄바람이 스민 편지지',
+    badge: '로맨틱',
+    previewColor: '#FFF4F6',
+    previewBorder: '#E8B8C6',
+    className: 'paper-theme-cherry',
+  },
+  {
+    id: 'SAGE',
+    name: '세이지 포레스트',
+    desc: '숲속의 차분한 숨결이 담긴 그린 편지지',
+    badge: '내추럴',
+    previewColor: '#F1F6F0',
+    previewBorder: '#B3CBB5',
+    className: 'paper-theme-sage',
   },
 ];
 

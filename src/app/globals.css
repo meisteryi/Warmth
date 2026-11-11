@@ -211,6 +211,40 @@ body {
   border-color: #324058 !important;
 }
 
+/* 6. CHERRY (벚꽃 로즈 편지지) */
+.paper-theme-cherry {
+  background-color: #FFF4F6 !important;
+  background-image:
+    radial-gradient(2px 2px at 28px 24px, rgba(232, 148, 172, 0.28), transparent),
+    radial-gradient(1.5px 1.5px at 135px 86px, rgba(232, 148, 172, 0.22), transparent),
+    repeating-linear-gradient(
+      transparent,
+      transparent 31px,
+      rgba(222, 152, 172, 0.24) 31px,
+      rgba(222, 152, 172, 0.24) 32px
+    ) !important;
+  line-height: 32px;
+  color: #4A2530 !important;
+  border-color: #E8B8C6 !important;
+}
+
+/* 7. SAGE (세이지 포레스트 편지지) */
+.paper-theme-sage {
+  background-color: #F1F6F0 !important;
+  background-image:
+    radial-gradient(2px 2px at 36px 28px, rgba(112, 148, 116, 0.2), transparent),
+    radial-gradient(1.5px 1.5px at 160px 92px, rgba(112, 148, 116, 0.16), transparent),
+    repeating-linear-gradient(
+      transparent,
+      transparent 31px,
+      rgba(122, 156, 126, 0.22) 31px,
+      rgba(122, 156, 126, 0.22) 32px
+    ) !important;
+  line-height: 32px;
+  color: #223528 !important;
+  border-color: #B3CBB5 !important;
+}
+
 .paper-theme-midnight .text-stone-900,
 .paper-theme-midnight .text-stone-800 {
   color: #F4EDE2 !important;

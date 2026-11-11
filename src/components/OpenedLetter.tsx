@@ -300,6 +300,10 @@ export default function OpenedLetter({
           ? 'paper-theme-airmail'
           : theme === 'MIDNIGHT'
           ? 'paper-theme-midnight border border-[#324058]'
+          : theme === 'CHERRY'
+          ? 'paper-theme-cherry border border-[#E8B8C6]'
+          : theme === 'SAGE'
+          ? 'paper-theme-sage border border-[#B3CBB5]'
           : 'paper-theme-ivory paper-texture border border-[#E8DFC8]'
       }`}>
         {/* 장식용 종이 가장자리 바인딩 라인 (좌측 가죽 스티치) */}
@@ -311,6 +315,10 @@ export default function OpenedLetter({
               ? 'bg-[#E5D4BE] border-[#C8A882]'
               : theme === 'GRID'
               ? 'bg-[#EAF0EB] border-[#BFD3C1]'
+              : theme === 'CHERRY'
+              ? 'bg-[#FCE6EC] border-[#E8B8C6]'
+              : theme === 'SAGE'
+              ? 'bg-[#E2ECE1] border-[#B3CBB5]'
               : 'bg-[#EFE6DA] border-[#DECDBB]'
           }`}>
             <div className={`w-1.5 h-1.5 rounded-full mx-auto ${theme === 'MIDNIGHT' ? 'bg-[#3A4A62]' : 'bg-[#B8A692]'}`} />

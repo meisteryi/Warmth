@@ -304,7 +304,7 @@ export default function WriteDiaryModal({
       if (parsed.selectedPhoto) setSelectedPhoto(parsed.selectedPhoto);
       if (parsed.uploadedPhotoInfo) setUploadedPhotoInfo(parsed.uploadedPhotoInfo);
       if (typeof parsed.photoCaption === 'string') setPhotoCaption(parsed.photoCaption);
-      if (parsed.paperTheme && ['IVORY', 'KRAFT', 'GRID', 'AIRMAIL', 'MIDNIGHT'].includes(parsed.paperTheme)) {
+      if (parsed.paperTheme && PAPER_THEMES.some((p) => p.id === parsed.paperTheme)) {
         setPaperTheme(parsed.paperTheme);
       }
       if (parsed.missionType) setMissionType(parsed.missionType);
@@ -968,7 +968,7 @@ export default function WriteDiaryModal({
                     {PAPER_THEMES.find((p) => p.id === paperTheme)?.name}
                   </span>
                 </div>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="flex items-stretch gap-2 overflow-x-auto no-scrollbar py-1 px-0.5 snap-x snap-mandatory touch-pan-x">
                   {PAPER_THEMES.map((theme) => {
                     const isSelected = paperTheme === theme.id;
                     return (
@@ -979,7 +979,7 @@ export default function WriteDiaryModal({
                           setPaperTheme(theme.id);
                           soundEngine.playPaperRustle();
                         }}
-                        className={`relative p-2 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                        className={`relative shrink-0 w-[68px] sm:w-[76px] snap-start p-2 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${
                           isSelected
                             ? 'ring-2 ring-[#6B1724] border-[#6B1724] shadow-sm scale-[1.02] bg-white'
                             : 'border-stone-200 hover:border-stone-300 bg-white/70 hover:bg-white'
@@ -999,6 +999,12 @@ export default function WriteDiaryModal({
                           )}
                           {theme.id === 'MIDNIGHT' && (
                             <span className="text-[10px]">✨</span>
+                          )}
+                          {theme.id === 'CHERRY' && (
+                            <span className="text-[10px]">🌸</span>
+                          )}
+                          {theme.id === 'SAGE' && (
+                            <span className="text-[10px]">🌿</span>
                           )}
                           {theme.id === 'GRID' && (
                             <div className="w-3 h-3 border border-emerald-600/30 grid grid-cols-2 grid-rows-2" />
@@ -1085,6 +1091,10 @@ export default function WriteDiaryModal({
                       ? 'bg-[#FAFBF7] text-[#243329] border-[#BFD3C1] focus:ring-emerald-700/20 placeholder:text-stone-400'
                       : paperTheme === 'AIRMAIL'
                       ? 'bg-[#FDFCF9] text-[#1A2536] border-[#8BA5C4] focus:ring-blue-600/20 placeholder:text-stone-400'
+                      : paperTheme === 'CHERRY'
+                      ? 'bg-[#FFF4F6] text-[#4A2530] border-[#E8B8C6] focus:ring-rose-400/25 placeholder:text-rose-300'
+                      : paperTheme === 'SAGE'
+                      ? 'bg-[#F1F6F0] text-[#223528] border-[#B3CBB5] focus:ring-emerald-700/20 placeholder:text-stone-400'
                       : 'bg-white/90 text-stone-900 border-stone-300 focus:ring-[#6B1724]/20 placeholder:text-stone-400'
                   }`}
                 />
