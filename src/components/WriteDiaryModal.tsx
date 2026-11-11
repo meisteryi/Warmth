@@ -107,10 +107,14 @@ export default function WriteDiaryModal({
   const [customColor, setCustomColor] = useState<string>('#9E2A3C');
   const colorInputRef = useRef<HTMLInputElement>(null);
   const isCustomColor = !WAX_COLORS.some((w) => w.hex.toLowerCase() === selectedColor.toLowerCase());
-  const [missionType, setMissionType] = useState<'PUZZLE_PHOTO' | 'PUZZLE_STAMP' | 'SYSTEM' | 'CUSTOM'>('PUZZLE_PHOTO');
+  const [missionType, setMissionType] = useState<'PUZZLE_PHOTO' | 'PUZZLE_STAMP' | 'SYSTEM' | 'CUSTOM' | 'TELEPATHY'>('PUZZLE_PHOTO');
   const [customPrompt, setCustomPrompt] = useState('');
   const [customQuizAnswer, setCustomQuizAnswer] = useState('');
   const [customQuizHint, setCustomQuizHint] = useState('');
+  const [telepathyPrompt, setTelepathyPrompt] = useState('');
+  const [telepathyOptionA, setTelepathyOptionA] = useState('');
+  const [telepathyOptionB, setTelepathyOptionB] = useState('');
+  const [telepathyAnswer, setTelepathyAnswer] = useState<'A' | 'B'>('A');
   const [quizSourceInfo, setQuizSourceInfo] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [uploadedPhotoInfo, setUploadedPhotoInfo] = useState<CompressedImageResult | null>(null);
@@ -160,6 +164,10 @@ export default function WriteDiaryModal({
     setCustomPrompt('');
     setCustomQuizAnswer('');
     setCustomQuizHint('');
+    setTelepathyPrompt('');
+    setTelepathyOptionA('');
+    setTelepathyOptionB('');
+    setTelepathyAnswer('A');
     setSelectedStamp(WEATHER_STAMPS[0]);
     setStampStyle('BADGE');
     setIsGeneratingIllustration(false);
@@ -278,6 +286,10 @@ export default function WriteDiaryModal({
           customPrompt,
           customQuizAnswer,
           customQuizHint,
+          telepathyPrompt,
+          telepathyOptionA,
+          telepathyOptionB,
+          telepathyAnswer,
           selectedStampId: selectedStamp.id,
           stampStyle,
           savedAt: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
@@ -288,7 +300,7 @@ export default function WriteDiaryModal({
     }, 600);
 
     return () => clearTimeout(timer);
-  }, [isOpen, title, content, diaryDate, selectedColor, customColor, selectedPhoto, uploadedPhotoInfo, photoCaption, paperTheme, missionType, customPrompt, customQuizAnswer, customQuizHint, selectedStamp, stampStyle, draftKey, currentTurnId]);
+  }, [isOpen, title, content, diaryDate, selectedColor, customColor, selectedPhoto, uploadedPhotoInfo, photoCaption, paperTheme, missionType, customPrompt, customQuizAnswer, customQuizHint, telepathyPrompt, telepathyOptionA, telepathyOptionB, telepathyAnswer, selectedStamp, stampStyle, draftKey, currentTurnId]);
 
   // 임시 저장본 불러와 이어쓰기
   const handleRestoreDraft = () => {
@@ -311,6 +323,10 @@ export default function WriteDiaryModal({
       if (parsed.customPrompt) setCustomPrompt(parsed.customPrompt);
       if (parsed.customQuizAnswer) setCustomQuizAnswer(parsed.customQuizAnswer);
       if (parsed.customQuizHint) setCustomQuizHint(parsed.customQuizHint);
+      if (parsed.telepathyPrompt) setTelepathyPrompt(parsed.telepathyPrompt);
+      if (parsed.telepathyOptionA) setTelepathyOptionA(parsed.telepathyOptionA);
+      if (parsed.telepathyOptionB) setTelepathyOptionB(parsed.telepathyOptionB);
+      if (parsed.telepathyAnswer === 'A' || parsed.telepathyAnswer === 'B') setTelepathyAnswer(parsed.telepathyAnswer);
       if (parsed.selectedStampId) {
         const found = WEATHER_STAMPS.find((s) => s.id === parsed.selectedStampId);
         if (found) setSelectedStamp(found);
@@ -362,6 +378,10 @@ export default function WriteDiaryModal({
           customPrompt,
           customQuizAnswer,
           customQuizHint,
+          telepathyPrompt,
+          telepathyOptionA,
+          telepathyOptionB,
+          telepathyAnswer,
           selectedStampId: selectedStamp.id,
           stampStyle,
           savedAt: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
@@ -587,6 +607,17 @@ export default function WriteDiaryModal({
           prompt: customPrompt || '저번 편지에서 내가 제일 먹고 싶다고 했던 음식이 뭐였게?',
           quizAnswer: customQuizAnswer || '붕어빵',
           quizHint: customQuizHint || '달콤하고 따뜻한 겨울 간식이야!',
+          isCustom: true,
+          submission: null,
+          isPassed: false,
+        };
+      } else if (missionType === 'TELEPATHY') {
+        mission = {
+          type: 'TELEPATHY',
+          prompt: telepathyPrompt.trim() || '오늘 내가 퇴근길에 가장 생각난 것은?',
+          optionA: telepathyOptionA.trim() || '따뜻한 유자차 한 잔',
+          optionB: telepathyOptionB.trim() || '포근한 이불 속 휴식',
+          quizAnswer: telepathyAnswer,
           isCustom: true,
           submission: null,
           isPassed: false,
@@ -1419,7 +1450,7 @@ export default function WriteDiaryModal({
                 <label className="block text-xs font-sans-ui text-stone-600 mb-2">
                   상대방이 풀 관문 선택
                 </label>
-                <div className="grid grid-cols-3 gap-1.5 bg-stone-100 p-1 rounded-xl text-[11px] font-sans-ui mb-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-stone-100 p-1 rounded-xl text-[11px] font-sans-ui mb-3">
                   <button
                     type="button"
                     onClick={() => setMissionType('PUZZLE_PHOTO')}
@@ -1445,6 +1476,15 @@ export default function WriteDiaryModal({
                       }`}
                   >
                     <span>❓ 깜짝 퀴즈</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setMissionType('TELEPATHY')}
+                    className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 ${missionType === 'TELEPATHY' ? 'bg-white shadow-xs font-bold text-stone-900' : 'text-stone-500 hover:text-stone-800'
+                      }`}
+                  >
+                    <span>💞 텔레파시</span>
                   </button>
                 </div>
 
@@ -1520,6 +1560,84 @@ export default function WriteDiaryModal({
                           onChange={(e) => setCustomQuizHint(e.target.value)}
                           className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-white text-xs font-serif-warm focus:outline-none focus:ring-1 focus:ring-amber-800"
                         />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {missionType === 'TELEPATHY' && (
+                  <div className="space-y-2.5 p-3 bg-rose-50/60 rounded-xl border border-rose-200/70">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-sans-ui text-rose-900 font-bold flex items-center gap-1">
+                        <span>💞 이심전심 텔레파시 (2지선다)</span>
+                      </span>
+                      <span className="text-[10px] font-sans-ui text-rose-700/80">
+                        내가 고른 선택지를 상대가 맞추면 통과!
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div>
+                        <label className="block text-[11px] font-sans-ui text-stone-600 mb-1 font-medium">
+                          질문 내용
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="예: 오늘 내가 퇴근길에 가장 생각난 것은?"
+                          value={telepathyPrompt}
+                          onChange={(e) => setTelepathyPrompt(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-white text-xs font-serif-warm focus:outline-none focus:ring-1 focus:ring-rose-800"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-[11px] font-sans-ui text-stone-600 font-medium">
+                          선택지 A / B 입력 및 내 답 고르기
+                        </label>
+
+                        {(['A', 'B'] as const).map((side) => {
+                          const isSelected = telepathyAnswer === side;
+                          const optionValue = side === 'A' ? telepathyOptionA : telepathyOptionB;
+                          const setOptionValue = side === 'A' ? setTelepathyOptionA : setTelepathyOptionB;
+                          const placeholder =
+                            side === 'A'
+                              ? '선택지 A (예: 따뜻한 유자차 한 잔)'
+                              : '선택지 B (예: 포근한 이불 속 휴식)';
+
+                          return (
+                            <div key={side} className="flex items-center gap-1.5">
+                              <span
+                                className={`w-6 h-6 rounded-full text-[11px] font-sans-ui font-bold flex items-center justify-center shrink-0 transition-colors ${
+                                  isSelected
+                                    ? 'bg-[#6B1724] text-amber-50'
+                                    : 'bg-white border border-stone-200 text-stone-500'
+                                }`}
+                              >
+                                {side}
+                              </span>
+                              <input
+                                type="text"
+                                placeholder={placeholder}
+                                value={optionValue}
+                                onChange={(e) => setOptionValue(e.target.value)}
+                                className={`flex-1 min-w-0 px-3 py-2 rounded-xl border bg-white text-xs font-serif-warm focus:outline-none focus:ring-1 focus:ring-rose-800 ${
+                                  isSelected ? 'border-rose-300' : 'border-stone-200'
+                                }`}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setTelepathyAnswer(side)}
+                                className={`px-2.5 py-2 rounded-xl text-[11px] font-sans-ui font-semibold shrink-0 transition-all cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-[#6B1724] text-amber-50 shadow-xs'
+                                    : 'bg-white border border-stone-200 text-stone-500 hover:text-stone-800 hover:border-stone-300'
+                                }`}
+                              >
+                                {isSelected ? '내 답 ✓' : '내 답'}
+                              </button>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>

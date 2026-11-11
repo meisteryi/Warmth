@@ -122,10 +122,12 @@ export const PAPER_THEMES: PaperThemeOption[] = [
 ];
 
 export interface MissionData {
-  type: 'TEXT' | 'PHOTO' | 'QUIZ' | 'VOICE' | 'PUZZLE_PHOTO' | 'PUZZLE_STAMP';
+  type: 'TEXT' | 'PHOTO' | 'QUIZ' | 'VOICE' | 'PUZZLE_PHOTO' | 'PUZZLE_STAMP' | 'TELEPATHY';
   prompt: string;
   quizAnswer?: string | null;
   quizHint?: string | null;
+  optionA?: string | null;
+  optionB?: string | null;
   isCustom: boolean;
   submission?: {
     text?: string;

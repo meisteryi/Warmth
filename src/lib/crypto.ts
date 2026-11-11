@@ -183,6 +183,12 @@ export async function encryptDiaryData(
         quizHint: encryptedMission.quizHint
           ? await encryptText(roomCode, encryptedMission.quizHint, roomSalt)
           : null,
+        ...(encryptedMission.optionA
+          ? { optionA: await encryptText(roomCode, encryptedMission.optionA, roomSalt) }
+          : {}),
+        ...(encryptedMission.optionB
+          ? { optionB: await encryptText(roomCode, encryptedMission.optionB, roomSalt) }
+          : {}),
         submission: encryptedMission.submission
           ? {
               ...encryptedMission.submission,
@@ -264,6 +270,12 @@ export async function decryptDiaryData(
         quizHint: decryptedMission.quizHint
           ? await decryptText(roomCode, decryptedMission.quizHint, roomSalt)
           : null,
+        ...(decryptedMission.optionA
+          ? { optionA: await decryptText(roomCode, decryptedMission.optionA, roomSalt) }
+          : {}),
+        ...(decryptedMission.optionB
+          ? { optionB: await decryptText(roomCode, decryptedMission.optionB, roomSalt) }
+          : {}),
         submission: decryptedMission.submission
           ? {
               ...decryptedMission.submission,

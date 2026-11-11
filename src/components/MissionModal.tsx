@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MissionData } from '@/types/diary';
 import { soundEngine } from '@/lib/audio';
 import confetti from 'canvas-confetti';
-import { Puzzle, Stamp, HelpCircle, X, Sparkles, Lightbulb, CheckCircle2, Loader2 } from 'lucide-react';
+import { Puzzle, Stamp, HelpCircle, Heart, X, Sparkles, Lightbulb, CheckCircle2, Loader2 } from 'lucide-react';
 import { verifyFlexibleQuizAnswer } from '@/lib/aiClient';
 import PhotoSlidingPuzzle from './PhotoSlidingPuzzle';
 import StampJigsawPuzzle from './StampJigsawPuzzle';
@@ -28,9 +28,11 @@ export default function MissionModal({
   partnerName = '상대방',
 }: MissionModalProps) {
   // 편지 작성자가 지정한 관문 (수신자는 작성자가 지정한 미션만 수행할 수 있음)
-  const assignedMode: 'PHOTO_PUZZLE' | 'STAMP_PUZZLE' | 'SURPRISE_QUIZ' =
+  const assignedMode: 'PHOTO_PUZZLE' | 'STAMP_PUZZLE' | 'SURPRISE_QUIZ' | 'TELEPATHY' =
     mission.type === 'PUZZLE_STAMP'
       ? 'STAMP_PUZZLE'
+      : mission.type === 'TELEPATHY'
+      ? 'TELEPATHY'
       : mission.type === 'QUIZ' || mission.type === 'TEXT'
       ? 'SURPRISE_QUIZ'
       : 'PHOTO_PUZZLE';
@@ -42,15 +44,13 @@ export default function MissionModal({
   const [isCheckingAnswer, setIsCheckingAnswer] = useState(false);
   const [wrongCount, setWrongCount] = useState(0);
   const [helpTrigger, setHelpTrigger] = useState(0);
+  const [selectedTelepathySide, setSelectedTelepathySide] = useState<'A' | 'B' | null>(null);
+  const [wrongTelepathySide, setWrongTelepathySide] = useState<'A' | 'B' | null>(null);
+  const [prevOpenMission, setPrevOpenMission] = useState({ isOpen, mission });
 
-  const modalScrollRef = useRef<HTMLDivElement>(null);
-  const backdropRef = useRef<HTMLDivElement>(null);
-
-  // 모달이 열릴 때 상태 및 스크롤 상단 초기화
-  useEffect(() => {
+  if (prevOpenMission.isOpen !== isOpen || prevOpenMission.mission !== mission) {
+    setPrevOpenMission({ isOpen, mission });
     if (isOpen) {
-      modalScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
-      backdropRef.current?.scrollTo({ top: 0, behavior: 'instant' });
       setQuizInput('');
       setShowHint(false);
       setErrorMsg('');
@@ -58,6 +58,19 @@ export default function MissionModal({
       setIsCheckingAnswer(false);
       setWrongCount(0);
       setHelpTrigger(0);
+      setSelectedTelepathySide(null);
+      setWrongTelepathySide(null);
+    }
+  }
+
+  const modalScrollRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+
+  // 모달이 열릴 때 스크롤 상단 초기화
+  useEffect(() => {
+    if (isOpen) {
+      modalScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+      backdropRef.current?.scrollTo({ top: 0, behavior: 'instant' });
     }
   }, [isOpen, mission]);
 
@@ -65,6 +78,12 @@ export default function MissionModal({
   const quizPrompt = mission.prompt || '저번 편지에서 내가 가장 행복했다고 말했던 순간이 언제였게?';
   const quizAnswer = mission.quizAnswer || '너랑 통화할 때';
   const quizHint = mission.quizHint || '매일 밤 네 목소리가 들리는 시간이야!';
+
+  // 텔레파시 문제 및 선택지 (작성자가 지정한 값 또는 기본값)
+  const telepathyPrompt = mission.prompt || '오늘 내가 퇴근길에 가장 생각난 것은?';
+  const telepathyOptionA = mission.optionA || '따뜻한 유자차 한 잔';
+  const telepathyOptionB = mission.optionB || '포근한 이불 속 휴식';
+  const telepathyAnswerSide: 'A' | 'B' = mission.quizAnswer === 'B' ? 'B' : 'A';
 
   // 1. 사진 퍼즐 클리어
   const handlePhotoPuzzleSolved = () => {
@@ -104,6 +123,36 @@ export default function MissionModal({
     }, 1200);
   };
 
+  // 텔레파시 2지선다 선택 핸들러
+  const handleSelectTelepathy = (side: 'A' | 'B') => {
+    if (isSuccess || isCheckingAnswer) return;
+
+    const chosenText = side === 'A' ? telepathyOptionA : telepathyOptionB;
+    if (side === telepathyAnswerSide) {
+      setSelectedTelepathySide(side);
+      setWrongTelepathySide(null);
+      setErrorMsg('');
+      setIsSuccess(true);
+      soundEngine.playMissionPassChime();
+      confetti({
+        particleCount: 55,
+        spread: 65,
+        origin: { y: 0.6 },
+        colors: ['#6B1724', '#BE123C', '#B8860B', '#FDFBF7'],
+      });
+
+      setTimeout(() => {
+        onPassMission(`💞 이심전심 텔레파시 성공: "${chosenText}"`);
+        setIsSuccess(false);
+        onClose();
+      }, 1100);
+    } else {
+      soundEngine.playTileSlideSound();
+      setWrongTelepathySide(side);
+      setErrorMsg('앗, 이번엔 다른 쪽을 골랐어요! 나머지 선택지로 마음을 맞춰볼까요? 💭');
+    }
+  };
+
   // 하단 '도와줘!' 긴급 해제 버튼 핸들러
   const handleHelpMe = () => {
     if (isSuccess || isCheckingAnswer || helpTrigger > 0) return;
@@ -119,6 +168,8 @@ export default function MissionModal({
       setErrorMsg('');
       setShowHint(true);
       handlePassQuizSuccess(quizAnswer);
+    } else if (assignedMode === 'TELEPATHY') {
+      handleSelectTelepathy(telepathyAnswerSide);
     }
   };
 
@@ -204,12 +255,14 @@ export default function MissionModal({
                 {assignedMode === 'PHOTO_PUZZLE' && <Puzzle className="w-4 h-4 sm:w-5 sm:h-5 text-[#6B1724]" />}
                 {assignedMode === 'STAMP_PUZZLE' && <Stamp className="w-4 h-4 sm:w-5 sm:h-5 text-amber-800" />}
                 {assignedMode === 'SURPRISE_QUIZ' && <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5 text-rose-700" />}
+                {assignedMode === 'TELEPATHY' && <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-rose-700 fill-rose-700/20" />}
               </div>
               <div>
                 <h3 className="font-serif-warm text-base sm:text-xl font-bold text-stone-900 leading-tight">
                   {assignedMode === 'PHOTO_PUZZLE' && '하루 사진 조각 맞추기'}
                   {assignedMode === 'STAMP_PUZZLE' && '빈티지 우표 맞추기'}
                   {assignedMode === 'SURPRISE_QUIZ' && '봉인 해제 깜짝 퀴즈'}
+                  {assignedMode === 'TELEPATHY' && '이심전심 텔레파시'}
                 </h3>
               </div>
             </div>
@@ -221,6 +274,7 @@ export default function MissionModal({
                   {assignedMode === 'PHOTO_PUZZLE' && <Puzzle className="w-3.5 h-3.5 text-[#6B1724]" />}
                   {assignedMode === 'STAMP_PUZZLE' && <Stamp className="w-3.5 h-3.5 text-amber-800" />}
                   {assignedMode === 'SURPRISE_QUIZ' && <HelpCircle className="w-3.5 h-3.5 text-rose-700" />}
+                  {assignedMode === 'TELEPATHY' && <Heart className="w-3.5 h-3.5 text-rose-700 fill-rose-700/20" />}
                 </div>
                 <div className="min-w-0">
                   <p className="text-[11px] sm:text-xs font-serif-warm text-stone-600 truncate">
@@ -233,6 +287,7 @@ export default function MissionModal({
                 {assignedMode === 'PHOTO_PUZZLE' && '사진 조각 맞추기'}
                 {assignedMode === 'STAMP_PUZZLE' && '우표 퍼즐 맞추기'}
                 {assignedMode === 'SURPRISE_QUIZ' && '깜짝 퀴즈 풀기'}
+                {assignedMode === 'TELEPATHY' && '텔레파시 2지선다'}
               </span>
             </div>
 
@@ -343,12 +398,96 @@ export default function MissionModal({
               </div>
             )}
 
+            {/* 모드 4: 이심전심 텔레파시 (2지선다) */}
+            {assignedMode === 'TELEPATHY' && (
+              <div className="space-y-4">
+                <div className="p-4 sm:p-5 rounded-2xl bg-[#FAF5EE] border border-[#E8DEC8] shadow-xs">
+                  <div className="flex items-center gap-1.5 text-xs text-[#8C2131] font-semibold mb-2">
+                    <Heart className="w-4 h-4 text-rose-600 fill-rose-600/20" />
+                    <span>{partnerName} 님의 마음을 맞춰보세요</span>
+                  </div>
+                  <p className="font-serif-warm text-stone-900 font-semibold text-base sm:text-lg leading-relaxed">
+                    &ldquo;{telepathyPrompt}&rdquo;
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {([
+                    { side: 'A' as const, label: telepathyOptionA },
+                    { side: 'B' as const, label: telepathyOptionB },
+                  ]).map(({ side, label }) => {
+                    const isPickedSuccess = isSuccess && selectedTelepathySide === side;
+                    const isMarkedWrong = wrongTelepathySide === side;
+
+                    return (
+                      <button
+                        key={side}
+                        type="button"
+                        onClick={() => handleSelectTelepathy(side)}
+                        disabled={isSuccess || isMarkedWrong}
+                        className={`group relative text-left p-4 rounded-2xl border-2 transition-all cursor-pointer active:scale-[0.98] disabled:cursor-default ${
+                          isPickedSuccess
+                            ? 'bg-emerald-50 border-emerald-500 text-emerald-950 shadow-md'
+                            : isMarkedWrong
+                            ? 'bg-stone-100/80 border-stone-200 text-stone-400 opacity-65'
+                            : 'bg-white hover:bg-rose-50/70 border-[#E8DFC8] hover:border-[#8C2131]/50 text-stone-900 shadow-xs hover:shadow-md'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <span
+                            className={`w-7 h-7 rounded-full text-xs font-sans-ui font-bold flex items-center justify-center shrink-0 transition-colors ${
+                              isPickedSuccess
+                                ? 'bg-emerald-600 text-white'
+                                : isMarkedWrong
+                                ? 'bg-stone-200 text-stone-400'
+                                : 'bg-[#6B1724]/10 text-[#6B1724] group-hover:bg-[#6B1724] group-hover:text-amber-50'
+                            }`}
+                          >
+                            {isPickedSuccess ? <CheckCircle2 className="w-4 h-4" /> : side}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-serif-warm text-sm sm:text-base font-semibold leading-snug break-keep">
+                              {label}
+                            </p>
+                            {isMarkedWrong && (
+                              <p className="text-[11px] font-sans-ui text-stone-400 mt-1">
+                                다른 선택지도 확인해 볼까요?
+                              </p>
+                            )}
+                            {isPickedSuccess && (
+                              <p className="text-[11px] font-sans-ui text-emerald-700 font-semibold mt-1">
+                                마음이 통했어요! 💞
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {errorMsg && !isSuccess && (
+                  <p className="text-xs text-[#9C2A3B] font-serif-warm text-center animate-pulse">
+                    {errorMsg}
+                  </p>
+                )}
+
+                {isSuccess && (
+                  <div className="py-3 rounded-xl bg-emerald-600 text-white font-serif-warm font-semibold text-sm flex items-center justify-center gap-2 shadow-md">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>텔레파시 통했다! 봉인 해제 중...</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* 하단 조그마한 '도와줘!' 긴급 해제 버튼 */}
             <div className="mt-4 pt-3 border-t border-[#E8DFC8]/70 flex items-center justify-between text-xs font-serif-warm">
               <span className="text-[11px] text-stone-400">
                 {assignedMode === 'PHOTO_PUZZLE' && '퍼즐 맞추기가 어렵다면?'}
                 {assignedMode === 'STAMP_PUZZLE' && '우표 맞추기가 번거롭다면?'}
                 {assignedMode === 'SURPRISE_QUIZ' && '퀴즈 정답이 기억나지 않는다면?'}
+                {assignedMode === 'TELEPATHY' && '상대의 마음을 도저히 모르겠다면?'}
               </span>
               <button
                 type="button"
