@@ -2,7 +2,15 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DiaryData, MonthlyRecapData, sanitizeDiaryReaction, isDiaryWrittenByMe, WEATHER_STAMPS } from '@/types/diary';
+import {
+  DiaryData,
+  MonthlyRecapData,
+  sanitizeDiaryReaction,
+  isDiaryWrittenByMe,
+  getDiaryLocalDateKey,
+  sortDiariesWithAlternatingAuthors,
+  WEATHER_STAMPS,
+} from '@/types/diary';
 import {
   getRoomDiariesFromFirestore,
   getCachedRoomDiaries,
@@ -773,18 +781,6 @@ export default function ArchiveModal({
     }
   };
 
-  // 일기 작성 일시(ISO)로부터 'YYYY-MM-DD' 로컬 날짜 키 반환
-  const getDiaryLocalDateKey = (isoString?: string): string => {
-    if (!isoString) return '';
-    try {
-      const d = new Date(isoString);
-      if (isNaN(d.getTime())) return '';
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    } catch {
-      return '';
-    }
-  };
-
   // 날짜별 일기 목록 맵 (달력 표시용)
   const diariesByDateMap = useMemo(() => {
     const map: Record<string, DiaryData[]> = {};
@@ -798,18 +794,27 @@ export default function ArchiveModal({
     return map;
   }, [diaries]);
 
-  // 날짜 필터가 적용된 일기 목록 (1차: createdAt 내림차순 최신순, 2차: 동일 시각 시 diaryId 내림차순)
-  const filteredDiaries = useMemo(() => {
-    const base = selectedDateFilter
-      ? diaries.filter((d) => getDiaryLocalDateKey(d.createdAt) === selectedDateFilter)
-      : diaries;
-
-    return [...base].sort((a, b) => {
-      const timeDiff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      if (timeDiff !== 0) return timeDiff;
-      return (b.diaryId || '').localeCompare(a.diaryId || '');
+  // 서재 전체 일기 정렬 (최신 날짜 우선, 같은 날짜 내에서는 작성자가 번갈아 나오도록 배치)
+  const sortedDiaries = useMemo(() => {
+    const myUid = typeof window !== 'undefined' ? getOrCreateUserId() : '';
+    return sortDiariesWithAlternatingAuthors(diaries, {
+      currentUserName,
+      myUid,
+      partnerName,
     });
-  }, [diaries, selectedDateFilter]);
+  }, [diaries, currentUserName, partnerName]);
+
+  // 날짜 필터가 적용된 일기 목록 (동일 날짜 내 작성자 교차 정렬 유지)
+  const filteredDiaries = useMemo(() => {
+    if (!selectedDateFilter) return sortedDiaries;
+    const myUid = typeof window !== 'undefined' ? getOrCreateUserId() : '';
+    const dateFiltered = diaries.filter((d) => getDiaryLocalDateKey(d.createdAt) === selectedDateFilter);
+    return sortDiariesWithAlternatingAuthors(dateFiltered, {
+      currentUserName,
+      myUid,
+      partnerName,
+    });
+  }, [diaries, sortedDiaries, selectedDateFilter, currentUserName, partnerName]);
 
   // 총 페이지 수 (10개씩)
   const totalPages = Math.max(1, Math.ceil(filteredDiaries.length / PAGE_SIZE));
@@ -2009,7 +2014,7 @@ export default function ArchiveModal({
                   {currentUserName} & {partnerName} · 비밀 서재 #{roomCode}
                 </div>
                 <p className="text-[11px] text-stone-400 font-mono mt-4">
-                  총 {diaries.length}편의 이야기 수록 · 인쇄일자: {new Date().toLocaleDateString('ko-KR')}
+                  총 {sortedDiaries.length}편의 이야기 수록 · 인쇄일자: {new Date().toLocaleDateString('ko-KR')}
                 </p>
               </div>
 
@@ -2019,7 +2024,7 @@ export default function ArchiveModal({
                   목차 (Contents)
                 </h2>
                 <div className="space-y-2 text-xs">
-                  {diaries.map((d, idx) => {
+                  {sortedDiaries.map((d, idx) => {
                     const myUid = typeof window !== 'undefined' ? getOrCreateUserId() : '';
                     const isUnopenedByMe = !isDiaryWrittenByMe(d, currentUserName, myUid, partnerName) && !d.isWaxBroken;
                     return (
@@ -2037,7 +2042,7 @@ export default function ArchiveModal({
               </div>
 
               {/* 3. 각 일기 본문 페이지들 (시간 순 정렬) */}
-              {diaries.map((diary, idx) => {
+              {sortedDiaries.map((diary, idx) => {
                 const myUid = typeof window !== 'undefined' ? getOrCreateUserId() : '';
                 const isUnopenedByMe = !isDiaryWrittenByMe(diary, currentUserName, myUid, partnerName) && !diary.isWaxBroken;
 

@@ -223,6 +223,147 @@ export function isDiaryWrittenByMe(
   return false;
 }
 
+export interface DiarySortAuthorOptions {
+  currentUserName?: string;
+  myUid?: string | null;
+  partnerName?: string;
+}
+
+/**
+ * 일기 createdAt ISO 문자열에서 로컬 타임존 기준 'YYYY-MM-DD' 날짜 키 추출
+ */
+export function getDiaryLocalDateKey(isoString?: string): string {
+  if (!isoString) return '';
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return '';
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  } catch {
+    return '';
+  }
+}
+
+function getSafeTimestampMs(isoString?: string): number {
+  if (!isoString) return 0;
+  const ms = new Date(isoString).getTime();
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function compareDiariesNewestFirst(a: DiaryData, b: DiaryData): number {
+  const dateDiff = getDiaryLocalDateKey(b.createdAt).localeCompare(getDiaryLocalDateKey(a.createdAt));
+  if (dateDiff !== 0) return dateDiff;
+
+  const timeDiff = getSafeTimestampMs(b.createdAt) - getSafeTimestampMs(a.createdAt);
+  if (timeDiff !== 0) return timeDiff;
+
+  return (b.diaryId || '').localeCompare(a.diaryId || '');
+}
+
+function resolveDiaryAuthorKey(diary: DiaryData, options?: DiarySortAuthorOptions): string {
+  if (options?.currentUserName) {
+    return isDiaryWrittenByMe(diary, options.currentUserName, options.myUid, options.partnerName)
+      ? '__ME__'
+      : '__PARTNER__';
+  }
+  const cleanName = (diary.authorName || '').trim().toLowerCase();
+  if (cleanName) return cleanName;
+  if (diary.authorId && diary.authorId !== 'user_ssr') return diary.authorId;
+  return '__UNKNOWN__';
+}
+
+/**
+ * 서재 일기 정렬 헬퍼
+ * - 1차: 작성 날짜(로컬 YYYY-MM-DD) 내림차순 최신순
+ * - 2차: 같은 날짜에 작성된 일기가 여러 편이면 작성자가 번갈아 나오도록 배치 (각 작성자 내부에서는 최신순 유지)
+ */
+export function sortDiariesWithAlternatingAuthors(
+  diaries: DiaryData[],
+  options?: DiarySortAuthorOptions
+): DiaryData[] {
+  if (diaries.length <= 1) return [...diaries];
+
+  const baseSorted = [...diaries].sort(compareDiariesNewestFirst);
+
+  // 동일한 날짜 키(YYYY-MM-DD)별로 그룹화 (날짜 내림차순 순서 유지)
+  const dateGroups: DiaryData[][] = [];
+  let currentGroup: DiaryData[] = [];
+  let currentDateKey: string | null = null;
+
+  for (const item of baseSorted) {
+    const dateKey = getDiaryLocalDateKey(item.createdAt);
+    if (currentGroup.length === 0 || (dateKey !== '' && dateKey === currentDateKey)) {
+      currentGroup.push(item);
+      currentDateKey = dateKey;
+    } else {
+      dateGroups.push(currentGroup);
+      currentGroup = [item];
+      currentDateKey = dateKey;
+    }
+  }
+  if (currentGroup.length > 0) {
+    dateGroups.push(currentGroup);
+  }
+
+  const result: DiaryData[] = [];
+  let lastPlacedAuthor: string | null = null;
+
+  for (const group of dateGroups) {
+    if (group.length === 1) {
+      result.push(group[0]);
+      lastPlacedAuthor = resolveDiaryAuthorKey(group[0], options);
+      continue;
+    }
+
+    // 작성자별 큐 구성 (각 큐 내부는 이미 최신순 정렬됨)
+    const authorQueues = new Map<string, DiaryData[]>();
+    for (const item of group) {
+      const key = resolveDiaryAuthorKey(item, options);
+      const q = authorQueues.get(key);
+      if (q) {
+        q.push(item);
+      } else {
+        authorQueues.set(key, [item]);
+      }
+    }
+
+    if (authorQueues.size <= 1) {
+      result.push(...group);
+      lastPlacedAuthor = resolveDiaryAuthorKey(group[group.length - 1], options);
+      continue;
+    }
+
+    let remaining = group.length;
+    while (remaining > 0) {
+      const activeEntries = Array.from(authorQueues.entries()).filter(([, q]) => q.length > 0);
+      // 같은 날짜 내 연속 중복을 최소화하기 위해 엄격 과반수(2 * count > remaining) 작성자가 있으면 최우선 선택
+      const strictMajority = activeEntries.find(([, q]) => q.length * 2 > remaining);
+
+      let chosenKey: string;
+      if (strictMajority) {
+        chosenKey = strictMajority[0];
+      } else {
+        const alternating = activeEntries.filter(([key]) => key !== lastPlacedAuthor);
+        const candidates = alternating.length > 0 ? alternating : activeEntries;
+        candidates.sort(([keyA, qA], [keyB, qB]) => {
+          const countDiff = qB.length - qA.length;
+          if (countDiff !== 0) return countDiff;
+          const headDiff = compareDiariesNewestFirst(qA[0], qB[0]);
+          if (headDiff !== 0) return headDiff;
+          return keyA.localeCompare(keyB);
+        });
+        chosenKey = candidates[0][0];
+      }
+
+      const nextDiary = authorQueues.get(chosenKey)!.shift()!;
+      result.push(nextDiary);
+      lastPlacedAuthor = chosenKey;
+      remaining--;
+    }
+  }
+
+  return result;
+}
+
 export interface KnockData {
   senderUid: string;
   senderName: string;

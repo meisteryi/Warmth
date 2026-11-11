@@ -15,7 +15,7 @@ import {
   Unsubscribe 
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { DiaryData, DiaryReaction, MonthlyRecapData, RoomData, sanitizeDiaryReaction } from '@/types/diary';
+import { DiaryData, DiaryReaction, MonthlyRecapData, RoomData, sanitizeDiaryReaction, sortDiariesWithAlternatingAuthors } from '@/types/diary';
 import { 
   encryptDiaryData, 
   decryptDiaryData, 
@@ -717,12 +717,14 @@ export async function getRoomDiariesFromFirestore(
       list.push(sanitized);
     }
 
-    // 최신 날짜 순으로 정렬 (1차: createdAt 내림차순 최신순, 2차: 시/분/초까지 동일할 경우 diaryId 내림차순)
-    const sorted = list.sort((a, b) => {
-      const timeDiff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      if (timeDiff !== 0) return timeDiff;
-      return (b.diaryId || '').localeCompare(a.diaryId || '');
-    });
+    // 최신 날짜 순으로 정렬 (서재 전체 조회 시 동일 날짜 내 작성자 교차 배치 적용)
+    const sorted = limitCount
+      ? list.sort((a, b) => {
+          const timeDiff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          if (timeDiff !== 0) return timeDiff;
+          return (b.diaryId || '').localeCompare(a.diaryId || '');
+        })
+      : sortDiariesWithAlternatingAuthors(list);
     const result = limitCount ? sorted.slice(0, limitCount) : sorted;
 
     if (!limitCount && result.length > 0) {
