@@ -738,9 +738,12 @@ export default function WriteDiaryModal({
         setLastSavedDraftTime(null);
 
         onClose();
+      } else {
+        setSubmitError('편지 봉인·전송에 실패했습니다. 상단 안내 메시지 또는 네트워크·작성 턴 상태를 확인 후 다시 시도해주세요.');
       }
     } catch (err) {
       console.error('Failed to save diary:', err);
+      setSubmitError('편지 전송 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setIsSubmitting(false);
     }

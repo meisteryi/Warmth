@@ -555,6 +555,25 @@ export async function saveDiaryToFirestore(
         }
       }
 
+      // 2차 안전망: latestDiaryId 문서의 작성자가 상대방이라면 stale currentTurn이어도 내 턴으로 인정
+      if (!isAuthorTurn && roomData.latestDiaryId) {
+        const latestDiarySnap = await transaction.get(
+          doc(db, 'rooms', roomCode, 'diaries', roomData.latestDiaryId)
+        );
+        if (latestDiarySnap.exists()) {
+          const latestData = latestDiarySnap.data() as Partial<DiaryData>;
+          const latestName = (latestData.authorName || '').trim().toLowerCase();
+          const myName = (diary.authorName || '').trim().toLowerCase();
+          const isSameAuthor =
+            latestData.authorId === authorUid ||
+            latestData.authorId === diary.authorId ||
+            (Boolean(myName) && latestName === myName);
+          if (!isSameAuthor) {
+            isAuthorTurn = true;
+          }
+        }
+      }
+
       // 두 명 모두 입장해 있고, 명백하게 상대방의 턴인 경우만 차단
       if (!isAuthorTurn && (roomData.members?.length || 0) >= 2 && roomData.status === 'MATCHED') {
         throw new Error('현재 상대방의 작성 턴이거나 이미 새 일기가 전송되었습니다.');

@@ -1498,7 +1498,7 @@ export default function HomePage() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.95 }}
               transition={{ duration: 0.3, ease: 'easeOut' }}
-              className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] z-50 px-4.5 py-2.5 rounded-full bg-stone-900/90 text-amber-100 text-xs sm:text-sm font-sans-ui shadow-2xl backdrop-blur-md border border-amber-900/40 max-w-[90vw] text-center pointer-events-none"
+              className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] z-[120] px-4.5 py-2.5 rounded-full bg-stone-900/90 text-amber-100 text-xs sm:text-sm font-sans-ui shadow-2xl backdrop-blur-md border border-amber-900/40 max-w-[90vw] text-center pointer-events-none"
             >
               {toastMessage}
             </motion.div>
