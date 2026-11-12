@@ -50,6 +50,48 @@ export class JarPhysicsEngine {
 
     // 초기 배치 시 혹시라도 발생할 수 있는 모델링 겹침을 즉각적으로 완화 및 분리 (Relaxation Passes)
     this.resolveInitialOverlaps(30);
+    // 한 번 흔든 뒤 자연스럽게 바닥에 가라앉은 상태로 시작하도록 사전 안착(Pre-settle)
+    this.preSettle();
+  }
+
+  /**
+   * 초기 배치 직후 병을 한 번 흔들고 안착한 것처럼 중력/충돌로 자연스럽게 자리잡기
+   */
+  private preSettle(steps: number = 150): void {
+    if (this.bodies.length === 0) return;
+
+    this.isSimulating = true;
+    this.shakeTimer = 0;
+    this.shakeOffset.set(0, 0, 0);
+
+    for (const b of this.bodies) {
+      b.velocity.set(
+        (Math.random() - 0.5) * 1.6,
+        0.5 + Math.random() * 1.5,
+        (Math.random() - 0.5) * 1.6
+      );
+      b.angularVelocity.set(
+        (Math.random() - 0.5) * 10,
+        (Math.random() - 0.5) * 8,
+        (Math.random() - 0.5) * 10
+      );
+      b.isResting = false;
+      b.restTimer = 0;
+    }
+
+    for (let i = 0; i < steps && this.isSimulating; i++) {
+      this.update(0.016);
+    }
+
+    for (const b of this.bodies) {
+      b.velocity.set(0, 0, 0);
+      b.angularVelocity.set(0, 0, 0);
+      b.isResting = true;
+      b.restTimer = 0;
+    }
+    this.isSimulating = false;
+    this.shakeTimer = 0;
+    this.shakeOffset.set(0, 0, 0);
   }
 
   /**
