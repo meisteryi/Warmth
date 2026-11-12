@@ -1121,7 +1121,10 @@ export default function HomePage() {
     showToast('✨ 미션을 완료했습니다! 이제 실링 왁스를 3초 동안 눌러 봉인을 풀어보세요.');
 
     try {
-      await updateMissionInFirestore(roomCode, diary.diaryId, submissionText);
+      const targetRoomCode = activeRoomCode || roomCode;
+      if (targetRoomCode) {
+        await updateMissionInFirestore(targetRoomCode, diary.diaryId, submissionText);
+      }
     } catch (e) {
       console.warn('Firestore update mission sync:', e);
     }
@@ -1144,13 +1147,16 @@ export default function HomePage() {
     showToast('📬 편지 봉인이 해제되었습니다. 정성스레 적은 편지를 읽어보세요.');
 
     try {
-      await unsealDiaryInFirestore(roomCode, diary.diaryId);
+      const targetRoomCode = activeRoomCode || roomCode;
+      if (targetRoomCode) {
+        await unsealDiaryInFirestore(targetRoomCode, diary.diaryId);
+      }
 
       // 작성자(상대방)에게 실링 왁스 개봉 알림 백그라운드 Web Push 발송
       try {
         const myUid = getOrCreateUserId();
-        const roomSnap = await getDoc(doc(db, 'rooms', roomCode));
-        if (roomSnap.exists()) {
+        const roomSnap = targetRoomCode ? await getDoc(doc(db, 'rooms', targetRoomCode)) : null;
+        if (roomSnap && roomSnap.exists()) {
           const freshRoom = roomSnap.data() as RoomData;
           const partner = getPartnerMemberInfo(freshRoom, myUid, userName);
           if (partner?.info?.pushSubscription) {
@@ -1198,13 +1204,19 @@ export default function HomePage() {
       reaction: null, // 새 일기는 항상 포스트잇 반응이 없는 깨끗한 상태로 시작
     };
 
+    const targetRoomCode = activeRoomCode || roomCode;
+    if (!targetRoomCode) {
+      showToast('⚠️ 방 정보를 찾을 수 없습니다. 새로고침 후 다시 시도해주세요.');
+      return false;
+    }
+
     try {
       // 1. Firestore에 먼저 안전하게 저장 및 턴 검증
-      await saveDiaryToFirestore(roomCode, updated);
+      await saveDiaryToFirestore(targetRoomCode, updated);
 
       // 상대방에게 백그라운드 Web Push 발송 (앱이 꺼져 있어도 OS 잠금 화면에 알림 표시)
       try {
-        const roomSnap = await getDoc(doc(db, 'rooms', roomCode));
+        const roomSnap = await getDoc(doc(db, 'rooms', targetRoomCode));
         if (roomSnap.exists()) {
           const freshRoom = roomSnap.data() as RoomData;
           const partner = getPartnerMemberInfo(freshRoom, myUid, userName);
@@ -1223,7 +1235,7 @@ export default function HomePage() {
 
       // 2. 저장이 성공했을 때만 로컬 상태 및 UI 턴 전환
       currentDiaryRef.current = updated;
-      sessionStore.set(`warmth_last_written_${roomCode}_${userName}`, updated.createdAt || nowIso);
+      sessionStore.set(`warmth_last_written_${targetRoomCode}_${userName}`, updated.createdAt || nowIso);
       setDiary(updated);
       setUiState('VIEW_WAITING');
       showToast(`📮 편지가 왁스로 단단히 봉인되어 ${partnerName} 님에게 전달되었습니다!`);

@@ -123,6 +123,7 @@ export default function WriteDiaryModal({
   const [isCompressing, setIsCompressing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [photoError, setPhotoError] = useState('');
+  const [submitError, setSubmitError] = useState('');
   const [selectedStamp, setSelectedStamp] = useState<WeatherStamp>(WEATHER_STAMPS[0]);
   const [stampStyle, setStampStyle] = useState<StampStyle>('BADGE');
   const [hasDraftNotice, setHasDraftNotice] = useState(false);
@@ -160,6 +161,7 @@ export default function WriteDiaryModal({
     setPhotoCaption('');
     setPaperTheme('IVORY');
     setPhotoError('');
+    setSubmitError('');
     setMissionType('PUZZLE_PHOTO');
     setCustomPrompt('');
     setCustomQuizAnswer('');
@@ -555,11 +557,29 @@ export default function WriteDiaryModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !content.trim() || isSubmitting || isCompressing || isGeneratingIllustration) return;
+    if (isSubmitting || isCompressing || isGeneratingIllustration) return;
+
+    setSubmitError('');
+
+    if (!title.trim()) {
+      const msg = language === 'en' ? 'Please enter a letter title.' : '편지 제목을 입력해주세요.';
+      setSubmitError(msg);
+      modalScrollRef.current?.scrollTo({ top: 180, behavior: 'smooth' });
+      return;
+    }
+
+    if (!content.trim()) {
+      const msg = language === 'en' ? 'Please write your letter content.' : '편지 내용을 입력해주세요.';
+      setSubmitError(msg);
+      modalScrollRef.current?.scrollTo({ top: 260, behavior: 'smooth' });
+      return;
+    }
 
     // 사진 퍼즐 관문 선택 시 사진 첨부 필수 검증
     if (missionType === 'PUZZLE_PHOTO' && !selectedPhoto) {
+      const msg = '사진 조각 퍼즐 관문을 풀게 하려면 사진을 1장 올려주세요. (또는 다른 관문을 선택해주세요)';
       setPhotoError('사진 조각 퍼즐 관문을 풀게 하려면 사진을 1장 올려주세요.');
+      setSubmitError(msg);
       return;
     }
 
@@ -830,7 +850,7 @@ export default function WriteDiaryModal({
               </motion.div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+            <form onSubmit={handleSubmit} noValidate className="space-y-4 sm:space-y-5">
               {/* [3번 요구사항] 오늘의 날씨 & 기분 빈티지 잉크 스탬프 선택 */}
               <div className="p-3.5 sm:p-4 rounded-2xl bg-[#FCFAF7] border border-[#E8DEC8] shadow-2xs space-y-3">
                 <div className="flex items-center justify-between">
@@ -1462,7 +1482,11 @@ export default function WriteDiaryModal({
 
                   <button
                     type="button"
-                    onClick={() => setMissionType('PUZZLE_STAMP')}
+                    onClick={() => {
+                      setMissionType('PUZZLE_STAMP');
+                      setPhotoError('');
+                      setSubmitError('');
+                    }}
                     className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 ${missionType === 'PUZZLE_STAMP' ? 'bg-white shadow-xs font-bold text-stone-900' : 'text-stone-500 hover:text-stone-800'
                       }`}
                   >
@@ -1471,7 +1495,11 @@ export default function WriteDiaryModal({
 
                   <button
                     type="button"
-                    onClick={() => setMissionType('CUSTOM')}
+                    onClick={() => {
+                      setMissionType('CUSTOM');
+                      setPhotoError('');
+                      setSubmitError('');
+                    }}
                     className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 ${missionType === 'CUSTOM' ? 'bg-white shadow-xs font-bold text-stone-900' : 'text-stone-500 hover:text-stone-800'
                       }`}
                   >
@@ -1480,7 +1508,11 @@ export default function WriteDiaryModal({
 
                   <button
                     type="button"
-                    onClick={() => setMissionType('TELEPATHY')}
+                    onClick={() => {
+                      setMissionType('TELEPATHY');
+                      setPhotoError('');
+                      setSubmitError('');
+                    }}
                     className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 ${missionType === 'TELEPATHY' ? 'bg-white shadow-xs font-bold text-stone-900' : 'text-stone-500 hover:text-stone-800'
                       }`}
                   >
@@ -1646,6 +1678,12 @@ export default function WriteDiaryModal({
 
               {/* 발송 버튼 & 자동 임시 저장 상태 */}
               <div className="pt-3 space-y-2">
+                {submitError && (
+                  <p className="text-xs text-rose-600 font-sans-ui bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 flex items-center gap-1.5">
+                    <HelpCircle className="w-4 h-4 shrink-0" />
+                    <span>{submitError}</span>
+                  </p>
+                )}
                 <button
                   type="submit"
                   disabled={isSubmitting || isCompressing || isGeneratingIllustration}
