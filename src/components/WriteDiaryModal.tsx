@@ -593,12 +593,21 @@ export default function WriteDiaryModal({
 
       let finalPhotoUrl = selectedPhoto;
 
-      // 직접 업로드한 base64 사진인 경우, Storage 업로드 시도 (실패 시 base64 그대로 안전 저장)
+      // 직접 업로드한 base64 사진인 경우, Storage 업로드 시도 (실패 시 Firestore 안전 용량으로 재압축 후 저장)
       if (selectedPhoto && selectedPhoto.startsWith('data:')) {
         try {
           finalPhotoUrl = await uploadPhotoIfPossible(roomCode, selectedPhoto);
         } catch (e) {
           console.warn('Storage upload fallback:', e);
+        }
+
+        if (finalPhotoUrl && finalPhotoUrl.startsWith('data:') && finalPhotoUrl.length > 600_000) {
+          try {
+            const recompressed = await compressDataUrl(finalPhotoUrl, 960, 960, 0.72, 'letter-photo.jpg');
+            finalPhotoUrl = recompressed.dataUrl;
+          } catch (recompErr) {
+            console.warn('Photo recompression fallback:', recompErr);
+          }
         }
       }
 

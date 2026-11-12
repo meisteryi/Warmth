@@ -12,17 +12,55 @@ export interface CompressedImageResult {
   fileName: string;
 }
 
+const MAX_FIRESTORE_SAFE_DATAURL_CHARS = 600_000;
+
+function canvasToBoundedDataUrl(
+  sourceCanvas: HTMLCanvasElement,
+  initialQuality: number,
+  maxChars = MAX_FIRESTORE_SAFE_DATAURL_CHARS
+): { dataUrl: string; width: number; height: number } {
+  let currentCanvas = sourceCanvas;
+  const qualities = [initialQuality, 0.7, 0.56, 0.44];
+
+  for (let scalePass = 0; scalePass < 3; scalePass++) {
+    for (const q of qualities) {
+      const dataUrl = currentCanvas.toDataURL('image/jpeg', q);
+      if (dataUrl.length <= maxChars) {
+        return { dataUrl, width: currentCanvas.width, height: currentCanvas.height };
+      }
+    }
+
+    const nextW = Math.max(320, Math.round(currentCanvas.width * 0.75));
+    const nextH = Math.max(320, Math.round(currentCanvas.height * 0.75));
+    const resized = document.createElement('canvas');
+    resized.width = nextW;
+    resized.height = nextH;
+    const ctx = resized.getContext('2d');
+    if (!ctx) break;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(currentCanvas, 0, 0, nextW, nextH);
+    currentCanvas = resized;
+  }
+
+  return {
+    dataUrl: currentCanvas.toDataURL('image/jpeg', 0.4),
+    width: currentCanvas.width,
+    height: currentCanvas.height,
+  };
+}
+
 /**
  * 클라이언트 사이드 이미지 리사이징 및 압축 함수
- * - 모바일 스마트폰의 고화질 원본 사진(5MB~15MB)을 브라우저 캔버스로 리사이징/압축하여
- *   150KB~250KB 수준으로 줄입니다.
- * - Firestore 1MB 문서 용량 제한을 안전하게 준수하며, 네트워크 전송 및 렌더링 속도를 극대화합니다.
+ * - 모바일 스마트폰의 고화질 원본 사진(5MB~15MB)을 브라우저 캔버스로 리사이징/압축
+ * - Storage 업로드 실패/타임아웃으로 Base64 저장 + E2EE 암호화(약 1.35배 증가)가 되더라도
+ *   Firestore 1MB(1,048,487 bytes) 단일 필드 제한을 절대 넘지 않도록 용량을 자동 상한 제한합니다.
  */
 export async function compressImage(
   file: File,
-  maxWidth = 1200,
-  maxHeight = 1200,
-  quality = 0.82
+  maxWidth = 1080,
+  maxHeight = 1080,
+  quality = 0.8
 ): Promise<CompressedImageResult> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -60,18 +98,18 @@ export async function compressImage(
         ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, width, height);
 
-        // JPEG 압축 (0.82 퀄리티: 감성 화질 유지 + 극적인 용량 절감)
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        // Firestore 1MB 제한(+E2EE 암호화 오버헤드) 안전 상한 내 JPEG 압축
+        const bounded = canvasToBoundedDataUrl(canvas, quality);
         const head = 'data:image/jpeg;base64,';
-        const base64Len = dataUrl.length - head.length;
+        const base64Len = bounded.dataUrl.length - head.length;
         const sizeBytes = Math.round((base64Len * 3) / 4);
         const sizeKb = Math.round(sizeBytes / 1024);
 
         resolve({
-          dataUrl,
+          dataUrl: bounded.dataUrl,
           sizeKb,
-          width,
-          height,
+          width: bounded.width,
+          height: bounded.height,
           fileName: file.name,
         });
       };
@@ -127,17 +165,17 @@ export async function compressDataUrl(
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, width, height);
 
-      const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+      const bounded = canvasToBoundedDataUrl(canvas, quality);
       const head = 'data:image/jpeg;base64,';
-      const base64Len = compressedDataUrl.length - head.length;
+      const base64Len = bounded.dataUrl.length - head.length;
       const sizeBytes = Math.round((base64Len * 3) / 4);
       const sizeKb = Math.round(sizeBytes / 1024);
 
       resolve({
-        dataUrl: compressedDataUrl,
+        dataUrl: bounded.dataUrl,
         sizeKb,
-        width,
-        height,
+        width: bounded.width,
+        height: bounded.height,
         fileName,
       });
     };
@@ -165,9 +203,9 @@ export async function uploadPhotoIfPossible(roomCode: string, dataUrl: string): 
       return await getDownloadURL(storageRef);
     })();
 
-    // 1.5초 타임아웃: 스토리지 권한 오류나 재시도로 무한 대기하는 현상을 완벽 차단
+    // 2.5초 타임아웃: 스토리지 권한 오류나 재시도로 무한 대기하는 현상을 차단
     const timeoutTask = new Promise<string>((_, reject) =>
-      setTimeout(() => reject(new Error('Storage upload timeout')), 1500)
+      setTimeout(() => reject(new Error('Storage upload timeout')), 2500)
     );
 
     return await Promise.race([uploadTask, timeoutTask]);
