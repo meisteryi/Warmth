@@ -1732,6 +1732,7 @@ export default function HomePage() {
         onClose={() => setIsMissionModalOpen(false)}
         mission={diary?.mission || INITIAL_DIARY.mission}
         onPassMission={handlePassMission}
+        diaryId={diary?.diaryId}
         diaryPhoto={diary?.photos && diary.photos.length > 0 ? diary.photos[0] : undefined}
         partnerName={partnerName}
       />

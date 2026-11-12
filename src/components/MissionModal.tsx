@@ -5,16 +5,50 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MissionData } from '@/types/diary';
 import { soundEngine } from '@/lib/audio';
 import confetti from 'canvas-confetti';
-import { Puzzle, Stamp, HelpCircle, Heart, X, Sparkles, Lightbulb, CheckCircle2, Loader2 } from 'lucide-react';
+import { Puzzle, Stamp, HelpCircle, Heart, Clock, X, Sparkles, Lightbulb, CheckCircle2, Loader2 } from 'lucide-react';
 import { verifyFlexibleQuizAnswer } from '@/lib/aiClient';
 import PhotoSlidingPuzzle from './PhotoSlidingPuzzle';
 import StampJigsawPuzzle from './StampJigsawPuzzle';
+
+const TELEPATHY_COOLDOWN_MS = 30_000;
+
+function readTelepathyCooldown(storageKey: string): { until: number; remainingSec: number; wrongSide: 'A' | 'B' | null } {
+  const now = Date.now();
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (raw) {
+      const parsed = JSON.parse(raw) as { until?: number; wrongSide?: 'A' | 'B' };
+      if (typeof parsed.until === 'number' && parsed.until > now) {
+        return {
+          until: parsed.until,
+          remainingSec: Math.ceil((parsed.until - now) / 1000),
+          wrongSide: parsed.wrongSide === 'A' || parsed.wrongSide === 'B' ? parsed.wrongSide : null,
+        };
+      }
+      localStorage.removeItem(storageKey);
+    }
+  } catch {
+    // ignore storage errors
+  }
+  return { until: 0, remainingSec: 0, wrongSide: null };
+}
+
+function saveTelepathyCooldown(storageKey: string, side: 'A' | 'B'): number {
+  const until = Date.now() + TELEPATHY_COOLDOWN_MS;
+  try {
+    localStorage.setItem(storageKey, JSON.stringify({ until, wrongSide: side }));
+  } catch {
+    // ignore storage errors
+  }
+  return until;
+}
 
 interface MissionModalProps {
   isOpen: boolean;
   onClose: () => void;
   mission: MissionData;
   onPassMission: (submissionText: string) => void;
+  diaryId?: string;
   diaryPhoto?: string;
   partnerName?: string;
 }
@@ -24,6 +58,7 @@ export default function MissionModal({
   onClose,
   mission,
   onPassMission,
+  diaryId,
   diaryPhoto = 'https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=600&q=80',
   partnerName = '상대방',
 }: MissionModalProps) {
@@ -46,6 +81,8 @@ export default function MissionModal({
   const [helpTrigger, setHelpTrigger] = useState(0);
   const [selectedTelepathySide, setSelectedTelepathySide] = useState<'A' | 'B' | null>(null);
   const [wrongTelepathySide, setWrongTelepathySide] = useState<'A' | 'B' | null>(null);
+  const [telepathyCooldownUntil, setTelepathyCooldownUntil] = useState<number>(0);
+  const [telepathyRemainingSec, setTelepathyRemainingSec] = useState<number>(0);
   const [prevOpenMission, setPrevOpenMission] = useState({ isOpen, mission });
 
   if (prevOpenMission.isOpen !== isOpen || prevOpenMission.mission !== mission) {
@@ -60,19 +97,13 @@ export default function MissionModal({
       setHelpTrigger(0);
       setSelectedTelepathySide(null);
       setWrongTelepathySide(null);
+      setTelepathyCooldownUntil(0);
+      setTelepathyRemainingSec(0);
     }
   }
 
   const modalScrollRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
-
-  // 모달이 열릴 때 스크롤 상단 초기화
-  useEffect(() => {
-    if (isOpen) {
-      modalScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
-      backdropRef.current?.scrollTo({ top: 0, behavior: 'instant' });
-    }
-  }, [isOpen, mission]);
 
   // 퀴즈 문제 및 정답 (작성자가 지정한 값 또는 기본값)
   const quizPrompt = mission.prompt || '저번 편지에서 내가 가장 행복했다고 말했던 순간이 언제였게?';
@@ -84,6 +115,43 @@ export default function MissionModal({
   const telepathyOptionA = mission.optionA || '따뜻한 유자차 한 잔';
   const telepathyOptionB = mission.optionB || '포근한 이불 속 휴식';
   const telepathyAnswerSide: 'A' | 'B' = mission.quizAnswer === 'B' ? 'B' : 'A';
+  const telepathyCooldownKey = `warmth_telepathy_cooldown_${diaryId || `${telepathyPrompt}::${telepathyOptionA}::${telepathyOptionB}`}`;
+  const isTelepathyLocked = assignedMode === 'TELEPATHY' && telepathyRemainingSec > 0;
+
+  // 모달이 열릴 때 스크롤 상단 초기화
+  useEffect(() => {
+    if (isOpen) {
+      modalScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+      backdropRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [isOpen, mission]);
+
+  // 텔레파시 30초 재시도 대기 타이머 동기화 (모달 닫았다 열어도 쿨타임 유지)
+  useEffect(() => {
+    if (!isOpen || assignedMode !== 'TELEPATHY') return;
+
+    const syncCooldown = () => {
+      const stored = readTelepathyCooldown(telepathyCooldownKey);
+      const now = Date.now();
+      const effectiveUntil = Math.max(telepathyCooldownUntil, stored.until);
+      const remaining = effectiveUntil > now ? Math.ceil((effectiveUntil - now) / 1000) : 0;
+
+      setTelepathyRemainingSec(remaining);
+      if (stored.wrongSide) {
+        setWrongTelepathySide((prev) => prev ?? stored.wrongSide);
+      }
+      if (remaining === 0 && telepathyCooldownUntil > 0) {
+        setTelepathyCooldownUntil(0);
+      }
+    };
+
+    const initTimer = window.setTimeout(syncCooldown, 0);
+    const interval = window.setInterval(syncCooldown, 500);
+    return () => {
+      window.clearTimeout(initTimer);
+      window.clearInterval(interval);
+    };
+  }, [isOpen, assignedMode, telepathyCooldownKey, telepathyCooldownUntil]);
 
   // 1. 사진 퍼즐 클리어
   const handlePhotoPuzzleSolved = () => {
@@ -124,15 +192,23 @@ export default function MissionModal({
   };
 
   // 텔레파시 2지선다 선택 핸들러
-  const handleSelectTelepathy = (side: 'A' | 'B') => {
+  const handleSelectTelepathy = (side: 'A' | 'B', bypassCooldown = false) => {
     if (isSuccess || isCheckingAnswer) return;
+    if (!bypassCooldown && isTelepathyLocked) return;
 
     const chosenText = side === 'A' ? telepathyOptionA : telepathyOptionB;
     if (side === telepathyAnswerSide) {
       setSelectedTelepathySide(side);
       setWrongTelepathySide(null);
+      setTelepathyCooldownUntil(0);
+      setTelepathyRemainingSec(0);
       setErrorMsg('');
       setIsSuccess(true);
+      try {
+        localStorage.removeItem(telepathyCooldownKey);
+      } catch {
+        // ignore
+      }
       soundEngine.playMissionPassChime();
       confetti({
         particleCount: 55,
@@ -148,14 +224,17 @@ export default function MissionModal({
       }, 1100);
     } else {
       soundEngine.playTileSlideSound();
+      const until = saveTelepathyCooldown(telepathyCooldownKey, side);
       setWrongTelepathySide(side);
-      setErrorMsg('앗, 이번엔 다른 쪽을 골랐어요! 나머지 선택지로 마음을 맞춰볼까요? 💭');
+      setTelepathyCooldownUntil(until);
+      setTelepathyRemainingSec(Math.ceil(TELEPATHY_COOLDOWN_MS / 1000));
+      setErrorMsg('');
     }
   };
 
   // 하단 '도와줘!' 긴급 해제 버튼 핸들러
   const handleHelpMe = () => {
-    if (isSuccess || isCheckingAnswer || helpTrigger > 0) return;
+    if (isSuccess || isCheckingAnswer || helpTrigger > 0 || isTelepathyLocked) return;
 
     if (assignedMode === 'PHOTO_PUZZLE') {
       soundEngine.playTileSlideSound();
@@ -418,18 +497,23 @@ export default function MissionModal({
                   ]).map(({ side, label }) => {
                     const isPickedSuccess = isSuccess && selectedTelepathySide === side;
                     const isMarkedWrong = wrongTelepathySide === side;
+                    const isButtonDisabled = isSuccess || isMarkedWrong || isTelepathyLocked;
 
                     return (
                       <button
                         key={side}
                         type="button"
                         onClick={() => handleSelectTelepathy(side)}
-                        disabled={isSuccess || isMarkedWrong}
-                        className={`group relative text-left p-4 rounded-2xl border-2 transition-all cursor-pointer active:scale-[0.98] disabled:cursor-default ${
+                        disabled={isButtonDisabled}
+                        className={`group relative text-left p-4 rounded-2xl border-2 transition-all ${
+                          isButtonDisabled ? 'cursor-not-allowed' : 'cursor-pointer active:scale-[0.98]'
+                        } ${
                           isPickedSuccess
                             ? 'bg-emerald-50 border-emerald-500 text-emerald-950 shadow-md'
                             : isMarkedWrong
                             ? 'bg-stone-100/80 border-stone-200 text-stone-400 opacity-65'
+                            : isTelepathyLocked
+                            ? 'bg-stone-50 border-stone-200 text-stone-400 opacity-70'
                             : 'bg-white hover:bg-rose-50/70 border-[#E8DFC8] hover:border-[#8C2131]/50 text-stone-900 shadow-xs hover:shadow-md'
                         }`}
                       >
@@ -438,7 +522,7 @@ export default function MissionModal({
                             className={`w-7 h-7 rounded-full text-xs font-sans-ui font-bold flex items-center justify-center shrink-0 transition-colors ${
                               isPickedSuccess
                                 ? 'bg-emerald-600 text-white'
-                                : isMarkedWrong
+                                : isMarkedWrong || isTelepathyLocked
                                 ? 'bg-stone-200 text-stone-400'
                                 : 'bg-[#6B1724]/10 text-[#6B1724] group-hover:bg-[#6B1724] group-hover:text-amber-50'
                             }`}
@@ -451,7 +535,7 @@ export default function MissionModal({
                             </p>
                             {isMarkedWrong && (
                               <p className="text-[11px] font-sans-ui text-stone-400 mt-1">
-                                다른 선택지도 확인해 볼까요?
+                                앗, 이번엔 이쪽이 아니었어요
                               </p>
                             )}
                             {isPickedSuccess && (
@@ -465,6 +549,21 @@ export default function MissionModal({
                     );
                   })}
                 </div>
+
+                {isTelepathyLocked && !isSuccess && (
+                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200/80 flex items-center justify-center gap-2 text-xs font-serif-warm text-[#8C2131]">
+                    <Clock className="w-4 h-4 text-rose-600 shrink-0 animate-pulse" />
+                    <span>
+                      앗, 마음이 살짝 엇갈렸어요! <strong className="font-sans-ui tabular-nums">{telepathyRemainingSec}초</strong> 뒤에 다시 선택할 수 있어요.
+                    </span>
+                  </div>
+                )}
+
+                {!isTelepathyLocked && wrongTelepathySide && !isSuccess && (
+                  <p className="text-xs text-[#8C2131] font-serif-warm text-center">
+                    이제 남은 선택지로 마음을 맞춰볼까요? 💭
+                  </p>
+                )}
 
                 {errorMsg && !isSuccess && (
                   <p className="text-xs text-[#9C2A3B] font-serif-warm text-center animate-pulse">
@@ -487,13 +586,16 @@ export default function MissionModal({
                 {assignedMode === 'PHOTO_PUZZLE' && '퍼즐 맞추기가 어렵다면?'}
                 {assignedMode === 'STAMP_PUZZLE' && '우표 맞추기가 번거롭다면?'}
                 {assignedMode === 'SURPRISE_QUIZ' && '퀴즈 정답이 기억나지 않는다면?'}
-                {assignedMode === 'TELEPATHY' && '상대의 마음을 도저히 모르겠다면?'}
+                {assignedMode === 'TELEPATHY' &&
+                  (isTelepathyLocked
+                    ? `재시도 대기 중 (${telepathyRemainingSec}초 후 해제)`
+                    : '상대의 마음을 도저히 모르겠다면?')}
               </span>
               <button
                 type="button"
                 onClick={handleHelpMe}
-                disabled={isSuccess || isCheckingAnswer || helpTrigger > 0}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-serif-warm font-medium text-amber-900 bg-amber-100/80 hover:bg-amber-200 border border-amber-300/80 shadow-2xs transition-all active:scale-95 disabled:opacity-40 cursor-pointer"
+                disabled={isSuccess || isCheckingAnswer || helpTrigger > 0 || isTelepathyLocked}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-serif-warm font-medium text-amber-900 bg-amber-100/80 hover:bg-amber-200 border border-amber-300/80 shadow-2xs transition-all active:scale-95 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
               >
                 <Sparkles className="w-3.5 h-3.5 text-amber-700" />
                 <span>도와줘!</span>
