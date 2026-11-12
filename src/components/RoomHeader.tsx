@@ -32,6 +32,11 @@ import { Capacitor } from '@capacitor/core';
 import { soundEngine } from '@/lib/audio';
 import { useLanguage } from '@/lib/i18n';
 import EulaModal from '@/components/EulaModal';
+import {
+  JarItemStyle,
+  getDefaultJarItemStyle,
+  setDefaultJarItemStyle,
+} from '@/features/memory-jar-3d/types';
 
 import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
 
@@ -97,6 +102,7 @@ export default function RoomHeader({
   const [copiedCode, setCopiedCode] = useState(false);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
   const [volume, setVolume] = useState<number>(0.8);
+  const [jarItemStyle, setJarItemStyle] = useState<JarItemStyle>(() => getDefaultJarItemStyle());
   const [isEulaOpen, setIsEulaOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -489,6 +495,46 @@ export default function RoomHeader({
                   }`}
                 >
                   English
+                </button>
+              </div>
+            </div>
+
+            {/* 5. 유리병 기본 담김 스타일 (실링 왁스 / 유리구슬) */}
+            <div className="px-3.5 py-2.5 border-t border-[#E8DFD3]/80 flex items-center justify-between">
+              <span className="flex items-center gap-2 text-xs font-medium text-stone-800">
+                <GlassJarIcon className="w-3.5 h-3.5 text-[#6B1724]" />
+                <span>{language === 'en' ? 'Jar Default' : '유리병 기본'}</span>
+              </span>
+              <div className="inline-flex rounded-lg border border-stone-200 bg-stone-100 p-0.5 text-[11px] font-sans-ui">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setJarItemStyle('wax');
+                    setDefaultJarItemStyle('wax');
+                    soundEngine.playTileSlideSound();
+                  }}
+                  className={`px-2 py-0.5 rounded-md font-semibold cursor-pointer transition-all ${
+                    jarItemStyle === 'wax'
+                      ? 'bg-white text-[#6B1724] shadow-xs'
+                      : 'text-stone-500 hover:text-stone-800'
+                  }`}
+                >
+                  {language === 'en' ? 'Wax' : '실링 왁스'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setJarItemStyle('marble');
+                    setDefaultJarItemStyle('marble');
+                    soundEngine.playTileSlideSound();
+                  }}
+                  className={`px-2 py-0.5 rounded-md font-semibold cursor-pointer transition-all ${
+                    jarItemStyle === 'marble'
+                      ? 'bg-white text-[#6B1724] shadow-xs'
+                      : 'text-stone-500 hover:text-stone-800'
+                  }`}
+                >
+                  {language === 'en' ? 'Marble' : '유리구슬'}
                 </button>
               </div>
             </div>

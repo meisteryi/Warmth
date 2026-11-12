@@ -12,8 +12,10 @@ import * as THREE from 'three';
 import { WaxPieceData, JarRenderOptions, SAMPLE_WAX_PIECES } from './types';
 import { createGlassJarGroup } from './jarGeometry';
 import { createWaxPiecesGroup } from './waxGeometry';
+import { createGlassMarblesGroup } from './marbleGeometry';
 import { SunlightSceneManager } from './SunlightScene';
 import { JarPhysicsEngine } from './waxPhysics';
+import { MarblePhysicsEngine } from './marblePhysics';
 import { soundEngine } from '@/lib/audio';
 
 export interface MemoryJarCanvasHandle {
@@ -113,8 +115,9 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
     const [retryKey, setRetryKey] = useState(0);
 
     // 물리 엔진 참조
-    const physicsEngineRef = useRef<JarPhysicsEngine | null>(null);
+    const physicsEngineRef = useRef<JarPhysicsEngine | MarblePhysicsEngine | null>(null);
     const hoveredMeshRef = useRef<THREE.Mesh | null>(null);
+    const itemStyle = options.itemStyle ?? 'wax';
 
     // 옵션 최신 참조 유지 (불필요한 전체 씬 리렌더링/파괴 방지)
     const optionsRef = useRef(options);
@@ -201,27 +204,38 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
       slideTransition: handleSlideTransition,
     }));
 
-    // pieces 변경 시 씬 전체를 파괴하지 않고 내부 왁스 그룹만 안전하게 갱신
+    // pieces 또는 itemStyle(왁스/구슬) 변경 시 씬 전체를 파괴하지 않고 내부 그룹만 안전하게 갱신
     useEffect(() => {
       if (!jarGroupRef.current) return;
       const jarGroup = jarGroupRef.current;
 
-      // 이전 왁스 그룹 제거
+      // 이전 내용물 그룹 제거
       if (waxGroupRef.current) {
         jarGroup.remove(waxGroupRef.current);
       }
 
-      // 새 왁스 그룹 생성 및 추가
-      const { waxGroup, waxMeshes } = createWaxPiecesGroup(pieces);
-      waxGroupRef.current = waxGroup;
-      waxMeshesRef.current = waxMeshes;
-      jarGroup.add(waxGroup);
+      if (itemStyle === 'marble') {
+        const { marbleGroup, marbleMeshes, marbleObjects } = createGlassMarblesGroup(pieces);
+        waxGroupRef.current = marbleGroup;
+        waxMeshesRef.current = marbleMeshes;
+        jarGroup.add(marbleGroup);
 
-      // 물리 엔진 바디 재동기화
-      if (physicsEngineRef.current) {
-        physicsEngineRef.current.initBodies(waxMeshes);
+        if (physicsEngineRef.current instanceof MarblePhysicsEngine) {
+          physicsEngineRef.current.initBodies(marbleObjects);
+        } else {
+          physicsEngineRef.current = new MarblePhysicsEngine(marbleObjects);
+        }
       } else {
-        physicsEngineRef.current = new JarPhysicsEngine(waxMeshes);
+        const { waxGroup, waxMeshes } = createWaxPiecesGroup(pieces);
+        waxGroupRef.current = waxGroup;
+        waxMeshesRef.current = waxMeshes;
+        jarGroup.add(waxGroup);
+
+        if (physicsEngineRef.current instanceof JarPhysicsEngine) {
+          physicsEngineRef.current.initBodies(waxMeshes);
+        } else {
+          physicsEngineRef.current = new JarPhysicsEngine(waxMeshes);
+        }
       }
 
       // 현재 프리뷰 팝업이 열려있다면 새로 갱신된 pieces에서 1:1 매칭되는 최신 일기 데이터로 자동 동기화
@@ -232,7 +246,7 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
         );
         return matching || prev;
       });
-    }, [pieces]);
+    }, [pieces, itemStyle]);
 
     // 메인 Three.js 캔버스 렌더러 & 씬 라이프사이클 (마운트 시 단 1회만 초기화)
     useEffect(() => {
@@ -272,8 +286,8 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.05;
 
-        // 조명 & 씬 매니저
-        sceneManager = new SunlightSceneManager(width, height);
+        // 조명 & 씬 매니저 (PMREM 스튜디오 환경맵 포함)
+        sceneManager = new SunlightSceneManager(width, height, renderer);
         sceneManagerRef.current = sceneManager;
 
         // 단일 겹 유리병 생성 (코르크 마개 열림/닫힘 지원)
@@ -281,17 +295,22 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
         jarGroupRef.current = jarGroup;
         setCorkOpenRef.current = setCorkOpen;
 
-        // 초기 왁스 조각 그룹 생성
-        const { waxGroup, waxMeshes } = createWaxPiecesGroup(pieces);
-        waxGroupRef.current = waxGroup;
-        waxMeshesRef.current = waxMeshes;
-
-        jarGroup.add(waxGroup);
-        sceneManager.scene.add(jarGroup);
-
-        // 왁스 물리 시뮬레이션 엔진 초기화
-        const physics = new JarPhysicsEngine(waxMeshes);
-        physicsEngineRef.current = physics;
+        // 초기 내용물 그룹 생성 (실링 왁스 vs 유리구슬)
+        if ((optionsRef.current.itemStyle ?? 'wax') === 'marble') {
+          const { marbleGroup, marbleMeshes, marbleObjects } = createGlassMarblesGroup(pieces);
+          waxGroupRef.current = marbleGroup;
+          waxMeshesRef.current = marbleMeshes;
+          jarGroup.add(marbleGroup);
+          sceneManager.scene.add(jarGroup);
+          physicsEngineRef.current = new MarblePhysicsEngine(marbleObjects);
+        } else {
+          const { waxGroup, waxMeshes } = createWaxPiecesGroup(pieces);
+          waxGroupRef.current = waxGroup;
+          waxMeshesRef.current = waxMeshes;
+          jarGroup.add(waxGroup);
+          sceneManager.scene.add(jarGroup);
+          physicsEngineRef.current = new JarPhysicsEngine(waxMeshes);
+        }
 
         let lastTime = performance.now();
 
@@ -351,14 +370,15 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
             slideTiltZRef.current = 0;
           }
 
-          // 물리 시뮬레이션 갱신 (흔들림 및 연속 텀블링 낙하)
-          if (physics) {
-            physics.update(deltaTime);
+          // 물리 시뮬레이션 갱신 (흔들림 및 연속 텀블링 낙하 — 왁스/구슬 전환 시에도 최신 엔진 참조)
+          const activePhysics = physicsEngineRef.current;
+          if (activePhysics) {
+            activePhysics.update(deltaTime);
 
             // 병 자체의 탄성 흔들림 오프셋 + 슬라이드 미끄러짐 반영
-            jarGroup.position.x = physics.shakeOffset.x + slideOffsetXRef.current;
-            jarGroup.position.y = -2.35 + physics.shakeOffset.y;
-            jarGroup.position.z = physics.shakeOffset.z;
+            jarGroup.position.x = activePhysics.shakeOffset.x + slideOffsetXRef.current;
+            jarGroup.position.y = -2.35 + activePhysics.shakeOffset.y;
+            jarGroup.position.z = activePhysics.shakeOffset.z;
           } else {
             jarGroup.position.x = slideOffsetXRef.current;
             jarGroup.position.y = -2.35;

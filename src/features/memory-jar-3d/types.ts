@@ -18,12 +18,36 @@ export interface WaxPieceData {
   diary?: DiaryData; // 연결된 DiaryData 원본
 }
 
+export type JarItemStyle = 'wax' | 'marble';
+
+const JAR_ITEM_STYLE_STORAGE_KEY = 'warmth_jar_item_style';
+
+export function getDefaultJarItemStyle(): JarItemStyle {
+  if (typeof window === 'undefined') return 'wax';
+  try {
+    const saved = localStorage.getItem(JAR_ITEM_STYLE_STORAGE_KEY);
+    return saved === 'marble' ? 'marble' : 'wax';
+  } catch {
+    return 'wax';
+  }
+}
+
+export function setDefaultJarItemStyle(style: JarItemStyle): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(JAR_ITEM_STYLE_STORAGE_KEY, style);
+  } catch {
+    // ignore storage errors
+  }
+}
+
 export interface JarRenderOptions {
   enableSunlightParticles?: boolean; // 햇빛 먼지 입자 렌더링 여부
   enableGyroscope?: boolean; // 스마트폰 기울기 센서 연동 여부
   soundEnabled?: boolean; // 유리병/왁스 마찰 사운드
   autoRotate?: boolean; // 천천히 자동 회전 쇼케이스 모드
   isCorkOpen?: boolean; // 코르크 마개 열림 여부 (현재 달: 열림, 과거 달: 닫힘)
+  itemStyle?: JarItemStyle; // 유리병 내용물 스타일 (실링 왁스 vs 유리구슬)
 }
 
 export const SAMPLE_WAX_PIECES: WaxPieceData[] = [

@@ -4,9 +4,10 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { ArrowLeft, Shuffle, ChevronLeft, ChevronRight, ChevronDown, Calendar } from 'lucide-react';
 import { DiaryData, WAX_COLORS, WEATHER_STAMPS, isDiaryWrittenByMe } from '@/types/diary';
 import { getRoomDiariesFromFirestore, getCachedRoomDiaries, getOrCreateUserId } from '@/lib/roomService';
-import { WaxPieceData } from './types';
+import { WaxPieceData, JarItemStyle, getDefaultJarItemStyle } from './types';
 import { MemoryJarCanvas, MemoryJarCanvasHandle } from './MemoryJarCanvas';
 import { hapticFeedback } from '@/lib/haptics';
+import { soundEngine } from '@/lib/audio';
 
 export const DEMO_FALLBACK_DIARIES: DiaryData[] = [
   {
@@ -609,6 +610,9 @@ export default function MemoryJarView({
     });
   }, [currentJar, currentUserName, partnerName]);
 
+  // 병 내용물 스타일 (설정 탭 기본값으로 초기화, 우측 상단 슬라이딩 버튼으로 언제든 전환)
+  const [itemStyle, setItemStyle] = useState<JarItemStyle>(() => getDefaultJarItemStyle());
+
   // 메모이제이션된 3D 렌더 옵션 (최신 달: 마개 열림 / 과거 달: 마개 닫힘)
   const isCorkOpen = currentJar?.isLatest ?? true;
   const jarRenderOptions = useMemo(
@@ -617,8 +621,9 @@ export default function MemoryJarView({
       enableSunlightParticles: false,
       enableGyroscope: false,
       isCorkOpen,
+      itemStyle,
     }),
-    [isCorkOpen]
+    [isCorkOpen, itemStyle]
   );
 
   return (
@@ -643,6 +648,50 @@ export default function MemoryJarView({
           <ArrowLeft className="w-4 h-4 text-stone-600" />
           <span>홈으로 돌아가기</span>
         </button>
+      </div>
+
+      {/* 우측 상단: [왁스 | 구슬] 슬라이딩 전환 버튼 */}
+      <div className="absolute top-4 right-4 z-20">
+        <div
+          role="group"
+          aria-label="유리병 내용물 전환"
+          className="relative grid grid-cols-2 w-[124px] p-1 rounded-full bg-white/90 border border-stone-200/90 shadow-sm backdrop-blur-md"
+        >
+          <span
+            aria-hidden="true"
+            className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-full bg-[#6B1724] shadow-sm transition-transform duration-200 ease-out ${
+              itemStyle === 'marble' ? 'translate-x-full' : 'translate-x-0'
+            }`}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              if (itemStyle === 'wax') return;
+              setItemStyle('wax');
+              soundEngine.playTileSlideSound();
+              hapticFeedback.light();
+            }}
+            className={`relative z-10 py-1.5 text-[11px] font-serif-warm font-bold text-center rounded-full transition-colors cursor-pointer ${
+              itemStyle === 'wax' ? 'text-amber-50' : 'text-stone-600 hover:text-stone-900'
+            }`}
+          >
+            왁스
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (itemStyle === 'marble') return;
+              setItemStyle('marble');
+              soundEngine.playTileSlideSound();
+              hapticFeedback.light();
+            }}
+            className={`relative z-10 py-1.5 text-[11px] font-serif-warm font-bold text-center rounded-full transition-colors cursor-pointer ${
+              itemStyle === 'marble' ? 'text-amber-50' : 'text-stone-600 hover:text-stone-900'
+            }`}
+          >
+            구슬
+          </button>
+        </div>
       </div>
 
 
@@ -823,7 +872,7 @@ export default function MemoryJarView({
               title="병을 흔들어 묻혀 있는 왁스들을 물리 엔진으로 섞습니다 (1초에 1번)"
             >
               <Shuffle className="w-3.5 h-3.5 text-amber-300" />
-              <span>병 흔들기 (왁스 섞기)</span>
+              <span>{itemStyle === 'marble' ? '병 흔들기 (구슬 섞기)' : '병 흔들기 (왁스 섞기)'}</span>
             </button>
           )}
         </div>

@@ -1,5 +1,49 @@
 import * as THREE from 'three';
 
+function createStudioEnvironment(renderer: THREE.WebGLRenderer): THREE.WebGLRenderTarget {
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  pmrem.compileEquirectangularShader();
+
+  const envScene = new THREE.Scene();
+  envScene.background = new THREE.Color(0x2a241e);
+
+  const mainPanel = new THREE.Mesh(
+    new THREE.PlaneGeometry(10, 10),
+    new THREE.MeshBasicMaterial({ color: 0xfffaf0, side: THREE.DoubleSide })
+  );
+  mainPanel.position.set(6, 9, 6);
+  mainPanel.lookAt(0, 0, 0);
+  envScene.add(mainPanel);
+
+  const leftPanel = new THREE.Mesh(
+    new THREE.PlaneGeometry(8, 10),
+    new THREE.MeshBasicMaterial({ color: 0xeaf6ff, side: THREE.DoubleSide })
+  );
+  leftPanel.position.set(-9, 4, 3);
+  leftPanel.lookAt(0, 0, 0);
+  envScene.add(leftPanel);
+
+  const frontDot = new THREE.Mesh(
+    new THREE.CircleGeometry(1.8, 24),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+  );
+  frontDot.position.set(-2.5, 6.5, 8);
+  frontDot.lookAt(0, 0, 0);
+  envScene.add(frontDot);
+
+  const floorBounce = new THREE.Mesh(
+    new THREE.PlaneGeometry(16, 16),
+    new THREE.MeshBasicMaterial({ color: 0x6b4c35, side: THREE.DoubleSide })
+  );
+  floorBounce.position.set(0, -7, 0);
+  floorBounce.rotation.x = -Math.PI / 2;
+  envScene.add(floorBounce);
+
+  const envRT = pmrem.fromScene(envScene, 0.035);
+  pmrem.dispose();
+  return envRT;
+}
+
 /**
  * 앤틱한 원목 책상(Antique Wooden Desk) 및 따스한 오후 햇살 조명 환경 매니저
  * - 위에서 내려다보는 시점(High-Angle Perspective)에 최적화된 카메라 앵글
@@ -13,10 +57,19 @@ export class SunlightSceneManager {
   public ambientLight: THREE.AmbientLight;
   public deskMesh: THREE.Mesh;
   public woodTexture?: THREE.CanvasTexture;
+  private envRenderTarget?: THREE.WebGLRenderTarget;
 
-  constructor(containerWidth: number, containerHeight: number) {
+  constructor(containerWidth: number, containerHeight: number, renderer?: THREE.WebGLRenderer) {
     // 1. 씬 생성
     this.scene = new THREE.Scene();
+    if (renderer) {
+      try {
+        this.envRenderTarget = createStudioEnvironment(renderer);
+        this.scene.environment = this.envRenderTarget.texture;
+      } catch {
+        // fallback gracefully if PMREM fails on older devices
+      }
+    }
 
     // 2. 카메라 설정 (코르크 마개부터 책상까지 시야 중앙에 균형 있게 배치)
     this.camera = new THREE.PerspectiveCamera(
@@ -188,6 +241,9 @@ export class SunlightSceneManager {
     try {
       if (this.woodTexture) {
         this.woodTexture.dispose();
+      }
+      if (this.envRenderTarget) {
+        this.envRenderTarget.dispose();
       }
       if (this.deskMesh) {
         this.deskMesh.geometry?.dispose();
