@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Cake, X, Check } from 'lucide-react';
 import { soundEngine } from '@/lib/audio';
