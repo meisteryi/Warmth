@@ -53,8 +53,8 @@ export function createWaxPiecesGroup(pieces: WaxPieceData[]): {
 
   const waxMeshes: THREE.Mesh[] = [];
 
-  // 사용자 요청: 실링 왁스 크기를 1.5배로 확대 (0.7 * 1.5 = 1.05)
-  const WAX_SCALE = 1.05;
+  // 사용자 요청: 실링 왁스 크기를 직전(1.05)의 0.7배로 조정 (1.05 * 0.7 = 0.735)
+  const WAX_SCALE = 0.735;
 
   // 병 안쪽 반경과 안전 경계 계산 (유리병 내부 바닥 Y=0.08 밀착)
   const safeMaxR = 0.74; // 병 유리 벽면과 충돌하지 않는 최대 중심 반경 (innerRadius 1.35 고려)
