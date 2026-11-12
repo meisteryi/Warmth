@@ -53,13 +53,13 @@ export function createWaxPiecesGroup(pieces: WaxPieceData[]): {
 
   const waxMeshes: THREE.Mesh[] = [];
 
-  // 사용자 요청: 실링 왁스 크기를 기존의 0.7배로 축소
-  const WAX_SCALE = 0.7;
+  // 사용자 요청: 실링 왁스 크기를 1.5배로 확대 (0.7 * 1.5 = 1.05)
+  const WAX_SCALE = 1.05;
 
   // 병 안쪽 반경과 안전 경계 계산 (유리병 내부 바닥 Y=0.08 밀착)
-  const safeMaxR = 0.86; // 병 유리 벽면과 충돌하지 않는 최대 중심 반경 (innerRadius 1.35 고려)
-  const floorLimit = 0.14; // 병 바닥 바로 위에 닿는 실질적 최하단 중심 Y (두께 0.11 고려)
-  const baseHeight = 0.14;
+  const safeMaxR = 0.74; // 병 유리 벽면과 충돌하지 않는 최대 중심 반경 (innerRadius 1.35 고려)
+  const floorLimit = 0.18; // 병 바닥 바로 위에 닿는 실질적 최하단 중심 Y
+  const baseHeight = 0.18;
 
   pieces.forEach((piece, index) => {
     // 사용자의 요청에 따라 모든 왁스를 온전하고 매끄러운 원형 실링 왁스 인장 코인으로 통일 (0.7배 크기)

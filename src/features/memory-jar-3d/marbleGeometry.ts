@@ -6,7 +6,7 @@ function createTwistedVaneGeometry(
   twistAmount = 1.15,
   archOffset = 0.22
 ): THREE.BufferGeometry {
-  const segU = 22;
+  const segU = 18;
   const segV = 8;
 
   const positions: number[] = [];
@@ -27,7 +27,8 @@ function createTwistedVaneGeometry(
 
     for (let iv = 0; iv <= segV; iv++) {
       const v = iv / segV;
-      const radial = v * maxReach;
+      // -1..+1 대칭 폭으로 단일 리본 1개가 구슬 중심을 우아하게 가로지름
+      const radial = (v * 2 - 1) * maxReach;
       const cupCurve = Math.sin(v * Math.PI) * archOffset * radius * profile;
 
       const x = radial * cosA - cupCurve * sinA;
@@ -59,15 +60,11 @@ function createTwistedVaneGeometry(
 }
 
 let sharedOuterSphereGeo: THREE.SphereGeometry | null = null;
-let sharedBubbleGeo: THREE.SphereGeometry | null = null;
 let sharedVaneGeos: THREE.BufferGeometry[] | null = null;
 
 function ensureSharedGeometries() {
   if (!sharedOuterSphereGeo) {
-    sharedOuterSphereGeo = new THREE.SphereGeometry(1, 32, 32);
-  }
-  if (!sharedBubbleGeo) {
-    sharedBubbleGeo = new THREE.SphereGeometry(1, 10, 10);
+    sharedOuterSphereGeo = new THREE.SphereGeometry(1, 28, 28);
   }
   if (!sharedVaneGeos) {
     sharedVaneGeos = [
@@ -79,76 +76,43 @@ function ensureSharedGeometries() {
 }
 
 /**
- * 사용자가 지정한 실링 왁스 색상을 구슬 내부 S-커브 리본 3가지 톤으로 변환
+ * 사용자가 지정한 실링 왁스 단일 색상 반환
  */
-function buildWaxColorRibbonTriad(hexColor: string): THREE.Color[] {
-  let base: THREE.Color;
+function parseWaxColor(hexColor: string): THREE.Color {
   try {
-    base = new THREE.Color(hexColor || '#6B1724');
+    return new THREE.Color(hexColor || '#6B1724');
   } catch {
-    base = new THREE.Color('#6B1724');
+    return new THREE.Color('#6B1724');
   }
-
-  const highlight = base.clone().lerp(new THREE.Color(0xffffff), 0.34);
-  const deepAccent = base.clone().offsetHSL(0.03, 0.08, -0.08);
-  return [base, highlight, deepAccent];
 }
 
 export function createGlassMarble(
   piece: WaxPieceData,
   index: number,
-  radius = 0.31
+  radius = 0.4425
 ): { group: THREE.Group; outerMesh: THREE.Mesh } {
   ensureSharedGeometries();
 
-  const ribbonColors = buildWaxColorRibbonTriad(piece.color);
+  const singleColor = parseWaxColor(piece.color);
   const marbleGroup = new THREE.Group();
   marbleGroup.name = `GlassMarble_${piece.id}`;
 
-  const vaneGroup = new THREE.Group();
-  const baseAngles = [0, (Math.PI * 2) / 3, (Math.PI * 4) / 3];
+  // 구슬 안쪽은 사용자가 선택한 단일 색상의 오브젝트 1개만 배치해 그래픽 부하 최소화
   const vaneGeo = sharedVaneGeos![index % sharedVaneGeos!.length];
-
-  ribbonColors.forEach((ribbonColor, idx) => {
-    const vaneMat = new THREE.MeshStandardMaterial({
-      color: ribbonColor,
-      emissive: ribbonColor,
-      emissiveIntensity: 0.24,
-      roughness: 0.22,
-      metalness: 0.04,
-      side: THREE.DoubleSide,
-    });
-    const vaneMesh = new THREE.Mesh(vaneGeo, vaneMat);
-    vaneMesh.scale.setScalar(radius);
-    vaneMesh.rotation.y = baseAngles[idx] + ((index * 0.37) % 1.0);
-    vaneMesh.rotation.z = (idx - 1) * 0.14;
-    vaneMesh.renderOrder = 1;
-    vaneGroup.add(vaneMesh);
+  const vaneMat = new THREE.MeshStandardMaterial({
+    color: singleColor,
+    emissive: singleColor,
+    emissiveIntensity: 0.25,
+    roughness: 0.22,
+    metalness: 0.04,
+    side: THREE.DoubleSide,
   });
-
-  const bubbleMat = new THREE.MeshPhysicalMaterial({
-    color: 0xffffff,
-    emissive: 0xdffaf4,
-    emissiveIntensity: 0.55,
-    roughness: 0.05,
-    transparent: true,
-    opacity: 0.85,
-  });
-
-  const bubbleCount = 5;
-  for (let b = 0; b < bubbleCount; b++) {
-    const bMesh = new THREE.Mesh(sharedBubbleGeo!, bubbleMat);
-    const br = radius * (0.02 + ((index + b) % 3) * 0.008);
-    const angle = (b / bubbleCount) * Math.PI * 2 + index * 1.1;
-    const dist = radius * (0.28 + ((b * 17 + index) % 5) * 0.08);
-    const by = (((b * 23 + index * 7) % 11) / 10 - 0.5) * radius * 0.9;
-    bMesh.scale.setScalar(br);
-    bMesh.position.set(Math.cos(angle) * dist, by, Math.sin(angle) * dist);
-    bMesh.renderOrder = 2;
-    vaneGroup.add(bMesh);
-  }
-
-  marbleGroup.add(vaneGroup);
+  const vaneMesh = new THREE.Mesh(vaneGeo, vaneMat);
+  vaneMesh.scale.setScalar(radius);
+  vaneMesh.rotation.y = ((index * 0.73) % (Math.PI * 2));
+  vaneMesh.rotation.z = ((index % 3) - 1) * 0.16;
+  vaneMesh.renderOrder = 1;
+  marbleGroup.add(vaneMesh);
 
   const outerMat = new THREE.MeshPhysicalMaterial({
     color: 0xc4efe4,
@@ -197,17 +161,17 @@ export function createGlassMarblesGroup(pieces: WaxPieceData[]): {
 
   pieces.forEach((piece, idx) => {
     const sizeScale = Math.max(0.85, Math.min(1.15, piece.size || 1));
-    const radius = 0.295 * sizeScale;
+    const radius = 0.295 * 1.5 * sizeScale;
     const { group, outerMesh } = createGlassMarble(piece, idx, radius);
 
-    const layer = Math.floor(idx / 9);
-    const inLayer = idx % 9;
+    const layer = Math.floor(idx / 5);
+    const inLayer = idx % 5;
     const angle = inLayer * 2.39996 + layer * 0.7;
-    const ringRadius = inLayer === 0 ? 0.08 : 0.36 + Math.sqrt(inLayer / 9) * 0.75;
+    const ringRadius = inLayer === 0 ? 0.06 : 0.48 + Math.sqrt(inLayer / 5) * 0.52;
 
     group.position.set(
       Math.cos(angle) * ringRadius,
-      0.42 + layer * 0.62 + (idx % 3) * 0.05,
+      0.55 + layer * 0.88 + (idx % 3) * 0.05,
       Math.sin(angle) * ringRadius
     );
 
