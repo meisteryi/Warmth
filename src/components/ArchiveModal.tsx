@@ -38,8 +38,7 @@ import {
   MessageSquareQuote,
   Camera,
   TrendingUp,
-  Loader2,
-  ShieldCheck
+  Loader2
 } from 'lucide-react';
 import { soundEngine } from '@/lib/audio';
 import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';

@@ -15,7 +15,6 @@ import {
   Volume2,
   Volume1,
   VolumeX,
-  Home,
   Clock,
   User,
   Globe,

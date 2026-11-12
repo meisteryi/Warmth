@@ -97,16 +97,17 @@ export async function POST(req: Request) {
     await webpush.sendNotification(subscription, payload);
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[WebPush] 발송 에러:', error);
-    if (error.statusCode === 410 || error.statusCode === 404) {
+    const pushError = error as { statusCode?: number; message?: string };
+    if (pushError?.statusCode === 410 || pushError?.statusCode === 404) {
       return NextResponse.json(
         { error: '구독이 만료되었거나 취소되었습니다.', expired: true },
-        { status: error.statusCode }
+        { status: pushError.statusCode }
       );
     }
     return NextResponse.json(
-      { error: error?.message || '푸시 알림 전송에 실패했습니다.' },
+      { error: pushError?.message || '푸시 알림 전송에 실패했습니다.' },
       { status: 500 }
     );
   }

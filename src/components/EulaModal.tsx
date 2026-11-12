@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, X, Mail, FileText, AlertOctagon } from 'lucide-react';
+import { ShieldCheck, X, Mail, AlertOctagon } from 'lucide-react';
 
 interface EulaModalProps {
   isOpen: boolean;

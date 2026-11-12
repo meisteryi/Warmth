@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, ShieldAlert, CheckCircle, X, Mail } from 'lucide-react';
+import { AlertTriangle, ShieldAlert, CheckCircle, X } from 'lucide-react';
 import { soundEngine } from '@/lib/audio';
 
 export interface ReportModalProps {
@@ -26,7 +26,6 @@ export default function ReportModal({
   isOpen,
   onClose,
   targetType,
-  targetId,
   targetAuthorName,
   onConfirmReport,
 }: ReportModalProps) {

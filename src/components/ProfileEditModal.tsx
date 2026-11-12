@@ -26,15 +26,21 @@ export default function ProfileEditModal({
   const [birthDate, setBirthDate] = useState(currentBirthDate || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [prevOpenState, setPrevOpenState] = useState({ isOpen, currentName, currentBirthDate });
 
-  useEffect(() => {
+  if (
+    prevOpenState.isOpen !== isOpen ||
+    prevOpenState.currentName !== currentName ||
+    prevOpenState.currentBirthDate !== currentBirthDate
+  ) {
+    setPrevOpenState({ isOpen, currentName, currentBirthDate });
     if (isOpen) {
       setName(currentName);
       setBirthDate(currentBirthDate || '');
       setErrorMessage('');
       setIsSubmitting(false);
     }
-  }, [isOpen, currentName, currentBirthDate]);
+  }
 
   // 오늘 날짜 문자열 (YYYY-MM-DD)
   const todayStr = new Date().toISOString().split('T')[0];

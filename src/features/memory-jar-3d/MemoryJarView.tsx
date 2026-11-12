@@ -251,9 +251,13 @@ export default function MemoryJarView({
   // iOS Safari 여부 판별 (DeviceMotionEvent.requestPermission 지원 기기)
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    type IosDeviceMotionEvent = typeof DeviceMotionEvent & {
+      requestPermission?: () => Promise<'granted' | 'denied'>;
+    };
+    const deviceMotion = (window as Window & { DeviceMotionEvent?: IosDeviceMotionEvent }).DeviceMotionEvent;
     const isIos =
-      typeof (window as any).DeviceMotionEvent !== 'undefined' &&
-      typeof (window as any).DeviceMotionEvent.requestPermission === 'function';
+      typeof deviceMotion !== 'undefined' &&
+      typeof deviceMotion.requestPermission === 'function';
 
     if (isIos) {
       setNeedsMotionPermission(true);
@@ -265,13 +269,19 @@ export default function MemoryJarView({
 
   // iOS 센서 접근 권한 요청
   const requestSensorPermission = useCallback(async () => {
+    type IosDeviceMotionEvent = typeof DeviceMotionEvent & {
+      requestPermission?: () => Promise<'granted' | 'denied'>;
+    };
+    const deviceMotion =
+      typeof window !== 'undefined'
+        ? (window as Window & { DeviceMotionEvent?: IosDeviceMotionEvent }).DeviceMotionEvent
+        : undefined;
     if (
-      typeof window !== 'undefined' &&
-      typeof (window as any).DeviceMotionEvent !== 'undefined' &&
-      typeof (window as any).DeviceMotionEvent.requestPermission === 'function'
+      typeof deviceMotion !== 'undefined' &&
+      typeof deviceMotion.requestPermission === 'function'
     ) {
       try {
-        const res = await (window as any).DeviceMotionEvent.requestPermission();
+        const res = await deviceMotion.requestPermission();
         if (res === 'granted') {
           setMotionPermissionGranted(true);
           setNeedsMotionPermission(false);

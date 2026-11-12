@@ -43,7 +43,7 @@ export default function PhotoSlidingPuzzle({
 
   // 10~14회 인접 스왑으로 항상 해결 가능한 퍼즐 생성
   const shuffleTiles = useCallback(() => {
-    let current = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+    const current = [0, 1, 2, 3, 4, 5, 6, 7, 8];
     let emptyIdx = 8;
     let prevMove = -1;
 

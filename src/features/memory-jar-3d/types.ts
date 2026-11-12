@@ -1,3 +1,5 @@
+import { DiaryData } from '@/types/diary';
+
 /**
  * 3D 온기 유리병(Memory Jar) & 왁스 조각 에셋 타입 정의
  */
@@ -13,7 +15,7 @@ export interface WaxPieceData {
   shapeType: 'FRAGMENT' | 'SEAL_COIN'; // 파편형 or 미니 인장 코인형
   size: number;
   photoUrl?: string; // 프리뷰 썸네일 사진 URL
-  diary?: any; // 연결된 DiaryData 원본
+  diary?: DiaryData; // 연결된 DiaryData 원본
 }
 
 export interface JarRenderOptions {

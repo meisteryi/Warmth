@@ -16,9 +16,6 @@ import {
   HeartHandshake,
   Clock,
   Loader2,
-  Globe,
-  FileText,
-  ShieldCheck,
 } from 'lucide-react';
 import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
 import { useLanguage } from '@/lib/i18n';
@@ -64,6 +61,31 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
       }
     } catch { }
   }, []);
+
+  // 매칭 완료 축하 연출
+  const triggerMatchCelebration = (
+    code: string, 
+    me: string, 
+    partner: string, 
+    role?: 'CREATOR' | 'PARTNER'
+  ) => {
+    try {
+      localStorage.removeItem(PENDING_ROOM_KEY);
+    } catch { }
+
+    soundEngine.playMissionPassChime();
+
+    confetti({
+      particleCount: 70,
+      spread: 80,
+      origin: { y: 0.6 },
+      colors: ['#6B1724', '#B8860B', '#FDFBF7', '#E3B338'],
+    });
+
+    setTimeout(() => {
+      onMatched(code, me, partner, role);
+    }, 1200);
+  };
 
   // Firestore 실시간 구독: 상대방이 방에 입장하면 자동으로 매칭 축하 및 입장 처리
   useEffect(() => {
@@ -204,31 +226,6 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // 매칭 완료 축하 연출
-  const triggerMatchCelebration = (
-    code: string, 
-    me: string, 
-    partner: string, 
-    role?: 'CREATOR' | 'PARTNER'
-  ) => {
-    try {
-      localStorage.removeItem(PENDING_ROOM_KEY);
-    } catch { }
-
-    soundEngine.playMissionPassChime();
-
-    confetti({
-      particleCount: 70,
-      spread: 80,
-      origin: { y: 0.6 },
-      colors: ['#6B1724', '#B8860B', '#FDFBF7', '#E3B338'],
-    });
-
-    setTimeout(() => {
-      onMatched(code, me, partner, role);
-    }, 1200);
   };
 
   return (

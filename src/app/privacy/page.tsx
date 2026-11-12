@@ -10,9 +10,7 @@ import {
   Trash2, 
   Server, 
   Mail, 
-  Globe, 
   FileText,
-  AlertCircle,
   Clock
 } from 'lucide-react';
 import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';

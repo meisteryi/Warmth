@@ -448,7 +448,9 @@ export default function HomePage() {
   }, [roomCode, userName]);
 
   const syncPushSubscriptionRef = useRef(syncPushSubscription);
-  syncPushSubscriptionRef.current = syncPushSubscription;
+  useEffect(() => {
+    syncPushSubscriptionRef.current = syncPushSubscription;
+  }, [syncPushSubscription]);
 
   // 알림 권한 허용 이벤트 수신 시 구독 동기화
   useEffect(() => {
