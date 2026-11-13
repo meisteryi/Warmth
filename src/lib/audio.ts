@@ -1,8 +1,6 @@
 // Web Audio API & Haptic feedback engine for Warmth (온기)
 
 const VOLUME_STORAGE_KEY = 'warmth_sound_volume';
-const RESUME_TIMEOUT_MS = 250;
-const USER_GESTURE_WINDOW_MS = 1200;
 
 class SoundEngine {
   private ctx: AudioContext | null = null;
@@ -13,12 +11,7 @@ class SoundEngine {
   private meltFilter: BiquadFilterNode | null = null;
   private meltGeneration: number = 0;
   private isMelting: boolean = false;
-
-  private resumePromise: Promise<boolean> | null = null;
-  private ctxNeedsRecreate: boolean = false;
-  private lastUserGestureAt: number = 0;
-  private lastHealthCheckAt: number = 0;
-  private clockCheckTimer: number | null = null;
+  private isUnlocked: boolean = false;
 
   constructor() {
     this.syncVolumeFromStorage();
@@ -53,45 +46,13 @@ class SoundEngine {
     }
   }
 
-  private clearClockCheckTimer() {
-    if (this.clockCheckTimer !== null && typeof window !== 'undefined') {
-      window.clearTimeout(this.clockCheckTimer);
-      this.clockCheckTimer = null;
-    }
-  }
-
-  private disposeCtx() {
-    this.clearClockCheckTimer();
-    this.stopMeltHum();
-    const oldCtx = this.ctx;
-    const oldGain = this.masterGain;
-    this.ctx = null;
-    this.masterGain = null;
-    this.ctxNeedsRecreate = false;
-    this.resumePromise = null;
-
-    try {
-      oldGain?.disconnect();
-    } catch {
-      // ignore
-    }
-    if (oldCtx) {
-      try {
-        oldCtx.onstatechange = null;
-        if ((oldCtx.state as string) !== 'closed') {
-          oldCtx.close().catch(() => {});
-        }
-      } catch {
-        // ignore
-      }
-    }
-  }
-
   private createCtxIfNeeded(): AudioContext | null {
     if (typeof window === 'undefined') return null;
 
     if (this.ctx && (this.ctx.state as string) === 'closed') {
-      this.disposeCtx();
+      this.ctx = null;
+      this.masterGain = null;
+      this.isUnlocked = false;
     }
 
     if (!this.ctx) {
@@ -108,13 +69,10 @@ class SoundEngine {
       masterGain.gain.setValueAtTime(this.volume, ctx.currentTime);
       masterGain.connect(ctx.destination);
 
-      // iOS WebKit 'interrupted' 전환 후 포그라운드 복귀 시 복구 또는 재생성 플래그 설정
+      // 백그라운드 전환 등에서 복귀 시 자동 resume 시도
       ctx.onstatechange = () => {
         if (this.ctx !== ctx) return;
         const currentState = ctx.state as string;
-        if (currentState === 'interrupted') {
-          this.ctxNeedsRecreate = true;
-        }
         if (
           (currentState === 'suspended' || currentState === 'interrupted') &&
           typeof document !== 'undefined' &&
@@ -126,15 +84,9 @@ class SoundEngine {
 
       this.ctx = ctx;
       this.masterGain = masterGain;
-      this.ctxNeedsRecreate = false;
     }
 
     return this.ctx;
-  }
-
-  private recreateCtx(): AudioContext | null {
-    this.disposeCtx();
-    return this.createCtxIfNeeded();
   }
 
   // iOS WebKit 오디오 출력 채널 즉시 활성화를 위한 1샘플 무음 버퍼 재생
@@ -145,154 +97,29 @@ class SoundEngine {
       source.buffer = silentBuffer;
       source.connect(ctx.destination);
       source.start(0);
+      this.isUnlocked = true;
     } catch {
       // ignore
     }
   }
 
-  // 실행 중인 AudioContext의 currentTime이 실제로 흐르는지 검사 (WebKit 좀비 컨텍스트 감지)
-  private scheduleClockCheck(force: boolean = false) {
-    if (typeof window === 'undefined' || !this.ctx) return;
-    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
-
-    const nowMs = Date.now();
-    if (!force && nowMs - this.lastHealthCheckAt < 2000) return;
-    if (this.clockCheckTimer !== null) return;
-    this.lastHealthCheckAt = nowMs;
-
-    const targetCtx = this.ctx;
-    const startCtxTime = targetCtx.currentTime;
-
-    this.clockCheckTimer = window.setTimeout(() => {
-      this.clockCheckTimer = null;
-      if (this.ctx !== targetCtx) return;
-      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
-
-      const state = targetCtx.state as string;
-      const elapsedCtxTime = targetCtx.currentTime - startCtxTime;
-      if (state === 'running' && elapsedCtxTime <= 0.0005) {
-        // state는 running이지만 오디오 클럭이 멈춘 상태 -> 다음 제스처/복구 시 재생성
-        this.ctxNeedsRecreate = true;
-      }
-    }, 180);
-  }
-
-  private async resumeWithTimeout(ctx: AudioContext): Promise<void> {
-    let timeoutId: number | null = null;
-    try {
-      await Promise.race([
-        ctx.resume().catch(() => {}),
-        new Promise<void>((resolve) => {
-          timeoutId = window.setTimeout(resolve, RESUME_TIMEOUT_MS);
-        }),
-      ]);
-    } finally {
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId);
-      }
-    }
-  }
-
-  private async ensureRunning(isUserGesture: boolean): Promise<boolean> {
-    if (typeof window === 'undefined') return false;
-
-    if (this.ctx && this.ctxNeedsRecreate && isUserGesture) {
-      this.recreateCtx();
-    }
-
-    const initialCtx = this.createCtxIfNeeded();
-    if (!initialCtx) return false;
-
-    const initialState = initialCtx.state as string;
-    if (initialState === 'running' && !this.ctxNeedsRecreate) {
-      this.scheduleClockCheck();
-      return true;
-    }
-
-    if (isUserGesture && initialState === 'interrupted') {
-      this.recreateCtx();
-    }
-
-    if (this.resumePromise) {
-      return this.resumePromise;
-    }
-
-    this.resumePromise = (async () => {
-      try {
-        const ctx = this.ctx ?? this.createCtxIfNeeded();
-        if (!ctx) return false;
-
-        if (isUserGesture) {
-          this.primeSilentBuffer(ctx);
-        }
-
-        if ((ctx.state as string) !== 'running') {
-          await this.resumeWithTimeout(ctx);
-        }
-
-        if (this.ctx && (this.ctx.state as string) === 'running' && !this.ctxNeedsRecreate) {
-          this.scheduleClockCheck();
-          return true;
-        }
-
-        // 사용자 제스처 중인데도 기존 컨텍스트가 깨어나지 못하면 새 AudioContext로 즉시 교체
-        if (isUserGesture) {
-          const freshCtx = this.recreateCtx();
-          if (!freshCtx) return false;
-          this.primeSilentBuffer(freshCtx);
-          if ((freshCtx.state as string) !== 'running') {
-            await this.resumeWithTimeout(freshCtx);
-          }
-          const isRunning = (freshCtx.state as string) === 'running';
-          if (isRunning) {
-            this.scheduleClockCheck();
-          }
-          return isRunning;
-        }
-
-        return false;
-      } catch {
-        return false;
-      } finally {
-        this.resumePromise = null;
-      }
-    })();
-
-    return this.resumePromise;
-  }
-
   public markUserGesture() {
-    this.lastUserGestureAt = Date.now();
+    this.resume(true);
   }
 
   public resume(isUserGesture: boolean = false) {
-    if (isUserGesture) {
-      this.lastUserGestureAt = Date.now();
-    }
     try {
       const ctx = this.createCtxIfNeeded();
       if (!ctx) return;
 
       const state = ctx.state as string;
-      if (state === 'running' && !this.ctxNeedsRecreate) {
-        this.scheduleClockCheck();
-        return;
+      if (state === 'suspended' || state === 'interrupted') {
+        ctx.resume().catch(() => {});
       }
 
-      if (isUserGesture && (this.ctxNeedsRecreate || state === 'interrupted')) {
-        const freshCtx = this.recreateCtx();
-        if (freshCtx) {
-          this.primeSilentBuffer(freshCtx);
-          void this.ensureRunning(true);
-        }
-        return;
-      }
-
-      if (isUserGesture) {
+      if (isUserGesture && !this.isUnlocked) {
         this.primeSilentBuffer(ctx);
       }
-
-      void this.ensureRunning(isUserGesture);
     } catch {
       // ignore
     }
@@ -300,27 +127,14 @@ class SoundEngine {
 
   public handleVisibilityHidden() {
     this.stopMeltHum();
-    this.clearClockCheckTimer();
-    if (this.ctx && (this.ctx.state as string) !== 'running') {
-      this.ctxNeedsRecreate = true;
-    }
   }
 
   public handleVisibilityRestore() {
     try {
       if (!this.ctx) return;
       const state = this.ctx.state as string;
-      if (state === 'interrupted' || state === 'closed') {
-        this.ctxNeedsRecreate = true;
-      }
       if (state === 'suspended' || state === 'interrupted') {
-        void this.ensureRunning(false).then((ok) => {
-          if (!ok) {
-            this.ctxNeedsRecreate = true;
-          }
-        });
-      } else if (state === 'running') {
-        this.scheduleClockCheck(true);
+        this.ctx.resume().catch(() => {});
       }
     } catch {
       // ignore
@@ -334,32 +148,26 @@ class SoundEngine {
     throw new Error('AudioContext not available');
   }
 
-  // running 상태면 0ms 즉시 실행, 중단/일시정지 상태면 복구(필요 시 재생성) 후 즉시 실행
+  /**
+   * 효과음 즉시 실행 래퍼
+   * - 비동기 Promise(.then)로 지연시키면 iOS Safari에서 사용자 제스처 토큰이 만료되어 효과음이 차단(소리가 안 남)되므로,
+   *   반드시 사용자 이벤트 콜스택 내에서 동기적으로 resume() 및 오디오 노드 생성을 수행합니다.
+   */
   private runWhenReady(playFn: (ctx: AudioContext) => void) {
+    if (this.volume <= 0) return;
     const ctx = this.createCtxIfNeeded();
     if (!ctx) return;
 
-    const hasRecentGesture = Date.now() - this.lastUserGestureAt < USER_GESTURE_WINDOW_MS;
     const state = ctx.state as string;
-
-    if (state === 'running' && !this.ctxNeedsRecreate) {
-      try {
-        playFn(ctx);
-        this.scheduleClockCheck();
-      } catch {
-        // ignore
-      }
-      return;
+    if (state === 'suspended' || state === 'interrupted') {
+      ctx.resume().catch(() => {});
     }
 
-    void this.ensureRunning(hasRecentGesture).then((ready) => {
-      if (!ready || !this.ctx || (this.ctx.state as string) !== 'running') return;
-      try {
-        playFn(this.ctx);
-      } catch {
-        // ignore
-      }
-    });
+    try {
+      playFn(ctx);
+    } catch (e) {
+      console.warn('[SoundEngine] Playback error:', e);
+    }
   }
 
   public setVolume(val: number) {
@@ -387,7 +195,6 @@ class SoundEngine {
 
   // 1. 3초 롱프레스 시 왁스가 녹아내리는 저음 앰비언스 (Melt hum)
   public startMeltHum() {
-    this.lastUserGestureAt = Date.now();
     try {
       this.stopMeltHum();
       this.isMelting = true;
