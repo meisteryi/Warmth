@@ -1,77 +1,53 @@
 import * as THREE from 'three';
 import { WaxPieceData } from './types';
 
-function createTwistedVaneGeometry(
-  radius: number,
-  twistAmount = 1.15,
-  archOffset = 0.22
+/**
+ * 유리구슬 내부에 영롱하게 빛나는 3D 입체 별(Star) 지오메트리 생성
+ */
+function createStarGeometry(
+  points = 5,
+  outerRadius = 0.56,
+  innerRadius = 0.25,
+  thickness = 0.16,
+  bevel = 0.05
 ): THREE.BufferGeometry {
-  const segU = 18;
-  const segV = 8;
+  const shape = new THREE.Shape();
+  const step = Math.PI / points;
 
-  const positions: number[] = [];
-  const uvs: number[] = [];
-  const indices: number[] = [];
-
-  for (let iu = 0; iu <= segU; iu++) {
-    const u = iu / segU;
-    const s = u * 2 - 1;
-    const profile = Math.sqrt(Math.max(0, 1 - s * s));
-    const y = s * radius * 0.8;
-
-    const twistAngle = Math.sin(s * Math.PI * 0.85) * twistAmount + s * 0.45;
-    const cosA = Math.cos(twistAngle);
-    const sinA = Math.sin(twistAngle);
-
-    const maxReach = radius * 0.72 * Math.pow(profile, 0.72);
-
-    for (let iv = 0; iv <= segV; iv++) {
-      const v = iv / segV;
-      // -1..+1 대칭 폭으로 단일 리본 1개가 구슬 중심을 우아하게 가로지름
-      const radial = (v * 2 - 1) * maxReach;
-      const cupCurve = Math.sin(v * Math.PI) * archOffset * radius * profile;
-
-      const x = radial * cosA - cupCurve * sinA;
-      const z = radial * sinA + cupCurve * cosA;
-
-      positions.push(x, y, z);
-      uvs.push(u, v);
-    }
+  for (let i = 0; i < 2 * points; i++) {
+    const r = i % 2 === 0 ? outerRadius : innerRadius;
+    const angle = i * step - Math.PI / 2; // 상단 꼭짓점이 수직 위를 향하도록
+    const x = Math.cos(angle) * r;
+    const y = Math.sin(angle) * r;
+    if (i === 0) shape.moveTo(x, y);
+    else shape.lineTo(x, y);
   }
+  shape.closePath();
 
-  const rowStride = segV + 1;
-  for (let iu = 0; iu < segU; iu++) {
-    for (let iv = 0; iv < segV; iv++) {
-      const a = iu * rowStride + iv;
-      const b = (iu + 1) * rowStride + iv;
-      const c = (iu + 1) * rowStride + (iv + 1);
-      const d = iu * rowStride + (iv + 1);
-      indices.push(a, b, d);
-      indices.push(b, c, d);
-    }
-  }
+  const extrudeSettings: THREE.ExtrudeGeometryOptions = {
+    depth: thickness,
+    bevelEnabled: true,
+    bevelSegments: 3,
+    steps: 1,
+    bevelSize: bevel,
+    bevelThickness: bevel,
+  };
 
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  geo.setIndex(indices);
+  const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+  geo.center();
   geo.computeVertexNormals();
   return geo;
 }
 
 let sharedOuterSphereGeo: THREE.SphereGeometry | null = null;
-let sharedVaneGeos: THREE.BufferGeometry[] | null = null;
+let sharedStarGeo: THREE.BufferGeometry | null = null;
 
 function ensureSharedGeometries() {
   if (!sharedOuterSphereGeo) {
     sharedOuterSphereGeo = new THREE.SphereGeometry(1, 28, 28);
   }
-  if (!sharedVaneGeos) {
-    sharedVaneGeos = [
-      createTwistedVaneGeometry(1, 1.05, 0.24),
-      createTwistedVaneGeometry(1, -1.2, 0.2),
-      createTwistedVaneGeometry(1, 0.9, 0.26),
-    ];
+  if (!sharedStarGeo) {
+    sharedStarGeo = createStarGeometry();
   }
 }
 
@@ -97,22 +73,25 @@ export function createGlassMarble(
   const marbleGroup = new THREE.Group();
   marbleGroup.name = `GlassMarble_${piece.id}`;
 
-  // 구슬 안쪽은 사용자가 선택한 단일 색상의 오브젝트 1개만 배치해 그래픽 부하 최소화
-  const vaneGeo = sharedVaneGeos![index % sharedVaneGeos!.length];
-  const vaneMat = new THREE.MeshStandardMaterial({
+  // 구슬 안쪽에는 사용자가 지정한 단일 왁스 색상의 3D 입체 별 1개만 배치
+  const starMat = new THREE.MeshStandardMaterial({
     color: singleColor,
     emissive: singleColor,
-    emissiveIntensity: 0.25,
-    roughness: 0.22,
-    metalness: 0.04,
+    emissiveIntensity: 0.28,
+    roughness: 0.25,
+    metalness: 0.12,
     side: THREE.DoubleSide,
   });
-  const vaneMesh = new THREE.Mesh(vaneGeo, vaneMat);
-  vaneMesh.scale.setScalar(radius);
-  vaneMesh.rotation.y = ((index * 0.73) % (Math.PI * 2));
-  vaneMesh.rotation.z = ((index % 3) - 1) * 0.16;
-  vaneMesh.renderOrder = 1;
-  marbleGroup.add(vaneMesh);
+  const starMesh = new THREE.Mesh(sharedStarGeo!, starMat);
+  starMesh.scale.setScalar(radius);
+  // 구슬마다 별이 다양한 각도로 아름답게 기울어져 빛을 반사하도록 설정
+  starMesh.rotation.set(
+    (index * 0.73) % (Math.PI * 2),
+    (index * 1.37) % (Math.PI * 2),
+    (index * 0.49) % (Math.PI * 2)
+  );
+  starMesh.renderOrder = 1;
+  marbleGroup.add(starMesh);
 
   const outerMat = new THREE.MeshPhysicalMaterial({
     color: 0xc4efe4,
