@@ -109,8 +109,8 @@ export function createGlassJarGroup(initialOptions?: { isCorkOpen?: boolean }): 
   rimMesh.name = 'BrassRim';
   jarGroup.add(rimMesh);
 
-  // 병 중심점을 바닥이 아닌 정중앙으로 보정하여 자연스럽게 회전하도록 오프셋 설정
-  jarGroup.position.y = -2.35;
+  // 병 중심점을 바닥이 아닌 정중앙으로 보정하고, 책상 상판(-2.35)과의 Z-fighting(깜빡임 노이즈)을 방지하기 위해 0.008만큼 미세하게 띄움
+  jarGroup.position.y = -2.342;
 
   return { jarGroup, glassMesh, corkMesh, rimMesh, setCorkOpen };
 }

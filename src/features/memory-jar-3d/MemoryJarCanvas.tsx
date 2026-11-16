@@ -375,13 +375,13 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
           if (activePhysics) {
             activePhysics.update(deltaTime);
 
-            // 병 자체의 탄성 흔들림 오프셋 + 슬라이드 미끄러짐 반영
+            // 병 자체의 탄성 흔들림 오프셋 + 슬라이드 미끄러짐 반영 (책상 상판 -2.35와 Z-fighting 방지를 위해 -2.342 기준)
             jarGroup.position.x = activePhysics.shakeOffset.x + slideOffsetXRef.current;
-            jarGroup.position.y = -2.35 + activePhysics.shakeOffset.y;
+            jarGroup.position.y = -2.342 + activePhysics.shakeOffset.y;
             jarGroup.position.z = activePhysics.shakeOffset.z;
           } else {
             jarGroup.position.x = slideOffsetXRef.current;
-            jarGroup.position.y = -2.35;
+            jarGroup.position.y = -2.342;
             jarGroup.position.z = 0;
           }
 
