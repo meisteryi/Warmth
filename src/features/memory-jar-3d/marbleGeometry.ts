@@ -73,13 +73,16 @@ export function createGlassMarble(
   const marbleGroup = new THREE.Group();
   marbleGroup.name = `GlassMarble_${piece.id}`;
 
-  // 구슬 안쪽에는 사용자가 지정한 단일 왁스 색상의 3D 입체 별 1개만 배치
-  const starMat = new THREE.MeshStandardMaterial({
+  // 구슬 안쪽에는 사용자가 지정한 단일 왁스 색상의 3D 입체 별 1개만 배치 (보석처럼 반짝이는 광택 질감)
+  const starMat = new THREE.MeshPhysicalMaterial({
     color: singleColor,
     emissive: singleColor,
-    emissiveIntensity: 0.28,
-    roughness: 0.25,
-    metalness: 0.12,
+    emissiveIntensity: 0.38,
+    roughness: 0.1,
+    metalness: 0.38,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.04,
+    envMapIntensity: 2.6,
     side: THREE.DoubleSide,
   });
   const starMesh = new THREE.Mesh(sharedStarGeo!, starMat);
@@ -94,18 +97,21 @@ export function createGlassMarble(
   marbleGroup.add(starMesh);
 
   const outerMat = new THREE.MeshPhysicalMaterial({
-    color: 0xc4efe4,
+    color: 0xd8f7ef,
     transparent: true,
-    opacity: 0.34,
-    roughness: 0.025,
+    opacity: 0.3,
+    roughness: 0.008,
     metalness: 0.0,
-    ior: 1.52,
+    ior: 1.65,
     reflectivity: 1.0,
-    envMapIntensity: 2.1,
+    envMapIntensity: 3.4,
     specularIntensity: 1.0,
     specularColor: new THREE.Color(0xffffff),
     clearcoat: 1.0,
-    clearcoatRoughness: 0.018,
+    clearcoatRoughness: 0.005,
+    iridescence: 0.45,
+    iridescenceIOR: 1.33,
+    iridescenceThicknessRange: [120, 480],
     side: THREE.FrontSide,
     depthWrite: false,
   });

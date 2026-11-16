@@ -31,6 +31,31 @@ function createStudioEnvironment(renderer: THREE.WebGLRenderer): THREE.WebGLRend
   frontDot.lookAt(0, 0, 0);
   envScene.add(frontDot);
 
+  // 유리구슬 표면에 맑고 선명한 반짝임(캐치라이트)을 더해주는 포인트 하이라이트
+  const topSparkle = new THREE.Mesh(
+    new THREE.CircleGeometry(1.1, 20),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+  );
+  topSparkle.position.set(1.5, 10, -2);
+  topSparkle.lookAt(0, 0, 0);
+  envScene.add(topSparkle);
+
+  const rightSparkle = new THREE.Mesh(
+    new THREE.CircleGeometry(1.2, 20),
+    new THREE.MeshBasicMaterial({ color: 0xfff8e6, side: THREE.DoubleSide })
+  );
+  rightSparkle.position.set(9, 2.5, 4);
+  rightSparkle.lookAt(0, 0, 0);
+  envScene.add(rightSparkle);
+
+  const rimSparkle = new THREE.Mesh(
+    new THREE.CircleGeometry(1.4, 20),
+    new THREE.MeshBasicMaterial({ color: 0xf0f8ff, side: THREE.DoubleSide })
+  );
+  rimSparkle.position.set(-5, 7, -7);
+  rimSparkle.lookAt(0, 0, 0);
+  envScene.add(rimSparkle);
+
   const floorBounce = new THREE.Mesh(
     new THREE.PlaneGeometry(16, 16),
     new THREE.MeshBasicMaterial({ color: 0x6b4c35, side: THREE.DoubleSide })
