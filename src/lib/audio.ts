@@ -11,7 +11,7 @@ class SoundEngine {
   private meltFilter: BiquadFilterNode | null = null;
   private meltGeneration: number = 0;
   private isMelting: boolean = false;
-  private isUnlocked: boolean = false;
+  private resumeInFlight: Promise<void> | null = null;
 
   constructor() {
     this.syncVolumeFromStorage();
@@ -46,13 +46,36 @@ class SoundEngine {
     }
   }
 
+  private disposeCtx() {
+    this.stopMeltHum();
+    const oldCtx = this.ctx;
+    const oldGain = this.masterGain;
+    this.ctx = null;
+    this.masterGain = null;
+    this.resumeInFlight = null;
+
+    try {
+      oldGain?.disconnect();
+    } catch {
+      // ignore
+    }
+    if (oldCtx) {
+      try {
+        oldCtx.onstatechange = null;
+        if ((oldCtx.state as string) !== 'closed') {
+          oldCtx.close().catch(() => {});
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }
+
   private createCtxIfNeeded(): AudioContext | null {
     if (typeof window === 'undefined') return null;
 
     if (this.ctx && (this.ctx.state as string) === 'closed') {
-      this.ctx = null;
-      this.masterGain = null;
-      this.isUnlocked = false;
+      this.disposeCtx();
     }
 
     if (!this.ctx) {
@@ -78,7 +101,7 @@ class SoundEngine {
           typeof document !== 'undefined' &&
           document.visibilityState === 'visible'
         ) {
-          ctx.resume().catch(() => {});
+          this.triggerResume(ctx);
         }
       };
 
@@ -89,6 +112,25 @@ class SoundEngine {
     return this.ctx;
   }
 
+  private triggerResume(ctx: AudioContext): Promise<void> {
+    if ((ctx.state as string) === 'running') {
+      return Promise.resolve();
+    }
+    if (this.resumeInFlight) {
+      return this.resumeInFlight;
+    }
+    const p = ctx
+      .resume()
+      .catch(() => {})
+      .finally(() => {
+        if (this.resumeInFlight === p) {
+          this.resumeInFlight = null;
+        }
+      });
+    this.resumeInFlight = p;
+    return p;
+  }
+
   // iOS WebKit 오디오 출력 채널 즉시 활성화를 위한 1샘플 무음 버퍼 재생
   private primeSilentBuffer(ctx: AudioContext) {
     try {
@@ -97,7 +139,6 @@ class SoundEngine {
       source.buffer = silentBuffer;
       source.connect(ctx.destination);
       source.start(0);
-      this.isUnlocked = true;
     } catch {
       // ignore
     }
@@ -109,16 +150,24 @@ class SoundEngine {
 
   public resume(isUserGesture: boolean = false) {
     try {
-      const ctx = this.createCtxIfNeeded();
+      let ctx = this.createCtxIfNeeded();
       if (!ctx) return;
 
       const state = ctx.state as string;
-      if (state === 'suspended' || state === 'interrupted') {
-        ctx.resume().catch(() => {});
+      // iOS WebKit에서 전화/백그라운드 등으로 'interrupted' 상태에 고착된 경우,
+      // 사용자 제스처 콜스택 내에서 새 AudioContext로 즉시 교체해야 오디오가 복구됨
+      if (isUserGesture && state === 'interrupted') {
+        this.disposeCtx();
+        ctx = this.createCtxIfNeeded();
+        if (!ctx) return;
       }
 
-      if (isUserGesture && !this.isUnlocked) {
-        this.primeSilentBuffer(ctx);
+      if ((ctx.state as string) !== 'running') {
+        void this.triggerResume(ctx);
+        if (isUserGesture) {
+          // pointerdown에서 언락되지 않는 iOS Safari 특성상 running이 될 때까지 제스처마다 프라임
+          this.primeSilentBuffer(ctx);
+        }
       }
     } catch {
       // ignore
@@ -134,7 +183,7 @@ class SoundEngine {
       if (!this.ctx) return;
       const state = this.ctx.state as string;
       if (state === 'suspended' || state === 'interrupted') {
-        this.ctx.resume().catch(() => {});
+        void this.triggerResume(this.ctx);
       }
     } catch {
       // ignore
@@ -149,25 +198,34 @@ class SoundEngine {
   }
 
   /**
-   * 효과음 즉시 실행 래퍼
-   * - 비동기 Promise(.then)로 지연시키면 iOS Safari에서 사용자 제스처 토큰이 만료되어 효과음이 차단(소리가 안 남)되므로,
-   *   반드시 사용자 이벤트 콜스택 내에서 동기적으로 resume() 및 오디오 노드 생성을 수행합니다.
+   * 효과음 실행 래퍼
+   * - running 상태면 0ms 즉시 동기 실행
+   * - suspended/interrupted 상태면 현재 콜스택에서 동기적으로 resume()을 먼저 트리거한 뒤,
+   *   컨텍스트가 실제로 running으로 전환된 시점의 currentTime으로 노드를 스케줄링하여 짧은 효과음이 씹히지 않게 함
    */
   private runWhenReady(playFn: (ctx: AudioContext) => void) {
     if (this.volume <= 0) return;
     const ctx = this.createCtxIfNeeded();
     if (!ctx) return;
 
-    const state = ctx.state as string;
-    if (state === 'suspended' || state === 'interrupted') {
-      ctx.resume().catch(() => {});
+    if ((ctx.state as string) === 'running') {
+      try {
+        playFn(ctx);
+      } catch (e) {
+        console.warn('[SoundEngine] Playback error:', e);
+      }
+      return;
     }
 
-    try {
-      playFn(ctx);
-    } catch (e) {
-      console.warn('[SoundEngine] Playback error:', e);
-    }
+    const targetCtx = ctx;
+    void this.triggerResume(targetCtx).then(() => {
+      if (this.ctx !== targetCtx || (targetCtx.state as string) !== 'running') return;
+      try {
+        playFn(targetCtx);
+      } catch (e) {
+        console.warn('[SoundEngine] Playback error after resume:', e);
+      }
+    });
   }
 
   public setVolume(val: number) {

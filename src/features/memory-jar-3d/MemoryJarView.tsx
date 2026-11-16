@@ -588,7 +588,7 @@ export default function MemoryJarView({
           date: formatDiaryDate(safeDiary.createdAt),
           authorName: senderLabel,
           shapeType: 'SEAL_COIN' as const,
-          size: 0.95 + ((index % 3) * 0.08),
+          size: [0.75, 1.03, 1.3][index % 3],
           photoUrl: undefined,
           diary: maskedDiary,
         };
@@ -603,7 +603,7 @@ export default function MemoryJarView({
         date: formatDiaryDate(safeDiary.createdAt),
         authorName: safeDiary.authorName || '익명',
         shapeType: 'SEAL_COIN' as const,
-        size: 0.95 + ((index % 3) * 0.08),
+        size: [0.75, 1.03, 1.3][index % 3],
         photoUrl: safeDiary.photos && safeDiary.photos.length > 0 ? safeDiary.photos[0] : undefined,
         diary: safeDiary,
       };

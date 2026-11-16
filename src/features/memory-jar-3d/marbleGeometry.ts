@@ -139,7 +139,7 @@ export function createGlassMarblesGroup(pieces: WaxPieceData[]): {
   const marbleObjects: THREE.Group[] = [];
 
   pieces.forEach((piece, idx) => {
-    const sizeScale = Math.max(0.85, Math.min(1.15, piece.size || 1));
+    const sizeScale = Math.max(0.7, Math.min(1.35, piece.size || 1));
     const radius = 0.295 * 1.5 * sizeScale;
     const { group, outerMesh } = createGlassMarble(piece, idx, radius);
 
