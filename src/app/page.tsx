@@ -13,6 +13,7 @@ import KnockNotificationModal from '@/components/KnockNotificationModal';
 import ArchiveModal from '@/components/ArchiveModal';
 import HomeView from '@/components/HomeView';
 import ProfileEditModal from '@/components/ProfileEditModal';
+import SettingsView from '@/components/SettingsView';
 import dynamic from 'next/dynamic';
 
 const MemoryJarView = dynamic(
@@ -1475,6 +1476,10 @@ export default function HomePage() {
           forceScrollToTop(mainRef.current);
         }}
         onOpenProfile={() => setIsProfileModalOpen(true)}
+        onOpenSettings={() => {
+          setUiState('VIEW_SETTINGS');
+          forceScrollToTop(mainRef.current);
+        }}
         roomCode={activeRoomCode}
         userName={userName}
         partnerName={partnerName}
@@ -1706,10 +1711,22 @@ export default function HomePage() {
               }}
             />
           )}
+
+          {/* 9. VIEW_SETTINGS: 설정 탭 (상단바 고정 인라인 뷰) */}
+          {uiState === 'VIEW_SETTINGS' && (
+            <SettingsView
+              key="view-settings"
+              onClose={handleGoHome}
+              onOpenProfile={() => setIsProfileModalOpen(true)}
+              onLeaveRoom={handleLeaveRoom}
+              roomCode={activeRoomCode}
+              userName={userName}
+            />
+          )}
         </AnimatePresence>
 
-        {/* 푸터 (스크롤 맨 아래로 내렸을 때만 자연스럽게 노출 - 하단 고정 바 아님, 왁스 병/서재 탭에서는 비표시) */}
-        {uiState !== 'VIEW_MEMORY_JAR' && uiState !== 'VIEW_ARCHIVE' && (
+        {/* 푸터 (스크롤 맨 아래로 내렸을 때만 자연스럽게 노출 - 하단 고정 바 아님, 왁스 병/서재/설정 탭에서는 비표시) */}
+        {uiState !== 'VIEW_MEMORY_JAR' && uiState !== 'VIEW_ARCHIVE' && uiState !== 'VIEW_SETTINGS' && (
           <footer className="w-full mt-10 pt-6 pb-2 text-center text-[10px] sm:text-[11px] text-stone-400 font-serif-warm border-t border-[#EAE1D5]/40 flex flex-col items-center gap-1 select-none">
             <p>온기 (Warmth) · 하루걸러 띄우는 우리 둘만의 아날로그 비밀 교환일기</p>
             <p className="text-[10px] text-stone-400/90 font-sans-ui flex items-center justify-center gap-2 flex-wrap">
