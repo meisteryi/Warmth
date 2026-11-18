@@ -5,35 +5,55 @@ function createStudioEnvironment(renderer: THREE.WebGLRenderer): THREE.WebGLRend
   pmrem.compileEquirectangularShader();
 
   const envScene = new THREE.Scene();
-  envScene.background = new THREE.Color(0x2a241e);
+  // 어두운 스튜디오 배경 대비를 높여 유리 곡면의 프레넬/창문 반사가 선명하게 드러나도록 설정
+  envScene.background = new THREE.Color(0x18130e);
 
-  const mainPanel = new THREE.Mesh(
-    new THREE.PlaneGeometry(10, 10),
-    new THREE.MeshBasicMaterial({ color: 0xfffaf0, side: THREE.DoubleSide })
+  // 우측 상단 햇살 창문 (2단 창살 분할로 유리구슬 표면에 선명한 창문 반사 곡선 형성)
+  const mainWindowTop = new THREE.Mesh(
+    new THREE.PlaneGeometry(11, 5.5),
+    new THREE.MeshBasicMaterial({ color: 0xfffdf5, side: THREE.DoubleSide })
   );
-  mainPanel.position.set(6, 9, 6);
-  mainPanel.lookAt(0, 0, 0);
-  envScene.add(mainPanel);
+  mainWindowTop.position.set(6.5, 10.5, 5.5);
+  mainWindowTop.lookAt(0, 0, 0);
+  envScene.add(mainWindowTop);
 
+  const mainWindowBottom = new THREE.Mesh(
+    new THREE.PlaneGeometry(11, 4.5),
+    new THREE.MeshBasicMaterial({ color: 0xfff5e0, side: THREE.DoubleSide })
+  );
+  mainWindowBottom.position.set(6.8, 4.2, 6.2);
+  mainWindowBottom.lookAt(0, 0, 0);
+  envScene.add(mainWindowBottom);
+
+  // 좌측 맑은 하늘빛 반사 창문
   const leftPanel = new THREE.Mesh(
-    new THREE.PlaneGeometry(8, 10),
-    new THREE.MeshBasicMaterial({ color: 0xeaf6ff, side: THREE.DoubleSide })
+    new THREE.PlaneGeometry(9, 11),
+    new THREE.MeshBasicMaterial({ color: 0xdff2ff, side: THREE.DoubleSide })
   );
-  leftPanel.position.set(-9, 4, 3);
+  leftPanel.position.set(-9.5, 4.5, 3.5);
   leftPanel.lookAt(0, 0, 0);
   envScene.add(leftPanel);
 
-  const frontDot = new THREE.Mesh(
-    new THREE.CircleGeometry(1.8, 24),
+  // 상단 천창 하이라이트 스트립
+  const ceilingStrip = new THREE.Mesh(
+    new THREE.PlaneGeometry(14, 3.2),
     new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
   );
-  frontDot.position.set(-2.5, 6.5, 8);
+  ceilingStrip.position.set(-1, 12, 1.5);
+  ceilingStrip.lookAt(0, 0, 0);
+  envScene.add(ceilingStrip);
+
+  const frontDot = new THREE.Mesh(
+    new THREE.CircleGeometry(2.0, 24),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
+  );
+  frontDot.position.set(-2.5, 6.5, 8.5);
   frontDot.lookAt(0, 0, 0);
   envScene.add(frontDot);
 
   // 유리구슬 표면에 맑고 선명한 반짝임(캐치라이트)을 더해주는 포인트 하이라이트
   const topSparkle = new THREE.Mesh(
-    new THREE.CircleGeometry(1.1, 20),
+    new THREE.CircleGeometry(1.2, 20),
     new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
   );
   topSparkle.position.set(1.5, 10, -2);
@@ -41,7 +61,7 @@ function createStudioEnvironment(renderer: THREE.WebGLRenderer): THREE.WebGLRend
   envScene.add(topSparkle);
 
   const rightSparkle = new THREE.Mesh(
-    new THREE.CircleGeometry(1.2, 20),
+    new THREE.CircleGeometry(1.4, 20),
     new THREE.MeshBasicMaterial({ color: 0xfff8e6, side: THREE.DoubleSide })
   );
   rightSparkle.position.set(9, 2.5, 4);
@@ -49,22 +69,23 @@ function createStudioEnvironment(renderer: THREE.WebGLRenderer): THREE.WebGLRend
   envScene.add(rightSparkle);
 
   const rimSparkle = new THREE.Mesh(
-    new THREE.CircleGeometry(1.4, 20),
+    new THREE.CircleGeometry(1.5, 20),
     new THREE.MeshBasicMaterial({ color: 0xf0f8ff, side: THREE.DoubleSide })
   );
   rimSparkle.position.set(-5, 7, -7);
   rimSparkle.lookAt(0, 0, 0);
   envScene.add(rimSparkle);
 
+  // 아래쪽 원목 책상의 따뜻한 반사광 (구슬 하단 유리 테두리에 앰버빛 바운스 형성)
   const floorBounce = new THREE.Mesh(
-    new THREE.PlaneGeometry(16, 16),
-    new THREE.MeshBasicMaterial({ color: 0x6b4c35, side: THREE.DoubleSide })
+    new THREE.PlaneGeometry(18, 18),
+    new THREE.MeshBasicMaterial({ color: 0x9e6a3c, side: THREE.DoubleSide })
   );
-  floorBounce.position.set(0, -7, 0);
+  floorBounce.position.set(0, -6.5, 0);
   floorBounce.rotation.x = -Math.PI / 2;
   envScene.add(floorBounce);
 
-  const envRT = pmrem.fromScene(envScene, 0.035);
+  const envRT = pmrem.fromScene(envScene, 0.018);
   pmrem.dispose();
   return envRT;
 }
