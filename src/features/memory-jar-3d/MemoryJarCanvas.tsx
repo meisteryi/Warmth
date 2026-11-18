@@ -266,17 +266,17 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
 
       try {
         if (!isWebGLAvailable()) {
-          setWebglUnavailable(true);
+          queueMicrotask(() => setWebglUnavailable(true));
           return;
         }
 
         renderer = tryCreateWebGLRenderer(canvas);
         if (!renderer) {
-          setWebglUnavailable(true);
+          queueMicrotask(() => setWebglUnavailable(true));
           return;
         }
 
-        setWebglUnavailable(false);
+        queueMicrotask(() => setWebglUnavailable(false));
         renderer.setSize(width, height);
         // 모바일 사파리 과열 및 프레임드랍 방지: 모바일은 1.5x 캡으로 GPU 부하 44% 감소 (육안 화질 동일)
         const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
@@ -448,7 +448,7 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
         };
       } catch (err) {
         console.warn('WebGL init error:', err);
-        setWebglUnavailable(true);
+        queueMicrotask(() => setWebglUnavailable(true));
         return () => {
           if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
           resizeObserver?.disconnect();
@@ -456,6 +456,7 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
           renderer?.dispose();
         };
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [retryKey]);
 
     // 마우스/터치 다운
@@ -466,7 +467,7 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
       dragInertiaRef.current = 0; // 터치 시 즉시 이전 회전 관성 멈춤
       lastPointerXRef.current = e.clientX;
       lastPointerYRef.current = e.clientY;
-      pointerDownPosRef.current = { x: e.clientX, y: e.clientY, time: Date.now() };
+      pointerDownPosRef.current = { x: e.clientX, y: e.clientY, time: e.timeStamp };
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
     };
 
@@ -534,7 +535,7 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
         e.clientX - pointerDownPosRef.current.x,
         e.clientY - pointerDownPosRef.current.y
       );
-      const deltaTime = Date.now() - pointerDownPosRef.current.time;
+      const deltaTime = e.timeStamp - pointerDownPosRef.current.time;
 
       // 8px 미만 이동 & 450ms 이하 클릭/탭인 경우에만 1:1 피킹 수행
       if (deltaDist < 8 && deltaTime < 450) {
@@ -610,7 +611,7 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
               if (onSelectPiece) onSelectPiece(piece);
             }}
             onRetry={() => {
-              setWebglUnavailable(false);
+              queueMicrotask(() => setWebglUnavailable(false));
               setRetryKey((k) => k + 1);
             }}
           />
@@ -699,6 +700,7 @@ export const MemoryJarCanvas = forwardRef<MemoryJarCanvasHandle, MemoryJarCanvas
               {/* 사진 썸네일 (일기에 사진이 등록되어 있을 때 표시) */}
               {selectedPiece.photoUrl && (
                 <div className="w-full h-36 rounded-xl overflow-hidden bg-stone-100 border border-stone-200/80 shadow-inner relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={selectedPiece.photoUrl}
                     alt={selectedPiece.title}
@@ -788,7 +790,7 @@ const Jar2DFallbackView: React.FC<Jar2DFallbackViewProps> = ({
   const [rotationAngle, setRotationAngle] = useState(0);
 
   useEffect(() => {
-    setShuffledPieces(pieces);
+    queueMicrotask(() => setShuffledPieces(pieces));
   }, [pieces]);
 
   useEffect(() => {

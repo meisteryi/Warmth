@@ -838,7 +838,7 @@ export default function StampJigsawPuzzle({
   }, []);
 
   useEffect(() => {
-    initPuzzle();
+    queueMicrotask(() => initPuzzle());
   }, [initPuzzle]);
 
   // 다른 우표 테마로 수동 변경
@@ -915,9 +915,11 @@ export default function StampJigsawPuzzle({
   // 외부 '도와줘!' 트리거 수신 시 모든 조각 자동 결합 및 완성
   useEffect(() => {
     if (autoSolveTrigger && autoSolveTrigger > 0 && !isCompleted) {
-      setRotations([0, 0, 0, 0]);
-      setSnapped([true, true, true, true]);
-      triggerSuccess();
+      queueMicrotask(() => {
+        setRotations([0, 0, 0, 0]);
+        setSnapped([true, true, true, true]);
+        triggerSuccess();
+      });
     }
   }, [autoSolveTrigger, isCompleted, triggerSuccess]);
 

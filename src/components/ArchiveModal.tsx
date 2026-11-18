@@ -489,7 +489,7 @@ export default function ArchiveModal({
 
     // 화면 노출용은 최신 월 우선 정렬
     return computedAsc.reverse();
-  }, [diaries, currentUserName, partnerName]);
+  }, [diaries, currentUserName, partnerName, roomCode]);
 
   const currentMonthDetail = useMemo<MonthlyDetailStats | null>(() => {
     if (selectedReportMonth === 'ALL') return null;

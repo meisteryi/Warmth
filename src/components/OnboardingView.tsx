@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
@@ -44,26 +44,28 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
   // [2번 요구사항] 앱 재실행 시 초대코드 발급 후 대기 중이던 방 상태 자동 복원
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    try {
-      const raw = localStorage.getItem(PENDING_ROOM_KEY);
-      if (!raw) return;
-      const data = JSON.parse(raw);
-      if (data?.code && data?.creatorName) {
-        // 24시간 이내에 생성된 유효한 대기 방만 복구
-        if (Date.now() - (data.createdAt || 0) < 24 * 60 * 60 * 1000) {
-          setGeneratedCode(data.code);
-          setMyName(data.creatorName);
-          setIsWaitingPartner(true);
-          setActiveTab('CREATE');
-        } else {
-          localStorage.removeItem(PENDING_ROOM_KEY);
+    queueMicrotask(() => {
+      try {
+        const raw = localStorage.getItem(PENDING_ROOM_KEY);
+        if (!raw) return;
+        const data = JSON.parse(raw);
+        if (data?.code && data?.creatorName) {
+          // 24시간 이내에 생성된 유효한 대기 방만 복구
+          if (Date.now() - (data.createdAt || 0) < 24 * 60 * 60 * 1000) {
+            setGeneratedCode(data.code);
+            setMyName(data.creatorName);
+            setIsWaitingPartner(true);
+            setActiveTab('CREATE');
+          } else {
+            localStorage.removeItem(PENDING_ROOM_KEY);
+          }
         }
-      }
-    } catch { }
+      } catch { }
+    });
   }, []);
 
   // 매칭 완료 축하 연출
-  const triggerMatchCelebration = (
+  const triggerMatchCelebration = useCallback((
     code: string, 
     me: string, 
     partner: string, 
@@ -85,7 +87,7 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
     setTimeout(() => {
       onMatched(code, me, partner, role);
     }, 1200);
-  };
+  }, [onMatched]);
 
   // Firestore 실시간 구독: 상대방이 방에 입장하면 자동으로 매칭 축하 및 입장 처리
   useEffect(() => {
@@ -107,7 +109,7 @@ export default function OnboardingView({ onMatched }: OnboardingViewProps) {
     });
 
     return () => unsubscribe();
-  }, [generatedCode, isWaitingPartner, myName]);
+  }, [generatedCode, isWaitingPartner, myName, triggerMatchCelebration]);
 
   // 대기 취소 및 새로운 코드 발급으로 전환
   const handleCancelWaiting = () => {

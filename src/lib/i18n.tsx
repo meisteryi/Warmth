@@ -305,21 +305,23 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>('ko');
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY) as Language | null;
-      if (saved === 'ko' || saved === 'en') {
-        setLanguageState(saved);
-        if (typeof document !== 'undefined') {
-          document.documentElement.lang = saved;
+    queueMicrotask(() => {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY) as Language | null;
+        if (saved === 'ko' || saved === 'en') {
+          setLanguageState(saved);
+          if (typeof document !== 'undefined') {
+            document.documentElement.lang = saved;
+          }
+        } else {
+          // 기본 언어는 항상 한국어('ko')로 시작
+          setLanguageState('ko');
+          if (typeof document !== 'undefined') {
+            document.documentElement.lang = 'ko';
+          }
         }
-      } else {
-        // 기본 언어는 항상 한국어('ko')로 시작
-        setLanguageState('ko');
-        if (typeof document !== 'undefined') {
-          document.documentElement.lang = 'ko';
-        }
-      }
-    } catch {}
+      } catch {}
+    });
   }, []);
 
   const setLanguage = (lang: Language) => {

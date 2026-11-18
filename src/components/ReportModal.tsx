@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, ShieldAlert, CheckCircle, X } from 'lucide-react';
@@ -22,6 +22,8 @@ const REPORT_REASONS = [
   { id: 'SPAM_OTHER', label: '스팸, 도배 또는 기타 커뮤니티 가이드라인 위반' },
 ];
 
+const emptySubscribe = () => () => {};
+
 export default function ReportModal({
   isOpen,
   onClose,
@@ -29,15 +31,11 @@ export default function ReportModal({
   targetAuthorName,
   onConfirmReport,
 }: ReportModalProps) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const [selectedReason, setSelectedReason] = useState(REPORT_REASONS[0].id);
   const [additionalDetails, setAdditionalDetails] = useState('');
   const [blockPartnerAlso, setBlockPartnerAlso] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const targetTypeText =
     targetType === 'REACTION'

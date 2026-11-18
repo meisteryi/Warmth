@@ -260,12 +260,14 @@ export default function MemoryJarView({
       typeof deviceMotion !== 'undefined' &&
       typeof deviceMotion.requestPermission === 'function';
 
-    if (isIos) {
-      setNeedsMotionPermission(true);
-    } else if (typeof window.DeviceMotionEvent !== 'undefined') {
-      // 안드로이드 및 일반 브라우저는 권한 팝업 없이 즉시 수신 가능
-      setMotionPermissionGranted(true);
-    }
+    queueMicrotask(() => {
+      if (isIos) {
+        setNeedsMotionPermission(true);
+      } else if (typeof window.DeviceMotionEvent !== 'undefined') {
+        // 안드로이드 및 일반 브라우저는 권한 팝업 없이 즉시 수신 가능
+        setMotionPermissionGranted(true);
+      }
+    });
   }, []);
 
   // iOS 센서 접근 권한 요청
@@ -374,8 +376,12 @@ export default function MemoryJarView({
   useEffect(() => {
     let isMounted = true;
     if (!roomCode) {
-      setIsLoading(false);
-      return;
+      queueMicrotask(() => {
+        if (isMounted) setIsLoading(false);
+      });
+      return () => {
+        isMounted = false;
+      };
     }
 
     const safetyTimer = setTimeout(() => {
@@ -463,7 +469,7 @@ export default function MemoryJarView({
   // monthJars가 갱신될 때 최신 달로 자동 포커스
   useEffect(() => {
     if (monthJars.length > 0) {
-      setSelectedMonthIndex(monthJars.length - 1);
+      queueMicrotask(() => setSelectedMonthIndex(monthJars.length - 1));
     }
   }, [monthJars.length]);
 

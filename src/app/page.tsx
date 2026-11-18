@@ -314,7 +314,7 @@ export default function HomePage() {
 
   // 앱 진입 시 스플래시 화면: 온기 브랜드 스플래시 화면을 850ms 유지 후 부드러운 페이드아웃
   useEffect(() => {
-    setIsMounted(true);
+    queueMicrotask(() => setIsMounted(true));
     const splashTimer = setTimeout(() => {
       setShowSplash(false);
     }, 850);
@@ -497,7 +497,7 @@ export default function HomePage() {
     try {
       const isDismissed = sessionStorage.getItem('warmth_dismiss_notif_banner') === 'true';
       if (isDismissed || uiState === 'VIEW_ONBOARDING') {
-        setShowNotifPromptBanner(false);
+        queueMicrotask(() => setShowNotifPromptBanner(false));
         return;
       }
       refreshNotificationPermissionAsync()
@@ -632,6 +632,7 @@ export default function HomePage() {
     } catch (e) {
       console.warn('Failed to load session:', e);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 실시간 Firestore 룸 및 일기 구독 (상대방의 노크 및 새 일기 실시간 감지 + E2EE 복호화 + 웹 푸시 알림)

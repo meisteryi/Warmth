@@ -70,7 +70,7 @@ export default function PhotoSlidingPuzzle({
   }, []);
 
   useEffect(() => {
-    shuffleTiles();
+    queueMicrotask(() => shuffleTiles());
   }, [shuffleTiles]);
 
   // 타일 이동 로직
@@ -189,7 +189,7 @@ export default function PhotoSlidingPuzzle({
   // 외부 '도와줘!' 트리거 수신 시 자동 완성
   useEffect(() => {
     if (autoSolveTrigger && autoSolveTrigger > 0 && !isSolved) {
-      handleAutoSolve();
+      queueMicrotask(() => handleAutoSolve());
     }
   }, [autoSolveTrigger, isSolved, handleAutoSolve]);
 
