@@ -106,7 +106,7 @@ export function createGlassMarble(
     metalness: 0.0,
     ior: 1.52,
     reflectivity: 1.0,
-    envMapIntensity: 2.6,
+    envMapIntensity: 2.0,
     specularIntensity: 1.0,
     specularColor: new THREE.Color(0xffffff),
     clearcoat: 1.0,

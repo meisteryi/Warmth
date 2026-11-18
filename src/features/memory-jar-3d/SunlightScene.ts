@@ -8,73 +8,32 @@ function createStudioEnvironment(renderer: THREE.WebGLRenderer): THREE.WebGLRend
   // 어두운 스튜디오 배경 대비를 높여 유리 곡면의 프레넬/창문 반사가 선명하게 드러나도록 설정
   envScene.background = new THREE.Color(0x18130e);
 
-  // 우측 상단 햇살 창문 (2단 창살 분할로 유리구슬 표면에 선명한 창문 반사 곡선 형성)
-  const mainWindowTop = new THREE.Mesh(
-    new THREE.PlaneGeometry(11, 5.5),
-    new THREE.MeshBasicMaterial({ color: 0xfffdf5, side: THREE.DoubleSide })
+  // 우측 상단 햇살 창문 (구슬 중앙의 별을 가리지 않고 외곽 곡면을 따라 은은하게 빛나도록 측면 배치)
+  const mainPanel = new THREE.Mesh(
+    new THREE.PlaneGeometry(8.5, 9),
+    new THREE.MeshBasicMaterial({ color: 0xfffaf0, side: THREE.DoubleSide })
   );
-  mainWindowTop.position.set(6.5, 10.5, 5.5);
-  mainWindowTop.lookAt(0, 0, 0);
-  envScene.add(mainWindowTop);
+  mainPanel.position.set(8.5, 8.5, 2.5);
+  mainPanel.lookAt(0, 0, 0);
+  envScene.add(mainPanel);
 
-  const mainWindowBottom = new THREE.Mesh(
-    new THREE.PlaneGeometry(11, 4.5),
-    new THREE.MeshBasicMaterial({ color: 0xfff5e0, side: THREE.DoubleSide })
-  );
-  mainWindowBottom.position.set(6.8, 4.2, 6.2);
-  mainWindowBottom.lookAt(0, 0, 0);
-  envScene.add(mainWindowBottom);
-
-  // 좌측 맑은 하늘빛 반사 창문
+  // 좌측 맑은 하늘빛 반사 창문 (좌측 유리 테두리 림 하이라이트용)
   const leftPanel = new THREE.Mesh(
-    new THREE.PlaneGeometry(9, 11),
+    new THREE.PlaneGeometry(7.5, 9.5),
     new THREE.MeshBasicMaterial({ color: 0xdff2ff, side: THREE.DoubleSide })
   );
-  leftPanel.position.set(-9.5, 4.5, 3.5);
+  leftPanel.position.set(-10, 4.5, 0.5);
   leftPanel.lookAt(0, 0, 0);
   envScene.add(leftPanel);
 
-  // 상단 천창 하이라이트 스트립
-  const ceilingStrip = new THREE.Mesh(
-    new THREE.PlaneGeometry(14, 3.2),
+  // 우측 상단 작은 포인트 하이라이트 1개만 유지 (별을 가리지 않는 작은 반짝임)
+  const topGlint = new THREE.Mesh(
+    new THREE.CircleGeometry(0.9, 20),
     new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
   );
-  ceilingStrip.position.set(-1, 12, 1.5);
-  ceilingStrip.lookAt(0, 0, 0);
-  envScene.add(ceilingStrip);
-
-  const frontDot = new THREE.Mesh(
-    new THREE.CircleGeometry(2.0, 24),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
-  );
-  frontDot.position.set(-2.5, 6.5, 8.5);
-  frontDot.lookAt(0, 0, 0);
-  envScene.add(frontDot);
-
-  // 유리구슬 표면에 맑고 선명한 반짝임(캐치라이트)을 더해주는 포인트 하이라이트
-  const topSparkle = new THREE.Mesh(
-    new THREE.CircleGeometry(1.2, 20),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })
-  );
-  topSparkle.position.set(1.5, 10, -2);
-  topSparkle.lookAt(0, 0, 0);
-  envScene.add(topSparkle);
-
-  const rightSparkle = new THREE.Mesh(
-    new THREE.CircleGeometry(1.4, 20),
-    new THREE.MeshBasicMaterial({ color: 0xfff8e6, side: THREE.DoubleSide })
-  );
-  rightSparkle.position.set(9, 2.5, 4);
-  rightSparkle.lookAt(0, 0, 0);
-  envScene.add(rightSparkle);
-
-  const rimSparkle = new THREE.Mesh(
-    new THREE.CircleGeometry(1.5, 20),
-    new THREE.MeshBasicMaterial({ color: 0xf0f8ff, side: THREE.DoubleSide })
-  );
-  rimSparkle.position.set(-5, 7, -7);
-  rimSparkle.lookAt(0, 0, 0);
-  envScene.add(rimSparkle);
+  topGlint.position.set(4.5, 9.5, 3.5);
+  topGlint.lookAt(0, 0, 0);
+  envScene.add(topGlint);
 
   // 아래쪽 원목 책상의 따뜻한 반사광 (구슬 하단 유리 테두리에 앰버빛 바운스 형성)
   const floorBounce = new THREE.Mesh(
