@@ -8,7 +8,8 @@ export type UIState =
   | 'VIEW_OPENED_DIARY'   // 왁스 개봉 완료, 일기 열람 가능
   | 'VIEW_MEMORY_JAR'     // 3D 온기 유리병 & 실링 왁스 뷰
   | 'VIEW_ARCHIVE'        // 둘만의 서재 (상단바 고정 인라인 뷰)
-  | 'VIEW_SETTINGS';      // 설정 탭 (상단바 고정 인라인 뷰)
+  | 'VIEW_SETTINGS'       // 설정 탭 (상단바 고정 인라인 뷰)
+  | 'VIEW_WRITE';         // 새 편지 작성 (상단바 고정 인라인 뷰)
 
 export type WaxColor = string;
 

@@ -33,6 +33,7 @@ import { useLanguage } from '@/lib/i18n';
 
 interface WriteDiaryModalProps {
   isOpen: boolean;
+  isInlineView?: boolean;
   onClose: () => void;
   onSaveDiary: (newDiary: Partial<DiaryData>) => Promise<boolean> | void;
   currentUserName: string;
@@ -44,6 +45,7 @@ interface WriteDiaryModalProps {
 
 export default function WriteDiaryModal({
   isOpen,
+  isInlineView = false,
   onClose,
   onSaveDiary,
   currentUserName,
@@ -758,6 +760,991 @@ export default function WriteDiaryModal({
     }
   };
 
+  const renderInnerContent = () => (
+    <>
+      {isInlineView ? (
+        /* 인라인 뷰 상단 헤더 (서재/설정 탭과 동일한 상단바 아래 섹션 헤더) */
+        <div className="flex items-center justify-between shrink-0 px-2 sm:px-3 py-3 mb-4 bg-transparent border-b border-stone-200/50">
+          <div className="flex items-center gap-2.5 min-w-0 select-none">
+            <h2 className="text-xl sm:text-2xl font-serif-warm font-extrabold text-stone-900 whitespace-nowrap shrink-0 tracking-tight">
+              {t('write.title')}
+            </h2>
+            <span className="text-xs text-stone-500 font-sans-ui whitespace-nowrap">
+              To. {partnerName}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleCloseModal}
+            className="px-3 py-1.5 rounded-xl border border-stone-300 hover:border-stone-400 bg-white hover:bg-stone-50 text-stone-700 text-xs font-serif-warm font-medium transition-all active:scale-95 shadow-2xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+            title={language === 'en' ? 'Back to Desk' : '책상으로 돌아가기'}
+          >
+            <span>{language === 'en' ? 'Back to Desk' : '책상 복귀'}</span>
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* 닫기 버튼 */}
+          <button
+            onClick={handleCloseModal}
+            className="absolute top-3 right-3 sm:top-4 sm:right-4 p-2 text-stone-400 hover:text-stone-700 rounded-full hover:bg-stone-100 transition-colors z-10 min-h-[40px] min-w-[40px] flex items-center justify-center"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          {/* 헤더 */}
+          <div className="flex items-center gap-2 mb-5 pr-8">
+            <Feather className="w-5 h-5 text-[#6B1724] shrink-0" />
+            <h2 className="font-serif-warm text-lg sm:text-xl font-bold text-stone-900">
+              {t('write.title')}
+            </h2>
+            <span className="text-xs text-stone-500 font-sans-ui ml-auto">
+              To. {partnerName}
+            </span>
+          </div>
+        </>
+      )}
+
+      {/* 오늘의 글감 추천 배너 (긴 글감도 잘림 없이 전체 표시) */}
+      {/* 오늘의 추천 글감 카드 */}
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-[#FAF4EC] via-[#F6ECE0] to-[#F2E5D6] border border-[#E4D5BF] shadow-xs mb-4 sm:mb-5">
+        <div className="flex items-center justify-between gap-2 mb-1.5">
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm select-none">🕯️</span>
+            <span className="text-[11px] font-sans-ui text-amber-900 font-bold tracking-wider">오늘의 추천 글감</span>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={handleRefreshPrompt}
+              disabled={isRefreshingPrompt}
+              title="다른 글감 뽑기"
+              className="p-1.5 px-2 rounded-lg bg-white/90 hover:bg-white text-stone-600 hover:text-stone-900 border border-stone-200 transition-all active:scale-95 shadow-2xs cursor-pointer disabled:opacity-50 flex items-center gap-1 text-[11px] font-sans-ui"
+            >
+              <Dices className={`w-3.5 h-3.5 ${isRefreshingPrompt ? 'animate-spin text-[#6B1724]' : ''}`} />
+              <span className="hidden sm:inline">다른 글감</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleApplyPrompt}
+              className="px-2.5 py-1.5 rounded-lg bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-[11px] font-sans-ui font-semibold transition-all active:scale-95 shadow-xs cursor-pointer"
+            >
+              글감 적용
+            </button>
+          </div>
+        </div>
+        <p className="text-xs sm:text-sm font-serif-warm text-stone-850 font-medium leading-relaxed break-keep">
+          &ldquo;{dailyPrompt}&rdquo;
+        </p>
+      </div>
+
+      {/* [1번 요구사항] 임시 저장본 복원 배너 */}
+      {hasDraftNotice && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="my-3.5 sm:my-4 p-3.5 rounded-2xl bg-gradient-to-r from-[#FFFDF9] via-[#FAF6EE] to-[#FDFBF7] border border-[#E4D8C5] text-stone-800 flex flex-wrap items-center justify-between gap-2.5 shadow-2xs"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="text-base select-none">✍️</span>
+            <div className="text-xs font-sans-ui leading-tight">
+              <strong className="text-[#6B1724] font-semibold">작성 중이던 임시 저장 편지</strong>가 있습니다.
+              {lastSavedDraftTime && <span className="text-stone-500 ml-1.5 font-normal">({lastSavedDraftTime})</span>}
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={handleRestoreDraft}
+              className="px-3 py-1.5 rounded-xl bg-[#6B1724] text-amber-50 text-xs font-serif-warm font-bold hover:bg-[#831D2D] active:scale-95 transition-all shadow-2xs cursor-pointer flex items-center gap-1"
+            >
+              <span>이어서 쓰기</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleDiscardDraft}
+              className="px-2.5 py-1.5 rounded-xl text-stone-500 hover:text-stone-800 text-xs font-sans-ui hover:bg-stone-200/50 transition-all cursor-pointer"
+            >
+              새로 쓰기
+            </button>
+          </div>
+        </motion.div>
+      )}
+
+      <form onSubmit={handleSubmit} noValidate className="space-y-4 sm:space-y-5">
+        {/* [3번 요구사항] 오늘의 날씨 & 기분 빈티지 잉크 스탬프 선택 */}
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-[#FCFAF7] border border-[#E8DEC8] shadow-2xs space-y-3">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-stone-800 font-sans-ui flex items-center gap-1.5">
+              <span>🏷️</span>
+              <span>오늘의 날씨·기분 잉크 도장</span>
+            </label>
+            <span className="text-[11px] font-serif-warm text-stone-500">
+              편지 귀퉁이에 빈티지 인장으로 찍힙니다
+            </span>
+          </div>
+          <div className="flex items-center gap-2 overflow-x-auto py-1.5 px-0.5 scrollbar-none">
+            {WEATHER_STAMPS.map((st) => {
+              const isSelected = selectedStamp.id === st.id;
+              return (
+                <button
+                  key={st.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedStamp(st);
+                    soundEngine.playPaperRustle();
+                  }}
+                  className={`shrink-0 px-3 py-2 rounded-xl border text-xs font-serif-warm flex items-center gap-1.5 transition-all cursor-pointer select-none ${isSelected
+                    ? 'bg-[#FAF4ED] border-[#7A1E2D] text-[#7A1E2D] font-bold shadow-2xs'
+                    : 'bg-white border-[#E2D7C8] text-stone-600 hover:border-stone-400 hover:bg-white'
+                    }`}
+                >
+                  <span className="text-sm">{st.symbol}</span>
+                  <span>{st.name}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 스티커 표기 방식 선택 (인장 도장 vs 제목 위 대형 스티커) */}
+          <div className="pt-2.5 border-t border-[#E8DEC8]/80 flex items-center justify-between gap-2">
+            <span className="text-xs font-sans-ui text-stone-600 font-medium">
+              스티커 표기 위치
+            </span>
+            <div className="inline-flex rounded-xl bg-stone-200/50 p-1 border border-stone-200/90 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setStampStyle('BADGE');
+                  soundEngine.playPaperRustle();
+                }}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-sans-ui transition-all cursor-pointer ${stampStyle === 'BADGE'
+                  ? 'bg-white text-[#6B1724] font-bold shadow-2xs'
+                  : 'text-stone-600 hover:text-stone-900'
+                  }`}
+              >
+                🏷️ 날짜 옆 인장
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setStampStyle('EMOJI_TITLE');
+                  soundEngine.playPaperRustle();
+                }}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-sans-ui transition-all cursor-pointer ${stampStyle === 'EMOJI_TITLE'
+                  ? 'bg-white text-[#6B1724] font-bold shadow-2xs'
+                  : 'text-stone-600 hover:text-stone-900'
+                  }`}
+              >
+                ✨ 제목 위 스티커
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* [NEW] 일기 날짜 선택 및 빠른 프리셋 */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-xs font-semibold text-stone-700 font-sans-ui flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-[#6B1724]" />
+              <span>편지 날짜</span>
+            </label>
+            <div className="flex items-center gap-1.5 text-[11px] font-sans-ui">
+              <button
+                type="button"
+                onClick={() => {
+                  setDiaryDate(getTodayDateString());
+                  soundEngine.playPaperRustle();
+                }}
+                className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${diaryDate === getTodayDateString()
+                  ? 'bg-[#6B1724] text-amber-50 font-bold shadow-2xs'
+                  : 'bg-stone-100 hover:bg-stone-200/70 text-stone-600'
+                  }`}
+              >
+                오늘
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const y = new Date();
+                  y.setDate(y.getDate() - 1);
+                  const yStr = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
+                  setDiaryDate(yStr);
+                  soundEngine.playPaperRustle();
+                }}
+                className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${(() => {
+                  const y = new Date();
+                  y.setDate(y.getDate() - 1);
+                  const yStr = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
+                  return diaryDate === yStr
+                    ? 'bg-[#6B1724] text-amber-50 font-bold shadow-2xs'
+                    : 'bg-stone-100 hover:bg-stone-200/70 text-stone-600';
+                })()
+                  }`}
+              >
+                어제
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 min-w-0">
+              <input
+                type="date"
+                value={diaryDate}
+                onChange={(e) => {
+                  if (e.target.value) setDiaryDate(e.target.value);
+                }}
+                className="w-full px-3 sm:px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-mono text-sm text-stone-900 cursor-pointer shadow-2xs"
+              />
+            </div>
+            {(() => {
+              const info = getDateDetailInfo(diaryDate);
+              if (!info) return null;
+              return (
+                <div
+                  className={`shrink-0 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-xl border text-xs font-serif-warm font-semibold flex items-center gap-1.5 shadow-2xs whitespace-nowrap transition-all ${info.isToday
+                    ? 'bg-amber-50/90 border-amber-300/80 text-[#6B1724] ring-1 ring-amber-300/50'
+                    : info.isYesterday
+                      ? 'bg-stone-100/90 border-stone-300 text-stone-800'
+                      : 'bg-white/90 border-stone-200 text-stone-700'
+                    }`}
+                  title={`${diaryDate} (${info.dayName})`}
+                >
+                  <span className="font-bold">{info.dayName}</span>
+                  {info.relative && (
+                    <span
+                      className={`text-[10px] px-1.5 py-0.5 rounded-md font-sans-ui font-bold ${info.isToday
+                        ? 'bg-[#6B1724] text-amber-50 shadow-2xs'
+                        : 'bg-stone-200 text-stone-600'
+                        }`}
+                    >
+                      {info.relative}
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+
+        {/* 편지지 스킨 테마 선택 */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-semibold text-stone-700 font-sans-ui flex items-center gap-1.5">
+              <Palette className="w-3.5 h-3.5 text-[#6B1724]" />
+              <span>{language === 'en' ? 'Stationery Paper Skin' : '편지지 스킨 테마'}</span>
+            </label>
+            <span className="text-[11px] font-serif-warm text-stone-500 font-medium">
+              {PAPER_THEMES.find((p) => p.id === paperTheme)?.name}
+            </span>
+          </div>
+          <div className="flex items-stretch gap-2 overflow-x-auto no-scrollbar py-1 px-0.5 snap-x snap-mandatory touch-pan-x">
+            {PAPER_THEMES.map((theme) => {
+              const isSelected = paperTheme === theme.id;
+              return (
+                <button
+                  key={theme.id}
+                  type="button"
+                  onClick={() => {
+                    setPaperTheme(theme.id);
+                    soundEngine.playPaperRustle();
+                  }}
+                  className={`relative shrink-0 w-[68px] sm:w-[76px] snap-start p-2 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${isSelected
+                    ? 'ring-2 ring-[#6B1724] border-[#6B1724] shadow-sm scale-[1.02] bg-white'
+                    : 'border-stone-200 hover:border-stone-300 bg-white/70 hover:bg-white'
+                    }`}
+                  title={theme.desc}
+                >
+                  {/* 미니 종이 스와치 미리보기 */}
+                  <div
+                    className="w-full aspect-[4/3] rounded-md border flex items-center justify-center shadow-2xs relative overflow-hidden"
+                    style={{
+                      backgroundColor: theme.previewColor,
+                      borderColor: theme.previewBorder,
+                    }}
+                  >
+                    {theme.id === 'AIRMAIL' && (
+                      <div className="absolute inset-0 border-2 border-dashed border-red-500/30" />
+                    )}
+                    {theme.id === 'MIDNIGHT' && (
+                      <span className="text-[10px]">✨</span>
+                    )}
+                    {theme.id === 'CHERRY' && (
+                      <span className="text-[10px]">🌸</span>
+                    )}
+                    {theme.id === 'SAGE' && (
+                      <span className="text-[10px]">🌿</span>
+                    )}
+                    {theme.id === 'GRID' && (
+                      <div className="w-3 h-3 border border-emerald-600/30 grid grid-cols-2 grid-rows-2" />
+                    )}
+                    {theme.id === 'KRAFT' && (
+                      <div className="w-4 h-0.5 bg-amber-900/30 rounded" />
+                    )}
+                    {theme.id === 'IVORY' && (
+                      <div className="w-4 h-0.5 bg-stone-400/40 rounded" />
+                    )}
+                  </div>
+                  <span className={`text-[10.5px] font-serif-warm truncate w-full text-center ${isSelected ? 'text-[#6B1724] font-bold' : 'text-stone-700 font-medium'
+                    }`}>
+                    {theme.name.split(' ')[0]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 제목 입력 */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-xs font-sans-ui text-stone-600">
+              {language === 'en' ? 'Letter Title' : '편지 제목'}
+            </label>
+            {stampStyle === 'EMOJI_TITLE' && (
+              <span className="text-[11px] font-serif-warm text-[#6B1724] flex items-center gap-1">
+                <span>{selectedStamp.symbol}</span>
+                <span>{language === 'en' ? 'Sticker will appear above title' : '스티커가 제목 왼쪽 위에 크게 표시됩니다'}</span>
+              </span>
+            )}
+          </div>
+          <div className="relative">
+            {stampStyle === 'EMOJI_TITLE' && (
+              <div
+                className="absolute -top-3.5 left-2 sm:-top-4 sm:left-2.5 z-10 text-2xl sm:text-3xl filter drop-shadow-sm pointer-events-none select-none -rotate-12 transition-transform duration-200"
+                title={language === 'en' ? 'Preview sticker above title' : '제목 위 스티커 미리보기'}
+              >
+                {selectedStamp.symbol}
+              </div>
+            )}
+            <input
+              type="text"
+              required
+              maxLength={60}
+              value={title}
+              onChange={(e) => setTitle(e.target.value.slice(0, 60))}
+              placeholder={t('write.titlePlaceholder')}
+              className={`w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-base sm:text-sm text-stone-900 ${stampStyle === 'EMOJI_TITLE' ? 'pl-11 sm:pl-12' : ''
+                }`}
+            />
+          </div>
+        </div>
+
+        {/* 본문 입력 */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-xs font-sans-ui text-stone-600">
+              {language === 'en' ? 'Letter Content' : '편지 내용'}
+            </label>
+            <span className="text-[11px] font-sans-ui text-stone-400">
+              <span className={content.length >= 1300 ? 'text-rose-600 font-bold' : 'text-stone-600'}>
+                {content.length}
+              </span>
+              /1300
+            </span>
+          </div>
+          <textarea
+            required
+            rows={6}
+            maxLength={1300}
+            value={content}
+            onChange={(e) => setContent(e.target.value.slice(0, 1300))}
+            placeholder={t('write.contentPlaceholder')}
+            className={`w-full p-3.5 rounded-xl border focus:outline-none focus:ring-2 font-serif-warm text-base sm:text-sm leading-relaxed resize-none transition-colors ${paperTheme === 'MIDNIGHT'
+              ? 'bg-[#181F2B] text-[#F4EDE2] border-[#324058] focus:ring-amber-200/30 placeholder:text-stone-500'
+              : paperTheme === 'KRAFT'
+                ? 'bg-[#F4E7D3] text-[#3E2718] border-[#C8A882] focus:ring-[#6B1724]/20 placeholder:text-stone-500'
+                : paperTheme === 'GRID'
+                  ? 'bg-[#FAFBF7] text-[#243329] border-[#BFD3C1] focus:ring-emerald-700/20 placeholder:text-stone-400'
+                  : paperTheme === 'AIRMAIL'
+                    ? 'bg-[#FDFCF9] text-[#1A2536] border-[#8BA5C4] focus:ring-blue-600/20 placeholder:text-stone-400'
+                    : paperTheme === 'CHERRY'
+                      ? 'bg-[#FFF4F6] text-[#4A2530] border-[#E8B8C6] focus:ring-rose-400/25 placeholder:text-rose-300'
+                      : paperTheme === 'SAGE'
+                        ? 'bg-[#F1F6F0] text-[#223528] border-[#B3CBB5] focus:ring-emerald-700/20 placeholder:text-stone-400'
+                        : 'bg-white/90 text-stone-900 border-stone-300 focus:ring-[#6B1724]/20 placeholder:text-stone-400'
+              }`}
+          />
+        </div>
+
+        {/* 사진 첨부 선택 (사용자 기기 직접 업로드 또는 AI 감성 삽화 생성) */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-sans-ui text-stone-600 flex items-center gap-1">
+              <ImageIcon className="w-3.5 h-3.5 text-stone-500" />
+              <span>오늘의 사진 첨부 (선택)</span>
+            </label>
+            {uploadedPhotoInfo && (
+              <span className="text-[11px] font-mono text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                {uploadedPhotoInfo.fileName.includes('illustration')
+                  ? `🎨 AI 감성 수채화 (${uploadedPhotoInfo.sizeKb}KB 최적화)`
+                  : `직접 업로드됨 (${uploadedPhotoInfo.sizeKb}KB 압축)`}
+              </span>
+            )}
+          </div>
+
+          {/* 숨겨진 파일 인풋 (모바일 카메라/갤러리 대응) */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+
+          {/* 1) AI 삽화 실시간 4단계 프로세스 생성 중 인디케이터 */}
+          {isGeneratingIllustration ? (
+            <div className="p-4 rounded-xl border border-amber-300/80 bg-gradient-to-b from-[#FFFDF9] to-[#FAF5EB] shadow-xs space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center text-amber-800 animate-pulse">
+                    <Paintbrush className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-serif-warm font-bold text-stone-800 flex items-center gap-1.5">
+                      <span>{language === 'en' ? 'Drawing watercolor artwork...' : '도화지에 감성 삽화를 그리는 중...'}</span>
+                      <span className="text-[10px] text-amber-800 font-mono font-bold bg-amber-100/70 px-1.5 py-0.2 rounded">
+                        {illustrationProgress}%
+                      </span>
+                    </p>
+                    <p className="text-[11px] text-stone-500 font-sans-ui">
+                      {language === 'en' ? 'Please wait a moment while creating' : '정성스레 수채화 물감을 올리고 있어요'}
+                    </p>
+                  </div>
+                </div>
+                <Loader2 className="w-5 h-5 text-amber-800 animate-spin" />
+              </div>
+
+              {/* 실시간 프로그레스 바 */}
+              <div className="w-full bg-stone-200/80 rounded-full h-1.5 overflow-hidden">
+                <div
+                  className="bg-gradient-to-r from-amber-600 to-[#6B1724] h-1.5 rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${illustrationProgress}%` }}
+                />
+              </div>
+
+              {/* 4단계 상세 프로세스 진행 단계 리스트 */}
+              <div className="space-y-1.5 pt-1 border-t border-amber-200/50">
+                {[
+                  { step: 1, label: language === 'en' ? 'Reading warm moments in your letter' : '편지 속 따뜻한 순간과 감정 분석' },
+                  { step: 2, label: language === 'en' ? 'Sketching composition & color palette' : '수채화 화폭에 구도와 색감 스케치' },
+                  { step: 3, label: language === 'en' ? 'Painting delicate colors with fine brush' : '도화지 위에 고운 붓으로 채색' },
+                  { step: 4, label: language === 'en' ? 'Placing artwork into your letter' : '완성된 삽화를 편지에 조심스럽게 담기' },
+                ].map((item) => {
+                  const isDone = illustrationStep > item.step || illustrationProgress >= 100;
+                  const isCurrent = illustrationStep === item.step && illustrationProgress < 100;
+                  return (
+                    <div
+                      key={item.step}
+                      className={`flex items-center gap-2 text-xs font-serif-warm transition-colors ${isDone
+                        ? 'text-emerald-700 font-medium'
+                        : isCurrent
+                          ? 'text-amber-900 font-bold'
+                          : 'text-stone-400'
+                        }`}
+                    >
+                      {isDone ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      ) : isCurrent ? (
+                        <Loader2 className="w-3.5 h-3.5 text-amber-700 animate-spin shrink-0" />
+                      ) : (
+                        <div className="w-3.5 h-3.5 rounded-full border border-stone-300 shrink-0 flex items-center justify-center text-[9px] text-stone-400">
+                          {item.step}
+                        </div>
+                      )}
+                      <span className="text-[11px] truncate">{item.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : selectedPhoto && uploadedPhotoInfo ? (
+            /* 2) 사진 첨부 완료 상태 (직접 올린 사진 또는 AI 생성 삽화) */
+            <div className="flex items-center gap-3 p-3 bg-[#FAF6EE] rounded-xl border border-[#E0D3C1]">
+              <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-stone-300 shrink-0 shadow-xs">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={selectedPhoto}
+                  alt="Uploaded"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-xs font-serif-warm font-bold text-stone-800 truncate">
+                  {uploadedPhotoInfo.fileName.includes('illustration')
+                    ? (language === 'en' ? 'AI Letter Watercolor Artwork' : 'AI 편지 감성 수채화 삽화')
+                    : uploadedPhotoInfo.fileName}
+                </p>
+                <p className="text-[11px] text-stone-500 font-sans-ui mt-0.5">
+                  {uploadedPhotoInfo.width}×{uploadedPhotoInfo.height}px · {uploadedPhotoInfo.sizeKb}KB로 자동 최적화됨
+                </p>
+                <div className="flex items-center flex-wrap gap-2 mt-2">
+                  {uploadedPhotoInfo.fileName.includes('illustration') ? (
+                    <button
+                      type="button"
+                      onClick={handleGenerateIllustration}
+                      className="text-[11px] text-amber-900 font-medium hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <RefreshCw className="w-3 h-3 text-amber-700" />
+                      <span>다시 그리기</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="text-[11px] text-amber-900 font-medium hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <Camera className="w-3.5 h-3.5 text-amber-700" />
+                      <span>다른 사진으로 변경</span>
+                    </button>
+                  )}
+                  <span className="text-stone-300">|</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUploadedPhotoInfo(null);
+                      setSelectedPhoto(null);
+                      setPhotoCaption('');
+                    }}
+                    className="text-[11px] text-rose-700 font-medium hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                    <span>사진 삭제</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* 3) 사진이 등록되지 않은 초기 상태: [직접 올리기] vs [AI 감성 삽화 그리기] 2-Way 카드 */
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {/* 옵션 A: 내 앨범/카메라에서 사진 올리기 */}
+              <button
+                type="button"
+                disabled={isCompressing}
+                onClick={() => fileInputRef.current?.click()}
+                className="p-3.5 rounded-xl border border-dashed border-[#C4A882] hover:border-[#6B1724] bg-[#FAF6EE]/90 hover:bg-[#F5ECE0] text-stone-700 flex flex-col items-center justify-center gap-1 transition-all active:scale-[0.99] group cursor-pointer"
+              >
+                {isCompressing ? (
+                  <div className="flex flex-col items-center gap-1 py-1">
+                    <Loader2 className="w-5 h-5 text-[#6B1724] animate-spin" />
+                    <span className="text-xs font-serif-warm text-stone-700 font-bold">압축 중...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="w-8 h-8 rounded-full bg-white shadow-xs border border-[#DECDBB] flex items-center justify-center group-hover:scale-105 transition-transform text-[#6B1724]">
+                      <Upload className="w-4 h-4 stroke-[1.8]" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs font-serif-warm font-bold text-stone-800">
+                        {language === 'en' ? 'Upload Photo' : '직접 사진 올리기'}
+                      </p>
+                      <p className="text-[10px] text-stone-500 font-sans-ui">
+                        {language === 'en' ? 'From album or camera' : '앨범이나 카메라 촬영'}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </button>
+
+              {/* 옵션 B: 편지 내용으로 AI 감성 삽화 그리기 */}
+              <button
+                type="button"
+                onClick={handleGenerateIllustration}
+                className="p-3.5 rounded-xl border border-dashed border-amber-300/90 hover:border-amber-600 bg-gradient-to-b from-[#FFFDF9] to-[#FAF4E8] text-stone-700 flex flex-col items-center justify-center gap-1 transition-all active:scale-[0.99] group cursor-pointer shadow-2xs hover:shadow-xs"
+                title={
+                  content.trim().length >= 10
+                    ? '편지 내용으로 감성 수채화를 생성합니다'
+                    : '편지 내용을 10자 이상 작성하시면 삽화를 그릴 수 있어요'
+                }
+              >
+                <div className="w-8 h-8 rounded-full bg-amber-50 shadow-xs border border-amber-200/80 flex items-center justify-center group-hover:scale-105 transition-transform text-amber-800">
+                  <Paintbrush className="w-4 h-4 stroke-[1.8]" />
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-serif-warm font-bold text-stone-800 flex items-center justify-center gap-1">
+                    <span>{language === 'en' ? 'Draw AI Artwork' : 'AI 감성 삽화 그리기'}</span>
+                    <Sparkles className="w-3 h-3 text-amber-600" />
+                  </p>
+                  <p className="text-[10px] text-stone-500 font-sans-ui">
+                    {content.trim().length >= 10
+                      ? (language === 'en' ? 'Draws watercolor from letter' : '편지 내용으로 수채화 생성')
+                      : (language === 'en' ? 'Write 10+ letters first' : '편지 10자 이상 작성 후 가능')}
+                  </p>
+                </div>
+              </button>
+            </div>
+          )}
+
+          {/* 사진 캡션 입력창 (50자 제한) */}
+          <div className="pt-0.5">
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[11px] font-sans-ui text-stone-600 flex items-center gap-1">
+                <PenLine className="w-3 h-3 text-stone-500" />
+                <span>사진 캡션 (선택)</span>
+              </label>
+              <span className="text-[10px] font-mono text-stone-400">
+                <span className={photoCaption.length >= 30 ? 'text-rose-600 font-bold' : 'text-stone-600'}>
+                  {photoCaption.length}
+                </span>
+                /30
+              </span>
+            </div>
+            <input
+              type="text"
+              maxLength={30}
+              value={photoCaption}
+              onChange={(e) => setPhotoCaption(e.target.value.slice(0, 30))}
+              placeholder="사진을 설명해주세요"
+              className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white text-stone-900 font-serif-warm text-xs focus:outline-none focus:ring-1 focus:ring-[#6B1724] focus:border-[#6B1724] placeholder:text-stone-400 placeholder:font-sans-ui shadow-2xs"
+            />
+          </div>
+
+          {photoError && (
+            <p className="text-xs text-rose-600 font-sans-ui flex items-center gap-1">
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span>{photoError}</span>
+            </p>
+          )}
+        </div>
+
+        {/* 실링 왁스 색상 선택 (버건디 / 골드 / 그린 / 직접 선택) */}
+        <div>
+          <label className="block text-xs font-sans-ui text-stone-600 mb-2">
+            봉인할 실링 왁스 인장 색상
+          </label>
+          <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
+            {WAX_COLORS.map((wax) => (
+              <button
+                key={wax.hex}
+                type="button"
+                onClick={() => setSelectedColor(wax.hex)}
+                className={`py-2 px-1.5 sm:px-2 rounded-xl border text-[11px] sm:text-xs font-sans-ui flex items-center justify-center gap-1.5 transition-all ${selectedColor.toLowerCase() === wax.hex.toLowerCase()
+                  ? 'border-stone-800 bg-white shadow-sm ring-2 ring-stone-800/10 font-bold text-stone-900'
+                  : 'border-stone-200 bg-stone-50/70 text-stone-600 hover:border-stone-300'
+                  }`}
+                title={wax.label}
+              >
+                <span
+                  className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full shadow-inner shrink-0"
+                  style={{ backgroundColor: wax.hex }}
+                />
+                <span className="truncate">
+                  {wax.name === 'Burgundy' ? '버건디' : wax.name === 'Antique Gold' ? '골드' : '그린'}
+                </span>
+              </button>
+            ))}
+
+            {/* 4번째 옵션: 직접 선택 (포토샵 컬러 휠 원형 팔레트) */}
+            <div className="relative">
+              <input
+                ref={colorInputRef}
+                type="color"
+                value={customColor}
+                onChange={(e) => {
+                  const newColor = e.target.value;
+                  setCustomColor(newColor);
+                  setSelectedColor(newColor);
+                }}
+                onInput={(e) => {
+                  const newColor = e.currentTarget.value;
+                  setCustomColor(newColor);
+                  setSelectedColor(newColor);
+                }}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                title="포토샵 컬러 휠에서 직접 색상 선택"
+                aria-label="실링 왁스 인장 색상 직접 선택"
+              />
+              <div
+                className={`w-full h-full py-2 px-1.5 sm:px-2 rounded-xl border text-[11px] sm:text-xs font-sans-ui flex items-center justify-center gap-1.5 transition-all pointer-events-none ${isCustomColor
+                  ? 'border-stone-800 bg-white shadow-sm ring-2 ring-stone-800/10 font-bold text-stone-900'
+                  : 'border-stone-200 bg-stone-50/70 text-stone-600'
+                  }`}
+              >
+                {/* 포토샵 컬러 원형 (Hue Ring) 스타일 아이콘 */}
+                <div
+                  className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full p-[1.5px] shrink-0 flex items-center justify-center shadow-xs"
+                  style={{
+                    background: 'conic-gradient(from 0deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)',
+                  }}
+                >
+                  <div
+                    className="w-full h-full rounded-full border border-black/15 shadow-inner transition-colors"
+                    style={{
+                      backgroundColor: isCustomColor ? customColor : '#ffffff',
+                    }}
+                  />
+                </div>
+                <span className="truncate">직접 선택</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 미션 설정 (사진 퍼즐, 우표 퍼즐, 시스템 데일리, 커스텀 퀴즈) */}
+        <div className="pt-2 border-t border-stone-200">
+          <label className="block text-xs font-sans-ui text-stone-600 mb-2">
+            상대방이 풀 관문 선택
+          </label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-stone-100 p-1 rounded-xl text-[11px] font-sans-ui mb-3">
+            <button
+              type="button"
+              onClick={() => setMissionType('PUZZLE_PHOTO')}
+              className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 ${missionType === 'PUZZLE_PHOTO' ? 'bg-white shadow-xs font-bold text-stone-900' : 'text-stone-500 hover:text-stone-800'
+                }`}
+            >
+              <span>🧩 사진 퍼즐</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMissionType('PUZZLE_STAMP');
+                setPhotoError('');
+                setSubmitError('');
+              }}
+              className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 ${missionType === 'PUZZLE_STAMP' ? 'bg-white shadow-xs font-bold text-stone-900' : 'text-stone-500 hover:text-stone-800'
+                }`}
+            >
+              <span>📮 우표 맞추기</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMissionType('CUSTOM');
+                setPhotoError('');
+                setSubmitError('');
+              }}
+              className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 ${missionType === 'CUSTOM' ? 'bg-white shadow-xs font-bold text-stone-900' : 'text-stone-500 hover:text-stone-800'
+                }`}
+            >
+              <span>❓ 깜짝 퀴즈</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMissionType('TELEPATHY');
+                setPhotoError('');
+                setSubmitError('');
+              }}
+              className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 ${missionType === 'TELEPATHY' ? 'bg-white shadow-xs font-bold text-stone-900' : 'text-stone-500 hover:text-stone-800'
+                }`}
+            >
+              <span>💞 텔레파시</span>
+            </button>
+          </div>
+
+          {missionType === 'PUZZLE_PHOTO' && (
+            <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs font-serif-warm text-stone-700">
+              🧩 <strong>사진 조각 퍼즐</strong>: 내가 첨부한 사진이 3×3 슬라이딩 조각으로 분리되어, {partnerName} 님이 조각을 맞추면 편지가 개봉됩니다.
+            </div>
+          )}
+
+          {missionType === 'PUZZLE_STAMP' && (
+            <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs font-serif-warm text-stone-700">
+              📮 <strong>나만의 우표 맞추기</strong>: 첨부한 사진이 들어간 빈티지 우표 조각 4개를 순서대로 맞춰 소인 도장을 찍으면 편지가 개봉됩니다.
+            </div>
+          )}
+
+          {missionType === 'CUSTOM' && (
+            <div className="space-y-2.5 p-3 bg-amber-50/60 rounded-xl border border-amber-200/70">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span className="text-[11px] font-sans-ui text-amber-900 font-bold flex items-center gap-1">
+                  <span>❓ 저번 편지 복습 퀴즈</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={handleGenerateAiQuiz}
+                  disabled={isGeneratingQuiz}
+                  className="px-2.5 py-1.5 rounded-lg bg-amber-200/90 hover:bg-amber-300 active:scale-95 text-amber-950 text-[11px] font-sans-ui font-semibold flex items-center justify-center gap-1.5 transition-all disabled:opacity-50 shadow-xs cursor-pointer"
+                >
+                  <Sparkles className={`w-3.5 h-3.5 text-amber-800 ${isGeneratingQuiz ? 'animate-spin' : ''}`} />
+                  <span>{isGeneratingQuiz ? '상대가 본 최근 편지 분석 중...' : '✨ 상대가 본 최근 편지 기반 AI 퀴즈'}</span>
+                </button>
+              </div>
+
+              {quizSourceInfo && (
+                <div className="text-[11px] font-sans-ui text-amber-900/90 bg-amber-100/70 px-2.5 py-1.5 rounded-lg border border-amber-300/60 flex items-center gap-1.5">
+                  <BookOpen className="w-3.5 h-3.5 text-amber-800 shrink-0" />
+                  <span className="font-medium truncate">{quizSourceInfo}</span>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <div>
+                  <label className="block text-[11px] font-sans-ui text-stone-600 mb-1 font-medium">
+                    질문 내용
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="예: 저번 편지에서 내가 주말에 가자고 했던 곳이 어디였게?"
+                    value={customPrompt}
+                    onChange={(e) => setCustomPrompt(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-white text-xs font-serif-warm focus:outline-none focus:ring-1 focus:ring-amber-800"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-sans-ui text-stone-600 mb-1 font-medium">
+                    정답
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="예: 서촌 (상대방이 입력할 단어)"
+                    value={customQuizAnswer}
+                    onChange={(e) => setCustomQuizAnswer(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-white text-xs font-serif-warm focus:outline-none focus:ring-1 focus:ring-amber-800"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-sans-ui text-stone-600 mb-1 font-medium">
+                    힌트
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="예: 저번 편지 셋째 줄에 적어뒀지!"
+                    value={customQuizHint}
+                    onChange={(e) => setCustomQuizHint(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-white text-xs font-serif-warm focus:outline-none focus:ring-1 focus:ring-amber-800"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {missionType === 'TELEPATHY' && (
+            <div className="space-y-2.5 p-3 bg-rose-50/60 rounded-xl border border-rose-200/70">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] font-sans-ui text-rose-900 font-bold flex items-center gap-1">
+                  <span>💞 이심전심 텔레파시 (2지선다)</span>
+                </span>
+                <span className="text-[10px] font-sans-ui text-rose-700/80">
+                  내가 고른 선택지를 상대가 맞추면 통과!
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <div>
+                  <label className="block text-[11px] font-sans-ui text-stone-600 mb-1 font-medium">
+                    질문 내용
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="예: 오늘 내가 퇴근길에 가장 생각난 것은?"
+                    value={telepathyPrompt}
+                    onChange={(e) => setTelepathyPrompt(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-white text-xs font-serif-warm focus:outline-none focus:ring-1 focus:ring-rose-800"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-sans-ui text-stone-600 font-medium">
+                    선택지 A / B 입력 및 내 답 고르기
+                  </label>
+
+                  {(['A', 'B'] as const).map((side) => {
+                    const isSelected = telepathyAnswer === side;
+                    const optionValue = side === 'A' ? telepathyOptionA : telepathyOptionB;
+                    const setOptionValue = side === 'A' ? setTelepathyOptionA : setTelepathyOptionB;
+                    const placeholder =
+                      side === 'A'
+                        ? '선택지 A (예: 따뜻한 유자차 한 잔)'
+                        : '선택지 B (예: 포근한 이불 속 휴식)';
+
+                    return (
+                      <div key={side} className="flex items-center gap-1.5">
+                        <span
+                          className={`w-6 h-6 rounded-full text-[11px] font-sans-ui font-bold flex items-center justify-center shrink-0 transition-colors ${isSelected
+                            ? 'bg-[#6B1724] text-amber-50'
+                            : 'bg-white border border-stone-200 text-stone-500'
+                            }`}
+                        >
+                          {side}
+                        </span>
+                        <input
+                          type="text"
+                          placeholder={placeholder}
+                          value={optionValue}
+                          onChange={(e) => setOptionValue(e.target.value)}
+                          className={`flex-1 min-w-0 px-3 py-2 rounded-xl border bg-white text-xs font-serif-warm focus:outline-none focus:ring-1 focus:ring-rose-800 ${isSelected ? 'border-rose-300' : 'border-stone-200'
+                            }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setTelepathyAnswer(side)}
+                          className={`px-2.5 py-2 rounded-xl text-[11px] font-sans-ui font-semibold shrink-0 transition-all cursor-pointer ${isSelected
+                            ? 'bg-[#6B1724] text-amber-50 shadow-xs'
+                            : 'bg-white border border-stone-200 text-stone-500 hover:text-stone-800 hover:border-stone-300'
+                            }`}
+                        >
+                          {isSelected ? '내 답 ✓' : '내 답'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 발송 버튼 & 자동 임시 저장 상태 */}
+        <div className="pt-3 space-y-2">
+          {submitError && (
+            <p className="text-xs text-rose-600 font-sans-ui bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 flex items-center gap-1.5">
+              <HelpCircle className="w-4 h-4 shrink-0" />
+              <span>{submitError}</span>
+            </p>
+          )}
+          <button
+            type="submit"
+            disabled={isSubmitting || isCompressing || isGeneratingIllustration}
+            className="w-full py-3.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] active:scale-[0.99] disabled:opacity-50 text-amber-50 font-serif-warm font-semibold text-sm shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 text-amber-200 animate-spin" />
+                <span>{language === 'en' ? 'Sealing Letter...' : '편지 봉인 중...'}</span>
+              </>
+            ) : (
+              <>
+                <Send className="w-4 h-4 text-amber-200" />
+                <span>{t('write.btn.save')}</span>
+              </>
+            )}
+          </button>
+          {lastSavedDraftTime && (title.trim() || content.trim()) && (
+            <div className="text-center text-[11px] text-stone-400 font-sans-ui flex items-center justify-center gap-1">
+              <Save className="w-3 h-3 text-stone-400" />
+              <span>{language === 'en' ? `Draft safely saved at ${lastSavedDraftTime}` : `작성 중인 내용이 ${lastSavedDraftTime}에 안전하게 임시 저장되었습니다`}</span>
+            </div>
+          )}
+        </div>
+      </form>
+    </>
+  );
+
+  if (isInlineView) {
+    if (!isOpen) return null;
+    return (
+      <motion.div
+        key="inline-write-view"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -8 }}
+        transition={{ duration: 0.25, ease: 'easeOut' }}
+        className="w-full max-w-2xl flex flex-col my-1 sm:my-2"
+      >
+        <div
+          ref={modalScrollRef}
+          className="w-full px-1 sm:px-2 pb-6 text-stone-900"
+        >
+          {renderInnerContent()}
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -777,950 +1764,7 @@ export default function WriteDiaryModal({
             transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
             className="relative w-full max-w-xl my-auto bg-[#FFFDF9] rounded-2xl p-4 sm:p-8 paper-texture border border-[#E8DFC8] shadow-2xl text-stone-900 max-h-[92dvh] overflow-y-auto overflow-x-hidden pb-[max(env(safe-area-inset-bottom,0px),1.5rem)]"
           >
-            {/* 닫기 버튼 */}
-            <button
-              onClick={handleCloseModal}
-              className="absolute top-3 right-3 sm:top-4 sm:right-4 p-2 text-stone-400 hover:text-stone-700 rounded-full hover:bg-stone-100 transition-colors z-10 min-h-[40px] min-w-[40px] flex items-center justify-center"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            {/* 헤더 */}
-            <div className="flex items-center gap-2 mb-5 pr-8">
-              <Feather className="w-5 h-5 text-[#6B1724] shrink-0" />
-              <h2 className="font-serif-warm text-lg sm:text-xl font-bold text-stone-900">
-                {t('write.title')}
-              </h2>
-              <span className="text-xs text-stone-500 font-sans-ui ml-auto">
-                To. {partnerName}
-              </span>
-            </div>
-
-            {/* 오늘의 글감 추천 배너 (긴 글감도 잘림 없이 전체 표시) */}
-            {/* 오늘의 추천 글감 카드 */}
-            <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-[#FAF4EC] via-[#F6ECE0] to-[#F2E5D6] border border-[#E4D5BF] shadow-xs mb-4 sm:mb-5">
-              <div className="flex items-center justify-between gap-2 mb-1.5">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm select-none">🕯️</span>
-                  <span className="text-[11px] font-sans-ui text-amber-900 font-bold tracking-wider">오늘의 추천 글감</span>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    type="button"
-                    onClick={handleRefreshPrompt}
-                    disabled={isRefreshingPrompt}
-                    title="다른 글감 뽑기"
-                    className="p-1.5 px-2 rounded-lg bg-white/90 hover:bg-white text-stone-600 hover:text-stone-900 border border-stone-200 transition-all active:scale-95 shadow-2xs cursor-pointer disabled:opacity-50 flex items-center gap-1 text-[11px] font-sans-ui"
-                  >
-                    <Dices className={`w-3.5 h-3.5 ${isRefreshingPrompt ? 'animate-spin text-[#6B1724]' : ''}`} />
-                    <span className="hidden sm:inline">다른 글감</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleApplyPrompt}
-                    className="px-2.5 py-1.5 rounded-lg bg-[#6B1724] hover:bg-[#831D2D] text-amber-50 text-[11px] font-sans-ui font-semibold transition-all active:scale-95 shadow-xs cursor-pointer"
-                  >
-                    글감 적용
-                  </button>
-                </div>
-              </div>
-              <p className="text-xs sm:text-sm font-serif-warm text-stone-850 font-medium leading-relaxed break-keep">
-                &ldquo;{dailyPrompt}&rdquo;
-              </p>
-            </div>
-
-            {/* [1번 요구사항] 임시 저장본 복원 배너 */}
-            {hasDraftNotice && (
-              <motion.div
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="my-3.5 sm:my-4 p-3.5 rounded-2xl bg-gradient-to-r from-[#FFFDF9] via-[#FAF6EE] to-[#FDFBF7] border border-[#E4D8C5] text-stone-800 flex flex-wrap items-center justify-between gap-2.5 shadow-2xs"
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className="text-base select-none">✍️</span>
-                  <div className="text-xs font-sans-ui leading-tight">
-                    <strong className="text-[#6B1724] font-semibold">작성 중이던 임시 저장 편지</strong>가 있습니다.
-                    {lastSavedDraftTime && <span className="text-stone-500 ml-1.5 font-normal">({lastSavedDraftTime})</span>}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    type="button"
-                    onClick={handleRestoreDraft}
-                    className="px-3 py-1.5 rounded-xl bg-[#6B1724] text-amber-50 text-xs font-serif-warm font-bold hover:bg-[#831D2D] active:scale-95 transition-all shadow-2xs cursor-pointer flex items-center gap-1"
-                  >
-                    <span>이어서 쓰기</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDiscardDraft}
-                    className="px-2.5 py-1.5 rounded-xl text-stone-500 hover:text-stone-800 text-xs font-sans-ui hover:bg-stone-200/50 transition-all cursor-pointer"
-                  >
-                    새로 쓰기
-                  </button>
-                </div>
-              </motion.div>
-            )}
-
-            <form onSubmit={handleSubmit} noValidate className="space-y-4 sm:space-y-5">
-              {/* [3번 요구사항] 오늘의 날씨 & 기분 빈티지 잉크 스탬프 선택 */}
-              <div className="p-3.5 sm:p-4 rounded-2xl bg-[#FCFAF7] border border-[#E8DEC8] shadow-2xs space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-stone-800 font-sans-ui flex items-center gap-1.5">
-                    <span>🏷️</span>
-                    <span>오늘의 날씨·기분 잉크 도장</span>
-                  </label>
-                  <span className="text-[11px] font-serif-warm text-stone-500">
-                    편지 귀퉁이에 빈티지 인장으로 찍힙니다
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 overflow-x-auto py-1.5 px-0.5 scrollbar-none">
-                  {WEATHER_STAMPS.map((st) => {
-                    const isSelected = selectedStamp.id === st.id;
-                    return (
-                      <button
-                        key={st.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedStamp(st);
-                          soundEngine.playPaperRustle();
-                        }}
-                        className={`shrink-0 px-3 py-2 rounded-xl border text-xs font-serif-warm flex items-center gap-1.5 transition-all cursor-pointer select-none ${isSelected
-                          ? 'bg-[#FAF4ED] border-[#7A1E2D] text-[#7A1E2D] font-bold shadow-2xs'
-                          : 'bg-white border-[#E2D7C8] text-stone-600 hover:border-stone-400 hover:bg-white'
-                          }`}
-                      >
-                        <span className="text-sm">{st.symbol}</span>
-                        <span>{st.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* 스티커 표기 방식 선택 (인장 도장 vs 제목 위 대형 스티커) */}
-                <div className="pt-2.5 border-t border-[#E8DEC8]/80 flex items-center justify-between gap-2">
-                  <span className="text-xs font-sans-ui text-stone-600 font-medium">
-                    스티커 표기 위치
-                  </span>
-                  <div className="inline-flex rounded-xl bg-stone-200/50 p-1 border border-stone-200/90 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStampStyle('BADGE');
-                        soundEngine.playPaperRustle();
-                      }}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-sans-ui transition-all cursor-pointer ${stampStyle === 'BADGE'
-                        ? 'bg-white text-[#6B1724] font-bold shadow-2xs'
-                        : 'text-stone-600 hover:text-stone-900'
-                        }`}
-                    >
-                      🏷️ 날짜 옆 인장 도장
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStampStyle('EMOJI_TITLE');
-                        soundEngine.playPaperRustle();
-                      }}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-sans-ui transition-all cursor-pointer ${stampStyle === 'EMOJI_TITLE'
-                        ? 'bg-white text-[#6B1724] font-bold shadow-2xs'
-                        : 'text-stone-600 hover:text-stone-900'
-                        }`}
-                    >
-                      ✨ 제목 위 대형 스티커
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* [NEW] 일기 날짜 선택 및 빠른 프리셋 */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-stone-700 font-sans-ui flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-[#6B1724]" />
-                    <span>편지 날짜</span>
-                  </label>
-                  <div className="flex items-center gap-1.5 text-[11px] font-sans-ui">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDiaryDate(getTodayDateString());
-                        soundEngine.playPaperRustle();
-                      }}
-                      className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${diaryDate === getTodayDateString()
-                        ? 'bg-[#6B1724] text-amber-50 font-bold shadow-2xs'
-                        : 'bg-stone-100 hover:bg-stone-200/70 text-stone-600'
-                        }`}
-                    >
-                      오늘
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const y = new Date();
-                        y.setDate(y.getDate() - 1);
-                        const yStr = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
-                        setDiaryDate(yStr);
-                        soundEngine.playPaperRustle();
-                      }}
-                      className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${(() => {
-                        const y = new Date();
-                        y.setDate(y.getDate() - 1);
-                        const yStr = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
-                        return diaryDate === yStr
-                          ? 'bg-[#6B1724] text-amber-50 font-bold shadow-2xs'
-                          : 'bg-stone-100 hover:bg-stone-200/70 text-stone-600';
-                      })()
-                        }`}
-                    >
-                      어제
-                    </button>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1 min-w-0">
-                    <input
-                      type="date"
-                      value={diaryDate}
-                      onChange={(e) => {
-                        if (e.target.value) setDiaryDate(e.target.value);
-                      }}
-                      className="w-full px-3 sm:px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-mono text-sm text-stone-900 cursor-pointer shadow-2xs"
-                    />
-                  </div>
-                  {(() => {
-                    const info = getDateDetailInfo(diaryDate);
-                    if (!info) return null;
-                    return (
-                      <div
-                        className={`shrink-0 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-xl border text-xs font-serif-warm font-semibold flex items-center gap-1.5 shadow-2xs whitespace-nowrap transition-all ${
-                          info.isToday
-                            ? 'bg-amber-50/90 border-amber-300/80 text-[#6B1724] ring-1 ring-amber-300/50'
-                            : info.isYesterday
-                            ? 'bg-stone-100/90 border-stone-300 text-stone-800'
-                            : 'bg-white/90 border-stone-200 text-stone-700'
-                        }`}
-                        title={`${diaryDate} (${info.dayName})`}
-                      >
-                        <span className="font-bold">{info.dayName}</span>
-                        {info.relative && (
-                          <span
-                            className={`text-[10px] px-1.5 py-0.5 rounded-md font-sans-ui font-bold ${
-                              info.isToday
-                                ? 'bg-[#6B1724] text-amber-50 shadow-2xs'
-                                : 'bg-stone-200 text-stone-600'
-                            }`}
-                          >
-                            {info.relative}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
-
-              {/* 편지지 스킨 테마 선택 */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-semibold text-stone-700 font-sans-ui flex items-center gap-1.5">
-                    <Palette className="w-3.5 h-3.5 text-[#6B1724]" />
-                    <span>{language === 'en' ? 'Stationery Paper Skin' : '편지지 스킨 테마'}</span>
-                  </label>
-                  <span className="text-[11px] font-serif-warm text-stone-500 font-medium">
-                    {PAPER_THEMES.find((p) => p.id === paperTheme)?.name}
-                  </span>
-                </div>
-                <div className="flex items-stretch gap-2 overflow-x-auto no-scrollbar py-1 px-0.5 snap-x snap-mandatory touch-pan-x">
-                  {PAPER_THEMES.map((theme) => {
-                    const isSelected = paperTheme === theme.id;
-                    return (
-                      <button
-                        key={theme.id}
-                        type="button"
-                        onClick={() => {
-                          setPaperTheme(theme.id);
-                          soundEngine.playPaperRustle();
-                        }}
-                        className={`relative shrink-0 w-[68px] sm:w-[76px] snap-start p-2 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                          isSelected
-                            ? 'ring-2 ring-[#6B1724] border-[#6B1724] shadow-sm scale-[1.02] bg-white'
-                            : 'border-stone-200 hover:border-stone-300 bg-white/70 hover:bg-white'
-                        }`}
-                        title={theme.desc}
-                      >
-                        {/* 미니 종이 스와치 미리보기 */}
-                        <div
-                          className="w-full aspect-[4/3] rounded-md border flex items-center justify-center shadow-2xs relative overflow-hidden"
-                          style={{
-                            backgroundColor: theme.previewColor,
-                            borderColor: theme.previewBorder,
-                          }}
-                        >
-                          {theme.id === 'AIRMAIL' && (
-                            <div className="absolute inset-0 border-2 border-dashed border-red-500/30" />
-                          )}
-                          {theme.id === 'MIDNIGHT' && (
-                            <span className="text-[10px]">✨</span>
-                          )}
-                          {theme.id === 'CHERRY' && (
-                            <span className="text-[10px]">🌸</span>
-                          )}
-                          {theme.id === 'SAGE' && (
-                            <span className="text-[10px]">🌿</span>
-                          )}
-                          {theme.id === 'GRID' && (
-                            <div className="w-3 h-3 border border-emerald-600/30 grid grid-cols-2 grid-rows-2" />
-                          )}
-                          {theme.id === 'KRAFT' && (
-                            <div className="w-4 h-0.5 bg-amber-900/30 rounded" />
-                          )}
-                          {theme.id === 'IVORY' && (
-                            <div className="w-4 h-0.5 bg-stone-400/40 rounded" />
-                          )}
-                        </div>
-                        <span className={`text-[10.5px] font-serif-warm truncate w-full text-center ${
-                          isSelected ? 'text-[#6B1724] font-bold' : 'text-stone-700 font-medium'
-                        }`}>
-                          {theme.name.split(' ')[0]}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* 제목 입력 */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-sans-ui text-stone-600">
-                    {language === 'en' ? 'Letter Title' : '편지 제목'}
-                  </label>
-                  {stampStyle === 'EMOJI_TITLE' && (
-                    <span className="text-[11px] font-serif-warm text-[#6B1724] flex items-center gap-1">
-                      <span>{selectedStamp.symbol}</span>
-                      <span>{language === 'en' ? 'Sticker will appear above title' : '스티커가 제목 왼쪽 위에 크게 표시됩니다'}</span>
-                    </span>
-                  )}
-                </div>
-                <div className="relative">
-                  {stampStyle === 'EMOJI_TITLE' && (
-                    <div
-                      className="absolute -top-3.5 left-2 sm:-top-4 sm:left-2.5 z-10 text-2xl sm:text-3xl filter drop-shadow-sm pointer-events-none select-none -rotate-12 transition-transform duration-200"
-                      title={language === 'en' ? 'Preview sticker above title' : '제목 위 스티커 미리보기'}
-                    >
-                      {selectedStamp.symbol}
-                    </div>
-                  )}
-                  <input
-                    type="text"
-                    required
-                    maxLength={60}
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value.slice(0, 60))}
-                    placeholder={t('write.titlePlaceholder')}
-                    className={`w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-base sm:text-sm text-stone-900 ${stampStyle === 'EMOJI_TITLE' ? 'pl-11 sm:pl-12' : ''
-                      }`}
-                  />
-                </div>
-              </div>
-
-              {/* 본문 입력 */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-sans-ui text-stone-600">
-                    {language === 'en' ? 'Letter Content' : '편지 내용'}
-                  </label>
-                  <span className="text-[11px] font-sans-ui text-stone-400">
-                    <span className={content.length >= 1300 ? 'text-rose-600 font-bold' : 'text-stone-600'}>
-                      {content.length}
-                    </span>
-                    /1300
-                  </span>
-                </div>
-                <textarea
-                  required
-                  rows={6}
-                  maxLength={1300}
-                  value={content}
-                  onChange={(e) => setContent(e.target.value.slice(0, 1300))}
-                  placeholder={t('write.contentPlaceholder')}
-                  className={`w-full p-3.5 rounded-xl border focus:outline-none focus:ring-2 font-serif-warm text-base sm:text-sm leading-relaxed resize-none transition-colors ${
-                    paperTheme === 'MIDNIGHT'
-                      ? 'bg-[#181F2B] text-[#F4EDE2] border-[#324058] focus:ring-amber-200/30 placeholder:text-stone-500'
-                      : paperTheme === 'KRAFT'
-                      ? 'bg-[#F4E7D3] text-[#3E2718] border-[#C8A882] focus:ring-[#6B1724]/20 placeholder:text-stone-500'
-                      : paperTheme === 'GRID'
-                      ? 'bg-[#FAFBF7] text-[#243329] border-[#BFD3C1] focus:ring-emerald-700/20 placeholder:text-stone-400'
-                      : paperTheme === 'AIRMAIL'
-                      ? 'bg-[#FDFCF9] text-[#1A2536] border-[#8BA5C4] focus:ring-blue-600/20 placeholder:text-stone-400'
-                      : paperTheme === 'CHERRY'
-                      ? 'bg-[#FFF4F6] text-[#4A2530] border-[#E8B8C6] focus:ring-rose-400/25 placeholder:text-rose-300'
-                      : paperTheme === 'SAGE'
-                      ? 'bg-[#F1F6F0] text-[#223528] border-[#B3CBB5] focus:ring-emerald-700/20 placeholder:text-stone-400'
-                      : 'bg-white/90 text-stone-900 border-stone-300 focus:ring-[#6B1724]/20 placeholder:text-stone-400'
-                  }`}
-                />
-              </div>
-
-              {/* 사진 첨부 선택 (사용자 기기 직접 업로드 또는 AI 감성 삽화 생성) */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-sans-ui text-stone-600 flex items-center gap-1">
-                    <ImageIcon className="w-3.5 h-3.5 text-stone-500" />
-                    <span>오늘의 사진 첨부 (선택)</span>
-                  </label>
-                  {uploadedPhotoInfo && (
-                    <span className="text-[11px] font-mono text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                      {uploadedPhotoInfo.fileName.includes('illustration')
-                        ? `🎨 AI 감성 수채화 (${uploadedPhotoInfo.sizeKb}KB 최적화)`
-                        : `직접 업로드됨 (${uploadedPhotoInfo.sizeKb}KB 압축)`}
-                    </span>
-                  )}
-                </div>
-
-                {/* 숨겨진 파일 인풋 (모바일 카메라/갤러리 대응) */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-
-                {/* 1) AI 삽화 실시간 4단계 프로세스 생성 중 인디케이터 */}
-                {isGeneratingIllustration ? (
-                  <div className="p-4 rounded-xl border border-amber-300/80 bg-gradient-to-b from-[#FFFDF9] to-[#FAF5EB] shadow-xs space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center text-amber-800 animate-pulse">
-                          <Paintbrush className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-serif-warm font-bold text-stone-800 flex items-center gap-1.5">
-                            <span>{language === 'en' ? 'Drawing watercolor artwork...' : '도화지에 감성 삽화를 그리는 중...'}</span>
-                            <span className="text-[10px] text-amber-800 font-mono font-bold bg-amber-100/70 px-1.5 py-0.2 rounded">
-                              {illustrationProgress}%
-                            </span>
-                          </p>
-                          <p className="text-[11px] text-stone-500 font-sans-ui">
-                            {language === 'en' ? 'Please wait a moment while creating' : '정성스레 수채화 물감을 올리고 있어요'}
-                          </p>
-                        </div>
-                      </div>
-                      <Loader2 className="w-5 h-5 text-amber-800 animate-spin" />
-                    </div>
-
-                    {/* 실시간 프로그레스 바 */}
-                    <div className="w-full bg-stone-200/80 rounded-full h-1.5 overflow-hidden">
-                      <div
-                        className="bg-gradient-to-r from-amber-600 to-[#6B1724] h-1.5 rounded-full transition-all duration-300 ease-out"
-                        style={{ width: `${illustrationProgress}%` }}
-                      />
-                    </div>
-
-                    {/* 4단계 상세 프로세스 진행 단계 리스트 */}
-                    <div className="space-y-1.5 pt-1 border-t border-amber-200/50">
-                      {[
-                        { step: 1, label: language === 'en' ? 'Reading warm moments in your letter' : '편지 속 따뜻한 순간과 감정 분석' },
-                        { step: 2, label: language === 'en' ? 'Sketching composition & color palette' : '수채화 화폭에 구도와 색감 스케치' },
-                        { step: 3, label: language === 'en' ? 'Painting delicate colors with fine brush' : '도화지 위에 고운 붓으로 채색' },
-                        { step: 4, label: language === 'en' ? 'Placing artwork into your letter' : '완성된 삽화를 편지에 조심스럽게 담기' },
-                      ].map((item) => {
-                        const isDone = illustrationStep > item.step || illustrationProgress >= 100;
-                        const isCurrent = illustrationStep === item.step && illustrationProgress < 100;
-                        return (
-                          <div
-                            key={item.step}
-                            className={`flex items-center gap-2 text-xs font-serif-warm transition-colors ${
-                              isDone
-                                ? 'text-emerald-700 font-medium'
-                                : isCurrent
-                                ? 'text-amber-900 font-bold'
-                                : 'text-stone-400'
-                            }`}
-                          >
-                            {isDone ? (
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                            ) : isCurrent ? (
-                              <Loader2 className="w-3.5 h-3.5 text-amber-700 animate-spin shrink-0" />
-                            ) : (
-                              <div className="w-3.5 h-3.5 rounded-full border border-stone-300 shrink-0 flex items-center justify-center text-[9px] text-stone-400">
-                                {item.step}
-                              </div>
-                            )}
-                            <span className="text-[11px] truncate">{item.label}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : selectedPhoto && uploadedPhotoInfo ? (
-                  /* 2) 사진 첨부 완료 상태 (직접 올린 사진 또는 AI 생성 삽화) */
-                  <div className="flex items-center gap-3 p-3 bg-[#FAF6EE] rounded-xl border border-[#E0D3C1]">
-                    <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-stone-300 shrink-0 shadow-xs">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={selectedPhoto}
-                        alt="Uploaded"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0 text-left">
-                      <p className="text-xs font-serif-warm font-bold text-stone-800 truncate">
-                        {uploadedPhotoInfo.fileName.includes('illustration')
-                          ? (language === 'en' ? 'AI Letter Watercolor Artwork' : 'AI 편지 감성 수채화 삽화')
-                          : uploadedPhotoInfo.fileName}
-                      </p>
-                      <p className="text-[11px] text-stone-500 font-sans-ui mt-0.5">
-                        {uploadedPhotoInfo.width}×{uploadedPhotoInfo.height}px · {uploadedPhotoInfo.sizeKb}KB로 자동 최적화됨
-                      </p>
-                      <div className="flex items-center flex-wrap gap-2 mt-2">
-                        {uploadedPhotoInfo.fileName.includes('illustration') ? (
-                          <button
-                            type="button"
-                            onClick={handleGenerateIllustration}
-                            className="text-[11px] text-amber-900 font-medium hover:underline flex items-center gap-1 cursor-pointer"
-                          >
-                            <RefreshCw className="w-3 h-3 text-amber-700" />
-                            <span>다시 그리기</span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
-                            className="text-[11px] text-amber-900 font-medium hover:underline flex items-center gap-1 cursor-pointer"
-                          >
-                            <Camera className="w-3.5 h-3.5 text-amber-700" />
-                            <span>다른 사진으로 변경</span>
-                          </button>
-                        )}
-                        <span className="text-stone-300">|</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setUploadedPhotoInfo(null);
-                            setSelectedPhoto(null);
-                            setPhotoCaption('');
-                          }}
-                          className="text-[11px] text-rose-700 font-medium hover:underline flex items-center gap-1 cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                          <span>사진 삭제</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  /* 3) 사진이 등록되지 않은 초기 상태: [직접 올리기] vs [AI 감성 삽화 그리기] 2-Way 카드 */
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {/* 옵션 A: 내 앨범/카메라에서 사진 올리기 */}
-                    <button
-                      type="button"
-                      disabled={isCompressing}
-                      onClick={() => fileInputRef.current?.click()}
-                      className="p-3.5 rounded-xl border border-dashed border-[#C4A882] hover:border-[#6B1724] bg-[#FAF6EE]/90 hover:bg-[#F5ECE0] text-stone-700 flex flex-col items-center justify-center gap-1 transition-all active:scale-[0.99] group cursor-pointer"
-                    >
-                      {isCompressing ? (
-                        <div className="flex flex-col items-center gap-1 py-1">
-                          <Loader2 className="w-5 h-5 text-[#6B1724] animate-spin" />
-                          <span className="text-xs font-serif-warm text-stone-700 font-bold">압축 중...</span>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="w-8 h-8 rounded-full bg-white shadow-xs border border-[#DECDBB] flex items-center justify-center group-hover:scale-105 transition-transform text-[#6B1724]">
-                            <Upload className="w-4 h-4 stroke-[1.8]" />
-                          </div>
-                          <div className="text-center">
-                            <p className="text-xs font-serif-warm font-bold text-stone-800">
-                              {language === 'en' ? 'Upload Photo' : '직접 사진 올리기'}
-                            </p>
-                            <p className="text-[10px] text-stone-500 font-sans-ui">
-                              {language === 'en' ? 'From album or camera' : '앨범이나 카메라 촬영'}
-                            </p>
-                          </div>
-                        </>
-                      )}
-                    </button>
-
-                    {/* 옵션 B: 편지 내용으로 AI 감성 삽화 그리기 */}
-                    <button
-                      type="button"
-                      onClick={handleGenerateIllustration}
-                      className="p-3.5 rounded-xl border border-dashed border-amber-300/90 hover:border-amber-600 bg-gradient-to-b from-[#FFFDF9] to-[#FAF4E8] text-stone-700 flex flex-col items-center justify-center gap-1 transition-all active:scale-[0.99] group cursor-pointer shadow-2xs hover:shadow-xs"
-                      title={
-                        content.trim().length >= 10
-                          ? '편지 내용으로 감성 수채화를 생성합니다'
-                          : '편지 내용을 10자 이상 작성하시면 삽화를 그릴 수 있어요'
-                      }
-                    >
-                      <div className="w-8 h-8 rounded-full bg-amber-50 shadow-xs border border-amber-200/80 flex items-center justify-center group-hover:scale-105 transition-transform text-amber-800">
-                        <Paintbrush className="w-4 h-4 stroke-[1.8]" />
-                      </div>
-                      <div className="text-center">
-                        <p className="text-xs font-serif-warm font-bold text-stone-800 flex items-center justify-center gap-1">
-                          <span>{language === 'en' ? 'Draw AI Artwork' : 'AI 감성 삽화 그리기'}</span>
-                          <Sparkles className="w-3 h-3 text-amber-600" />
-                        </p>
-                        <p className="text-[10px] text-stone-500 font-sans-ui">
-                          {content.trim().length >= 10
-                            ? (language === 'en' ? 'Draws watercolor from letter' : '편지 내용으로 수채화 생성')
-                            : (language === 'en' ? 'Write 10+ letters first' : '편지 10자 이상 작성 후 가능')}
-                        </p>
-                      </div>
-                    </button>
-                  </div>
-                )}
-
-                {/* 사진 캡션 입력창 (50자 제한) */}
-                <div className="pt-0.5">
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-[11px] font-sans-ui text-stone-600 flex items-center gap-1">
-                      <PenLine className="w-3 h-3 text-stone-500" />
-                      <span>사진 캡션 (선택)</span>
-                    </label>
-                    <span className="text-[10px] font-mono text-stone-400">
-                      <span className={photoCaption.length >= 30 ? 'text-rose-600 font-bold' : 'text-stone-600'}>
-                        {photoCaption.length}
-                      </span>
-                      /30
-                    </span>
-                  </div>
-                  <input
-                    type="text"
-                    maxLength={30}
-                    value={photoCaption}
-                    onChange={(e) => setPhotoCaption(e.target.value.slice(0, 30))}
-                    placeholder="사진을 설명해주세요"
-                    className="w-full px-3 py-2 rounded-xl border border-stone-300 bg-white text-stone-900 font-serif-warm text-xs focus:outline-none focus:ring-1 focus:ring-[#6B1724] focus:border-[#6B1724] placeholder:text-stone-400 placeholder:font-sans-ui shadow-2xs"
-                  />
-                </div>
-
-                {photoError && (
-                  <p className="text-xs text-rose-600 font-sans-ui flex items-center gap-1">
-                    <HelpCircle className="w-3.5 h-3.5" />
-                    <span>{photoError}</span>
-                  </p>
-                )}
-              </div>
-
-              {/* 실링 왁스 색상 선택 (버건디 / 골드 / 그린 / 직접 선택) */}
-              <div>
-                <label className="block text-xs font-sans-ui text-stone-600 mb-2">
-                  봉인할 실링 왁스 인장 색상
-                </label>
-                <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
-                  {WAX_COLORS.map((wax) => (
-                    <button
-                      key={wax.hex}
-                      type="button"
-                      onClick={() => setSelectedColor(wax.hex)}
-                      className={`py-2 px-1.5 sm:px-2 rounded-xl border text-[11px] sm:text-xs font-sans-ui flex items-center justify-center gap-1.5 transition-all ${selectedColor.toLowerCase() === wax.hex.toLowerCase()
-                        ? 'border-stone-800 bg-white shadow-sm ring-2 ring-stone-800/10 font-bold text-stone-900'
-                        : 'border-stone-200 bg-stone-50/70 text-stone-600 hover:border-stone-300'
-                        }`}
-                      title={wax.label}
-                    >
-                      <span
-                        className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full shadow-inner shrink-0"
-                        style={{ backgroundColor: wax.hex }}
-                      />
-                      <span className="truncate">
-                        {wax.name === 'Burgundy' ? '버건디' : wax.name === 'Antique Gold' ? '골드' : '그린'}
-                      </span>
-                    </button>
-                  ))}
-
-                  {/* 4번째 옵션: 직접 선택 (포토샵 컬러 휠 원형 팔레트) */}
-                  <div className="relative">
-                    <input
-                      ref={colorInputRef}
-                      type="color"
-                      value={customColor}
-                      onChange={(e) => {
-                        const newColor = e.target.value;
-                        setCustomColor(newColor);
-                        setSelectedColor(newColor);
-                      }}
-                      onInput={(e) => {
-                        const newColor = e.currentTarget.value;
-                        setCustomColor(newColor);
-                        setSelectedColor(newColor);
-                      }}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                      title="포토샵 컬러 휠에서 직접 색상 선택"
-                      aria-label="실링 왁스 인장 색상 직접 선택"
-                    />
-                    <div
-                      className={`w-full h-full py-2 px-1.5 sm:px-2 rounded-xl border text-[11px] sm:text-xs font-sans-ui flex items-center justify-center gap-1.5 transition-all pointer-events-none ${isCustomColor
-                        ? 'border-stone-800 bg-white shadow-sm ring-2 ring-stone-800/10 font-bold text-stone-900'
-                        : 'border-stone-200 bg-stone-50/70 text-stone-600'
-                        }`}
-                    >
-                      {/* 포토샵 컬러 원형 (Hue Ring) 스타일 아이콘 */}
-                      <div
-                        className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full p-[1.5px] shrink-0 flex items-center justify-center shadow-xs"
-                        style={{
-                          background: 'conic-gradient(from 0deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)',
-                        }}
-                      >
-                        <div
-                          className="w-full h-full rounded-full border border-black/15 shadow-inner transition-colors"
-                          style={{
-                            backgroundColor: isCustomColor ? customColor : '#ffffff',
-                          }}
-                        />
-                      </div>
-                      <span className="truncate">직접 선택</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 미션 설정 (사진 퍼즐, 우표 퍼즐, 시스템 데일리, 커스텀 퀴즈) */}
-              <div className="pt-2 border-t border-stone-200">
-                <label className="block text-xs font-sans-ui text-stone-600 mb-2">
-                  상대방이 풀 관문 선택
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-stone-100 p-1 rounded-xl text-[11px] font-sans-ui mb-3">
-                  <button
-                    type="button"
-                    onClick={() => setMissionType('PUZZLE_PHOTO')}
-                    className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 ${missionType === 'PUZZLE_PHOTO' ? 'bg-white shadow-xs font-bold text-stone-900' : 'text-stone-500 hover:text-stone-800'
-                      }`}
-                  >
-                    <span>🧩 사진 퍼즐</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMissionType('PUZZLE_STAMP');
-                      setPhotoError('');
-                      setSubmitError('');
-                    }}
-                    className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 ${missionType === 'PUZZLE_STAMP' ? 'bg-white shadow-xs font-bold text-stone-900' : 'text-stone-500 hover:text-stone-800'
-                      }`}
-                  >
-                    <span>📮 우표 맞추기</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMissionType('CUSTOM');
-                      setPhotoError('');
-                      setSubmitError('');
-                    }}
-                    className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 ${missionType === 'CUSTOM' ? 'bg-white shadow-xs font-bold text-stone-900' : 'text-stone-500 hover:text-stone-800'
-                      }`}
-                  >
-                    <span>❓ 깜짝 퀴즈</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMissionType('TELEPATHY');
-                      setPhotoError('');
-                      setSubmitError('');
-                    }}
-                    className={`py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1 ${missionType === 'TELEPATHY' ? 'bg-white shadow-xs font-bold text-stone-900' : 'text-stone-500 hover:text-stone-800'
-                      }`}
-                  >
-                    <span>💞 텔레파시</span>
-                  </button>
-                </div>
-
-                {missionType === 'PUZZLE_PHOTO' && (
-                  <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs font-serif-warm text-stone-700">
-                    🧩 <strong>사진 조각 퍼즐</strong>: 내가 첨부한 사진이 3×3 슬라이딩 조각으로 분리되어, {partnerName} 님이 조각을 맞추면 편지가 개봉됩니다.
-                  </div>
-                )}
-
-                {missionType === 'PUZZLE_STAMP' && (
-                  <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs font-serif-warm text-stone-700">
-                    📮 <strong>나만의 우표 맞추기</strong>: 첨부한 사진이 들어간 빈티지 우표 조각 4개를 순서대로 맞춰 소인 도장을 찍으면 편지가 개봉됩니다.
-                  </div>
-                )}
-
-                {missionType === 'CUSTOM' && (
-                  <div className="space-y-2.5 p-3 bg-amber-50/60 rounded-xl border border-amber-200/70">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <span className="text-[11px] font-sans-ui text-amber-900 font-bold flex items-center gap-1">
-                        <span>❓ 저번 편지 복습 퀴즈</span>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleGenerateAiQuiz}
-                        disabled={isGeneratingQuiz}
-                        className="px-2.5 py-1.5 rounded-lg bg-amber-200/90 hover:bg-amber-300 active:scale-95 text-amber-950 text-[11px] font-sans-ui font-semibold flex items-center justify-center gap-1.5 transition-all disabled:opacity-50 shadow-xs cursor-pointer"
-                      >
-                        <Sparkles className={`w-3.5 h-3.5 text-amber-800 ${isGeneratingQuiz ? 'animate-spin' : ''}`} />
-                        <span>{isGeneratingQuiz ? '상대가 본 최근 편지 분석 중...' : '✨ 상대가 본 최근 편지 기반 AI 퀴즈'}</span>
-                      </button>
-                    </div>
-
-                    {quizSourceInfo && (
-                      <div className="text-[11px] font-sans-ui text-amber-900/90 bg-amber-100/70 px-2.5 py-1.5 rounded-lg border border-amber-300/60 flex items-center gap-1.5">
-                        <BookOpen className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-                        <span className="font-medium truncate">{quizSourceInfo}</span>
-                      </div>
-                    )}
-
-                    <div className="space-y-2">
-                      <div>
-                        <label className="block text-[11px] font-sans-ui text-stone-600 mb-1 font-medium">
-                          질문 내용
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="예: 저번 편지에서 내가 주말에 가자고 했던 곳이 어디였게?"
-                          value={customPrompt}
-                          onChange={(e) => setCustomPrompt(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-white text-xs font-serif-warm focus:outline-none focus:ring-1 focus:ring-amber-800"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-sans-ui text-stone-600 mb-1 font-medium">
-                          정답
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="예: 서촌 (상대방이 입력할 단어)"
-                          value={customQuizAnswer}
-                          onChange={(e) => setCustomQuizAnswer(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-white text-xs font-serif-warm focus:outline-none focus:ring-1 focus:ring-amber-800"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-sans-ui text-stone-600 mb-1 font-medium">
-                          힌트
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="예: 저번 편지 셋째 줄에 적어뒀지!"
-                          value={customQuizHint}
-                          onChange={(e) => setCustomQuizHint(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-white text-xs font-serif-warm focus:outline-none focus:ring-1 focus:ring-amber-800"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {missionType === 'TELEPATHY' && (
-                  <div className="space-y-2.5 p-3 bg-rose-50/60 rounded-xl border border-rose-200/70">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-sans-ui text-rose-900 font-bold flex items-center gap-1">
-                        <span>💞 이심전심 텔레파시 (2지선다)</span>
-                      </span>
-                      <span className="text-[10px] font-sans-ui text-rose-700/80">
-                        내가 고른 선택지를 상대가 맞추면 통과!
-                      </span>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div>
-                        <label className="block text-[11px] font-sans-ui text-stone-600 mb-1 font-medium">
-                          질문 내용
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="예: 오늘 내가 퇴근길에 가장 생각난 것은?"
-                          value={telepathyPrompt}
-                          onChange={(e) => setTelepathyPrompt(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl border border-stone-200 bg-white text-xs font-serif-warm focus:outline-none focus:ring-1 focus:ring-rose-800"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="block text-[11px] font-sans-ui text-stone-600 font-medium">
-                          선택지 A / B 입력 및 내 답 고르기
-                        </label>
-
-                        {(['A', 'B'] as const).map((side) => {
-                          const isSelected = telepathyAnswer === side;
-                          const optionValue = side === 'A' ? telepathyOptionA : telepathyOptionB;
-                          const setOptionValue = side === 'A' ? setTelepathyOptionA : setTelepathyOptionB;
-                          const placeholder =
-                            side === 'A'
-                              ? '선택지 A (예: 따뜻한 유자차 한 잔)'
-                              : '선택지 B (예: 포근한 이불 속 휴식)';
-
-                          return (
-                            <div key={side} className="flex items-center gap-1.5">
-                              <span
-                                className={`w-6 h-6 rounded-full text-[11px] font-sans-ui font-bold flex items-center justify-center shrink-0 transition-colors ${
-                                  isSelected
-                                    ? 'bg-[#6B1724] text-amber-50'
-                                    : 'bg-white border border-stone-200 text-stone-500'
-                                }`}
-                              >
-                                {side}
-                              </span>
-                              <input
-                                type="text"
-                                placeholder={placeholder}
-                                value={optionValue}
-                                onChange={(e) => setOptionValue(e.target.value)}
-                                className={`flex-1 min-w-0 px-3 py-2 rounded-xl border bg-white text-xs font-serif-warm focus:outline-none focus:ring-1 focus:ring-rose-800 ${
-                                  isSelected ? 'border-rose-300' : 'border-stone-200'
-                                }`}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setTelepathyAnswer(side)}
-                                className={`px-2.5 py-2 rounded-xl text-[11px] font-sans-ui font-semibold shrink-0 transition-all cursor-pointer ${
-                                  isSelected
-                                    ? 'bg-[#6B1724] text-amber-50 shadow-xs'
-                                    : 'bg-white border border-stone-200 text-stone-500 hover:text-stone-800 hover:border-stone-300'
-                                }`}
-                              >
-                                {isSelected ? '내 답 ✓' : '내 답'}
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* 발송 버튼 & 자동 임시 저장 상태 */}
-              <div className="pt-3 space-y-2">
-                {submitError && (
-                  <p className="text-xs text-rose-600 font-sans-ui bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 flex items-center gap-1.5">
-                    <HelpCircle className="w-4 h-4 shrink-0" />
-                    <span>{submitError}</span>
-                  </p>
-                )}
-                <button
-                  type="submit"
-                  disabled={isSubmitting || isCompressing || isGeneratingIllustration}
-                  className="w-full py-3.5 rounded-xl bg-[#6B1724] hover:bg-[#831D2D] active:scale-[0.99] disabled:opacity-50 text-amber-50 font-serif-warm font-semibold text-sm shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 text-amber-200 animate-spin" />
-                      <span>{language === 'en' ? 'Sealing Letter...' : '편지 봉인 중...'}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4 text-amber-200" />
-                      <span>{t('write.btn.save')}</span>
-                    </>
-                  )}
-                </button>
-                {lastSavedDraftTime && (title.trim() || content.trim()) && (
-                  <div className="text-center text-[11px] text-stone-400 font-sans-ui flex items-center justify-center gap-1">
-                    <Save className="w-3 h-3 text-stone-400" />
-                    <span>{language === 'en' ? `Draft safely saved at ${lastSavedDraftTime}` : `작성 중인 내용이 ${lastSavedDraftTime}에 안전하게 임시 저장되었습니다`}</span>
-                  </div>
-                )}
-              </div>
-            </form>
+            {renderInnerContent()}
           </motion.div>
         </motion.div>
       )}

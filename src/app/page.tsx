@@ -376,6 +376,11 @@ export default function HomePage() {
   }, [diary, userRole, userName, roomCode, activeRoomCode]);
 
   const handleOpenWriteModal = (initialTitle?: unknown) => {
+    if (uiState === 'VIEW_WRITE') {
+      setWriteModalInitialTitle(undefined);
+      handleGoHome();
+      return;
+    }
     const validTitle = typeof initialTitle === 'string' && initialTitle.trim() ? initialTitle.trim() : undefined;
     if (!isMyTurn) {
       if (!diary) {
@@ -392,7 +397,8 @@ export default function HomePage() {
       return;
     }
     setWriteModalInitialTitle(validTitle);
-    setIsWriteModalOpen(true);
+    setUiState('VIEW_WRITE');
+    forceScrollToTop(mainRef.current);
   };
 
   const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -1724,10 +1730,30 @@ export default function HomePage() {
               userName={userName}
             />
           )}
+
+          {/* 10. VIEW_WRITE: 새 편지 작성 (상단바 고정 인라인 뷰) */}
+          {uiState === 'VIEW_WRITE' && (
+            <WriteDiaryModal
+              key="view-write"
+              isOpen={true}
+              isInlineView={true}
+              onClose={() => {
+                setWriteModalInitialTitle(undefined);
+                handleGoHome();
+              }}
+              onSaveDiary={handleSaveDiary}
+              currentUserName={userName}
+              partnerName={partnerName}
+              roomCode={activeRoomCode}
+              fallbackPreviousDiary={diary}
+              initialTitle={writeModalInitialTitle}
+            />
+          )}
+
         </AnimatePresence>
 
-        {/* 푸터 (스크롤 맨 아래로 내렸을 때만 자연스럽게 노출 - 하단 고정 바 아님, 왁스 병/서재/설정 탭에서는 비표시) */}
-        {uiState !== 'VIEW_MEMORY_JAR' && uiState !== 'VIEW_ARCHIVE' && uiState !== 'VIEW_SETTINGS' && (
+        {/* 푸터 (스크롤 맨 아래로 내렸을 때만 자연스럽게 노출 - 하단 고정 바 아님, 왁스 병/서재/설정/작성 탭에서는 비표시) */}
+        {uiState !== 'VIEW_MEMORY_JAR' && uiState !== 'VIEW_ARCHIVE' && uiState !== 'VIEW_SETTINGS' && uiState !== 'VIEW_WRITE' && (
           <footer className="w-full mt-10 pt-6 pb-2 text-center text-[10px] sm:text-[11px] text-stone-400 font-serif-warm border-t border-[#EAE1D5]/40 flex flex-col items-center gap-1 select-none">
             <p>온기 (Warmth) · 하루걸러 띄우는 우리 둘만의 아날로그 비밀 교환일기</p>
             <p className="text-[10px] text-stone-400/90 font-sans-ui flex items-center justify-center gap-2 flex-wrap">
@@ -1755,7 +1781,7 @@ export default function HomePage() {
         isOpen={isKnockModalOpen}
         knock={receivedKnock}
         onClose={() => setIsKnockModalOpen(false)}
-        onWriteDiary={() => setIsWriteModalOpen(true)}
+        onWriteDiary={() => handleOpenWriteModal()}
       />
 
       {/* 미션 수행 팝업 모달 */}

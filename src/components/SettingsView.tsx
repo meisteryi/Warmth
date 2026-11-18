@@ -26,7 +26,6 @@ import {
 import { soundEngine } from '@/lib/audio';
 import { useLanguage } from '@/lib/i18n';
 import EulaModal from '@/components/EulaModal';
-import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
 import {
   JarItemStyle,
   getDefaultJarItemStyle,
@@ -158,19 +157,10 @@ export default function SettingsView({
     >
       {/* 서재와 동일한 상단 섹션 헤더 */}
       <div className="flex items-center justify-between shrink-0 px-2 sm:px-3 py-3 mb-4 bg-transparent border-b border-stone-200/50">
-        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 select-none">
-          <div
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-sm border border-amber-200/20 shrink-0 select-none pointer-events-none"
-            role="img"
-            aria-label="온기 로고"
-          >
-            <WarmthHanjaIcon className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-amber-100 select-none pointer-events-none" />
-          </div>
-          <div className="flex items-center min-w-0 select-none">
-            <h2 className="text-base sm:text-xl font-serif-warm font-bold text-stone-900 whitespace-nowrap shrink-0">
-              {language === 'en' ? 'Settings' : '설정'}
-            </h2>
-          </div>
+        <div className="flex items-center min-w-0 select-none">
+          <h2 className="text-xl sm:text-2xl font-serif-warm font-extrabold text-stone-900 whitespace-nowrap shrink-0 tracking-tight">
+            {language === 'en' ? 'Settings' : '설정'}
+          </h2>
         </div>
 
         <button

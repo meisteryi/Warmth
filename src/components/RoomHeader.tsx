@@ -3,11 +3,9 @@
 import React, { useState } from 'react';
 import { UIState } from '@/types/diary';
 import {
-  PenLine,
   BookOpen,
-  MoreHorizontal,
+  Settings,
   Heart,
-  Clock,
   Check,
   Copy,
 } from 'lucide-react';
@@ -16,7 +14,7 @@ import WarmthHanjaIcon from '@/components/WarmthHanjaIcon';
 
 interface RoomHeaderProps {
   currentState: UIState;
-  onOpenWriteModal: () => void;
+  onOpenWriteModal?: () => void;
   onOpenArchive?: () => void;
   onLeaveRoom?: () => void;
   onGoHome?: () => void;
@@ -59,7 +57,6 @@ function GlassJarIcon({ className = 'w-4 h-4' }: { className?: string }) {
 
 export default function RoomHeader({
   currentState,
-  onOpenWriteModal,
   onOpenArchive,
   onGoHome,
   onOpenMemoryJar,
@@ -67,9 +64,6 @@ export default function RoomHeader({
   roomCode,
   userName,
   partnerName,
-  isMyTurn,
-  isTodayDiaryWritten,
-  countdownFormatted,
 }: RoomHeaderProps) {
   const { language, t } = useLanguage();
   const [copiedCode, setCopiedCode] = useState(false);
@@ -178,46 +172,6 @@ export default function RoomHeader({
               <span className="hidden sm:inline">{t('nav.archive')}</span>
             </button>
 
-            {/* 일기 쓰기 버튼 (상대방 답장 대기 상태 우선 판별 & 동일 높이 고정) */}
-            <button
-              onClick={() => onOpenWriteModal()}
-              title={
-                isMyTurn === false
-                  ? language === 'en'
-                    ? `It's ${partnerName}'s turn to write (Awaiting reply)`
-                    : `${partnerName} 님의 작성 차례입니다 (답장을 기다려주세요)`
-                  : isTodayDiaryWritten
-                  ? language === 'en'
-                    ? `Today's letter is already written. Resets at 04:00 AM (${countdownFormatted || ''})`
-                    : `오늘의 편지는 이미 작성되었습니다. 내일 새벽 04:00에 리셋됩니다 (남은 시간: ${countdownFormatted || ''})`
-                  : t('nav.write')
-              }
-              className={`h-9 sm:h-10 px-2.5 sm:px-3.5 rounded-xl text-xs font-serif-warm font-bold shadow-xs flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap active:scale-95 transition-all cursor-pointer ${
-                isMyTurn === false
-                  ? 'bg-stone-200/90 hover:bg-stone-300/80 text-stone-600 border border-stone-300'
-                  : isTodayDiaryWritten
-                  ? 'bg-amber-100/70 hover:bg-amber-200/70 text-amber-950 border border-amber-300/80'
-                  : 'bg-[#6B1724] hover:bg-[#831D2D] text-amber-50'
-              }`}
-            >
-              {isMyTurn === false ? (
-                <>
-                  <PenLine className="w-3.5 h-3.5 text-stone-500 shrink-0" />
-                  <span className="whitespace-nowrap">{t('nav.waiting')}</span>
-                </>
-              ) : isTodayDiaryWritten ? (
-                <>
-                  <Clock className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-                  <span className="whitespace-nowrap">{t('nav.reset')}</span>
-                </>
-              ) : (
-                <>
-                  <PenLine className="w-3.5 h-3.5 text-amber-200 shrink-0" />
-                  <span className="whitespace-nowrap">{t('nav.write')}</span>
-                </>
-              )}
-            </button>
-
             {/* 설정 탭 버튼 (서재처럼 상단바 고정 인라인 뷰 토글) */}
             <button
               type="button"
@@ -243,7 +197,7 @@ export default function RoomHeader({
                   : 'border-stone-300 text-stone-600 hover:bg-stone-100'
               }`}
             >
-              <MoreHorizontal className="w-4 h-4" />
+              <Settings className="w-4 h-4" />
             </button>
           </div>
         )}

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { ArrowLeft, Shuffle, ChevronLeft, ChevronRight, ChevronDown, Calendar } from 'lucide-react';
 import { DiaryData, WAX_COLORS, WEATHER_STAMPS, isDiaryWrittenByMe } from '@/types/diary';
 import { getRoomDiariesFromFirestore, getCachedRoomDiaries, getOrCreateUserId } from '@/lib/roomService';
@@ -618,6 +619,29 @@ export default function MemoryJarView({
 
   // 병 내용물 스타일 (설정 탭 기본값으로 초기화, 우측 상단 슬라이딩 버튼으로 언제든 전환)
   const [itemStyle, setItemStyle] = useState<JarItemStyle>(() => getDefaultJarItemStyle());
+  const [pillStyle, setPillStyle] = useState<JarItemStyle>(() => getDefaultJarItemStyle());
+
+  const handleToggleItemStyle = useCallback(
+    (nextStyle: JarItemStyle) => {
+      if (nextStyle === pillStyle) return;
+      setPillStyle(nextStyle);
+      hapticFeedback.light();
+
+      const direction = nextStyle === 'marble' ? 'next' : 'prev';
+      if (jarCanvasRef.current) {
+        const started = jarCanvasRef.current.slideTransition(direction, () => {
+          setItemStyle(nextStyle);
+        });
+        if (!started) {
+          setItemStyle(nextStyle);
+        }
+      } else {
+        setItemStyle(nextStyle);
+        soundEngine.playTileSlideSound();
+      }
+    },
+    [pillStyle]
+  );
 
   // 메모이제이션된 3D 렌더 옵션 (최신 달: 마개 열림 / 과거 달: 마개 닫힘)
   const isCorkOpen = currentJar?.isLatest ?? true;
@@ -633,7 +657,11 @@ export default function MemoryJarView({
   );
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, scale: 0.985, y: 10 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.985, y: 8 }}
+      transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
       onPointerDown={() => {
         if (needsMotionPermission && !motionPermissionGranted) {
           requestSensorPermission();
@@ -666,33 +694,23 @@ export default function MemoryJarView({
           <span
             aria-hidden="true"
             className={`absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-full bg-[#6B1724] shadow-sm transition-transform duration-200 ease-out ${
-              itemStyle === 'marble' ? 'translate-x-full' : 'translate-x-0'
+              pillStyle === 'marble' ? 'translate-x-full' : 'translate-x-0'
             }`}
           />
           <button
             type="button"
-            onClick={() => {
-              if (itemStyle === 'wax') return;
-              setItemStyle('wax');
-              soundEngine.playTileSlideSound();
-              hapticFeedback.light();
-            }}
+            onClick={() => handleToggleItemStyle('wax')}
             className={`relative z-10 py-1.5 text-[11px] font-serif-warm font-bold text-center rounded-full transition-colors cursor-pointer ${
-              itemStyle === 'wax' ? 'text-amber-50' : 'text-stone-600 hover:text-stone-900'
+              pillStyle === 'wax' ? 'text-amber-50' : 'text-stone-600 hover:text-stone-900'
             }`}
           >
             왁스
           </button>
           <button
             type="button"
-            onClick={() => {
-              if (itemStyle === 'marble') return;
-              setItemStyle('marble');
-              soundEngine.playTileSlideSound();
-              hapticFeedback.light();
-            }}
+            onClick={() => handleToggleItemStyle('marble')}
             className={`relative z-10 py-1.5 text-[11px] font-serif-warm font-bold text-center rounded-full transition-colors cursor-pointer ${
-              itemStyle === 'marble' ? 'text-amber-50' : 'text-stone-600 hover:text-stone-900'
+              pillStyle === 'marble' ? 'text-amber-50' : 'text-stone-600 hover:text-stone-900'
             }`}
           >
             구슬
@@ -883,6 +901,6 @@ export default function MemoryJarView({
           )}
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

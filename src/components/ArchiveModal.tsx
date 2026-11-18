@@ -893,19 +893,10 @@ export default function ArchiveModal({
           ? 'px-2 sm:px-3 py-3 mb-2 bg-transparent border-b border-stone-200/50'
           : 'px-5 sm:px-6 py-4 border-b border-[#E8DFD3] bg-[#F4EFEA]'
       }`}>
-        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 select-none">
-          <div 
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#6B1724] text-amber-100 flex items-center justify-center shadow-sm border border-amber-200/20 shrink-0 select-none pointer-events-none"
-            role="img"
-            aria-label="온기 로고"
-          >
-            <WarmthHanjaIcon className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-amber-100 select-none pointer-events-none" />
-          </div>
-          <div className="flex items-center min-w-0 select-none">
-            <h2 className="text-base sm:text-xl font-serif-warm font-bold text-stone-900 whitespace-nowrap shrink-0">
-              {t('archive.title')}
-            </h2>
-          </div>
+        <div className="flex items-center min-w-0 select-none">
+          <h2 className="text-xl sm:text-2xl font-serif-warm font-extrabold text-stone-900 whitespace-nowrap shrink-0 tracking-tight">
+            {t('archive.title')}
+          </h2>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
