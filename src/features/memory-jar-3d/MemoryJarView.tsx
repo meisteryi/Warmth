@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Shuffle, ChevronLeft, ChevronRight, ChevronDown, Calendar } from 'lucide-react';
+import { Shuffle, ChevronLeft, ChevronRight, ChevronDown, Calendar } from 'lucide-react';
 import { DiaryData, WAX_COLORS, WEATHER_STAMPS, isDiaryWrittenByMe } from '@/types/diary';
 import { getRoomDiariesFromFirestore, getCachedRoomDiaries, getOrCreateUserId } from '@/lib/roomService';
 import { WaxPieceData, JarItemStyle, getDefaultJarItemStyle } from './types';
@@ -174,7 +174,7 @@ interface MemoryJarViewProps {
   roomCode: string;
   currentUserName: string;
   partnerName: string;
-  onGoHome: () => void;
+  onGoHome?: () => void;
   onSelectDiary: (diary: DiaryData) => void;
 }
 
@@ -225,7 +225,6 @@ export default function MemoryJarView({
   roomCode,
   currentUserName,
   partnerName,
-  onGoHome,
   onSelectDiary,
 }: MemoryJarViewProps) {
   const jarCanvasRef = useRef<MemoryJarCanvasHandle>(null);
@@ -671,18 +670,6 @@ export default function MemoryJarView({
     >
       {/* 종이 결 감성 오버레이 */}
       <div className="absolute inset-0 pointer-events-none paper-texture opacity-60 z-0" />
-
-      {/* 좌측 상단: 홈으로 돌아가기 버튼 */}
-      <div className="absolute top-4 left-4 z-20">
-        <button
-          type="button"
-          onClick={onGoHome}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/90 hover:bg-white text-stone-700 hover:text-stone-900 border border-stone-200/90 shadow-sm backdrop-blur-md text-xs font-serif-warm font-bold active:scale-95 transition-all cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4 text-stone-600" />
-          <span>홈으로 돌아가기</span>
-        </button>
-      </div>
 
       {/* 우측 상단: [왁스 | 구슬] 슬라이딩 전환 버튼 */}
       <div className="absolute top-4 right-4 z-20">

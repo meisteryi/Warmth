@@ -136,14 +136,26 @@ export default function RoomHeader({
         {/* 우측: 정식 서비스 전용 액션 (홈, 둘만의 서재, 일기 쓰기, 더보기) */}
         {isMatched && (
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-            {/* 온기 유리병 바로가기 버튼 (상단 바 홈 버튼을 병 아이콘으로 변경) */}
+            {/* 온기 유리병 바로가기 버튼 (상단 바 토글 대응) */}
             {onOpenMemoryJar && (
               <button
-                onClick={onOpenMemoryJar}
-                title="온기 유리병 (기억의 병)"
+                onClick={() => {
+                  if (currentState === 'VIEW_MEMORY_JAR') {
+                    onGoHome?.();
+                  } else {
+                    onOpenMemoryJar();
+                  }
+                }}
+                title={
+                  currentState === 'VIEW_MEMORY_JAR'
+                    ? language === 'en'
+                      ? 'Back to Desk'
+                      : '책상으로 돌아가기'
+                    : '온기 유리병 (기억의 병)'
+                }
                 className={`h-9 sm:h-10 px-2 sm:px-3 rounded-xl border text-xs font-serif-warm font-bold shadow-2xs flex items-center justify-center gap-1.5 shrink-0 whitespace-nowrap active:scale-95 transition-all cursor-pointer ${
                   currentState === 'VIEW_MEMORY_JAR'
-                    ? 'bg-[#6B1724]/10 text-[#6B1724] border-[#6B1724]/30'
+                    ? 'bg-[#6B1724]/10 text-[#6B1724] border-[#6B1724]/40 font-bold ring-1 ring-[#6B1724]/20'
                     : 'border-stone-300/90 hover:border-[#6B1724]/40 bg-white hover:bg-stone-50 text-stone-800'
                 }`}
               >
