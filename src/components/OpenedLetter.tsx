@@ -17,6 +17,8 @@ interface OpenedLetterProps {
   onWriteReply: () => void;
   onResetView?: () => void;
   userName?: string;
+  partnerName?: string;
+  canWriteReply?: boolean;
   roomCode?: string;
   onUpdateDiaryReaction?: (diaryId: string, reaction: DiaryReaction | null, diaryTitle?: string) => void | Promise<void>;
   onBlockPartner?: () => void;
@@ -27,6 +29,8 @@ export default function OpenedLetter({
   onWriteReply,
   onResetView,
   userName,
+  partnerName,
+  canWriteReply,
   roomCode,
   onUpdateDiaryReaction,
   onBlockPartner,
@@ -707,11 +711,7 @@ export default function OpenedLetter({
             <span>{t('opened.backHome')}</span>
           </button>
         )}
-        {isAuthor ? (
-          <div className="w-full sm:w-auto px-6 py-3.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200 font-serif-warm text-sm font-medium flex items-center justify-center gap-2 select-none shadow-xs whitespace-nowrap">
-            <span className="truncate">{t('opened.waitingReply', { name: diary.recipientName })}</span>
-          </div>
-        ) : (
+        {(canWriteReply !== undefined ? canWriteReply : !isAuthor) ? (
           <button
             onClick={onWriteReply}
             className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-[#6B1724] hover:bg-[#831D2D] active:scale-95 text-amber-50 font-serif-warm text-base font-semibold shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
@@ -719,6 +719,14 @@ export default function OpenedLetter({
             <PenLine className="w-5 h-5 text-amber-200" />
             <span>{t('opened.replyBtn')}</span>
           </button>
+        ) : (
+          <div className="w-full sm:w-auto px-6 py-3.5 rounded-full bg-amber-50 text-amber-900 border border-amber-200 font-serif-warm text-sm font-medium flex items-center justify-center gap-2 select-none shadow-xs whitespace-nowrap">
+            <span className="truncate">
+              {t('opened.waitingReply', {
+                name: partnerName || (isAuthor ? diary.recipientName : diary.authorName),
+              })}
+            </span>
+          </div>
         )}
       </div>
 

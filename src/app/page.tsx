@@ -1648,6 +1648,8 @@ export default function HomePage() {
                   }
                 }}
                 userName={userName}
+                partnerName={partnerName}
+                canWriteReply={isMyTurn && !hasMyQuotaBeenUsedToday}
                 roomCode={activeRoomCode}
                 onUpdateDiaryReaction={handleUpdateDiaryReaction}
                 onBlockPartner={handleLeaveRoom}
