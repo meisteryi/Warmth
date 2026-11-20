@@ -182,8 +182,55 @@ export default function WriteDiaryModal({
     }
   }, [initialTitle]);
 
-  // 모달 열림 상태 변경 감지용 ref
-  const prevIsOpenRef = useRef(isOpen);
+  // 모달 열림 상태 변경 감지용 ref (인라인 뷰처럼 최초 마운트부터 isOpen=true인 경우에도 초기화/임시저장 확인이 실행되도록 false로 초기화)
+  const prevIsOpenRef = useRef(false);
+  // 전송 성공 또는 임시저장 폐기 직후 언마운트 시 재저장 방지용 ref
+  const skipUnmountSaveRef = useRef(false);
+
+  // localStorage 용량 초과(대용량 사진 첨부 등) 시 사진을 제외한 텍스트/설정만이라도 안전하게 임시저장하는 헬퍼
+  const saveDraftToStorage = useCallback(
+    (payload: {
+      turnId: string;
+      title: string;
+      content: string;
+      diaryDate: string;
+      selectedColor: WaxColor;
+      customColor: string;
+      selectedPhoto: string | null;
+      uploadedPhotoInfo: CompressedImageResult | null;
+      photoCaption: string;
+      paperTheme: PaperTheme;
+      missionType: 'PUZZLE_PHOTO' | 'PUZZLE_STAMP' | 'SYSTEM' | 'CUSTOM' | 'TELEPATHY';
+      customPrompt: string;
+      customQuizAnswer: string;
+      customQuizHint: string;
+      telepathyPrompt: string;
+      telepathyOptionA: string;
+      telepathyOptionB: string;
+      telepathyAnswer: 'A' | 'B';
+      selectedStampId: string;
+      stampStyle: StampStyle;
+      savedAt: string;
+    }): boolean => {
+      try {
+        localStorage.setItem(draftKey, JSON.stringify(payload));
+        return true;
+      } catch {
+        try {
+          const textOnlyPayload = {
+            ...payload,
+            selectedPhoto: null,
+            uploadedPhotoInfo: null,
+          };
+          localStorage.setItem(draftKey, JSON.stringify(textOnlyPayload));
+          return true;
+        } catch {
+          return false;
+        }
+      }
+    },
+    [draftKey]
+  );
 
   // 모달이 열릴 때 이전 스크롤 및 잔여 폼 상태 초기화, 임시 저장본 확인
   useEffect(() => {
@@ -191,6 +238,7 @@ export default function WriteDiaryModal({
     prevIsOpenRef.current = isOpen;
 
     if (!wasOpen && isOpen) {
+      skipUnmountSaveRef.current = false;
       queueMicrotask(() => {
         // 1. 이전 잔여 폼 상태 완전 초기화
         resetForm();
@@ -268,43 +316,152 @@ export default function WriteDiaryModal({
     }
   }, [isOpen, draftKey, roomCode, initialTitle, partnerName, currentUserName, fallbackPreviousDiary, resetForm, currentTurnId]);
 
+  // 인라인 뷰에서 상단 탭 클릭 등으로 언마운트될 때 작성 중인 최신 내용을 즉시 임시저장하기 위한 Ref 동기화
+  const latestDraftStateRef = useRef({
+    isOpen,
+    hasDraftNotice,
+    turnId: currentTurnId,
+    title,
+    content,
+    diaryDate,
+    selectedColor,
+    customColor,
+    selectedPhoto,
+    uploadedPhotoInfo,
+    photoCaption,
+    paperTheme,
+    missionType,
+    customPrompt,
+    customQuizAnswer,
+    customQuizHint,
+    telepathyPrompt,
+    telepathyOptionA,
+    telepathyOptionB,
+    telepathyAnswer,
+    selectedStampId: selectedStamp.id,
+    stampStyle,
+  });
+
+  useEffect(() => {
+    latestDraftStateRef.current = {
+      isOpen,
+      hasDraftNotice,
+      turnId: currentTurnId,
+      title,
+      content,
+      diaryDate,
+      selectedColor,
+      customColor,
+      selectedPhoto,
+      uploadedPhotoInfo,
+      photoCaption,
+      paperTheme,
+      missionType,
+      customPrompt,
+      customQuizAnswer,
+      customQuizHint,
+      telepathyPrompt,
+      telepathyOptionA,
+      telepathyOptionB,
+      telepathyAnswer,
+      selectedStampId: selectedStamp.id,
+      stampStyle,
+    };
+  }, [
+    isOpen,
+    hasDraftNotice,
+    currentTurnId,
+    title,
+    content,
+    diaryDate,
+    selectedColor,
+    customColor,
+    selectedPhoto,
+    uploadedPhotoInfo,
+    photoCaption,
+    paperTheme,
+    missionType,
+    customPrompt,
+    customQuizAnswer,
+    customQuizHint,
+    telepathyPrompt,
+    telepathyOptionA,
+    telepathyOptionB,
+    telepathyAnswer,
+    selectedStamp,
+    stampStyle,
+  ]);
+
+  // 언마운트 시 작성 중인 내용이 있다면 디바운스를 기다리지 않고 즉시 임시 저장
+  useEffect(() => {
+    return () => {
+      if (skipUnmountSaveRef.current) return;
+      const latest = latestDraftStateRef.current;
+      if (!latest.isOpen || latest.hasDraftNotice) return;
+      if (!latest.title.trim() && !latest.content.trim()) return;
+      saveDraftToStorage({
+        turnId: latest.turnId,
+        title: latest.title,
+        content: latest.content,
+        diaryDate: latest.diaryDate,
+        selectedColor: latest.selectedColor,
+        customColor: latest.customColor,
+        selectedPhoto: latest.selectedPhoto,
+        uploadedPhotoInfo: latest.uploadedPhotoInfo,
+        photoCaption: latest.photoCaption,
+        paperTheme: latest.paperTheme,
+        missionType: latest.missionType,
+        customPrompt: latest.customPrompt,
+        customQuizAnswer: latest.customQuizAnswer,
+        customQuizHint: latest.customQuizHint,
+        telepathyPrompt: latest.telepathyPrompt,
+        telepathyOptionA: latest.telepathyOptionA,
+        telepathyOptionB: latest.telepathyOptionB,
+        telepathyAnswer: latest.telepathyAnswer,
+        selectedStampId: latest.selectedStampId,
+        stampStyle: latest.stampStyle,
+        savedAt: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+      });
+    };
+  }, [saveDraftToStorage]);
+
   // 편지 작성 중 실시간 자동 임시 저장 (디바운스 600ms)
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || hasDraftNotice) return;
     if (!title.trim() && !content.trim()) return;
 
     const timer = setTimeout(() => {
-      try {
-        const draftData = {
-          turnId: currentTurnId,
-          title,
-          content,
-          diaryDate,
-          selectedColor,
-          customColor,
-          selectedPhoto,
-          uploadedPhotoInfo,
-          photoCaption,
-          paperTheme,
-          missionType,
-          customPrompt,
-          customQuizAnswer,
-          customQuizHint,
-          telepathyPrompt,
-          telepathyOptionA,
-          telepathyOptionB,
-          telepathyAnswer,
-          selectedStampId: selectedStamp.id,
-          stampStyle,
-          savedAt: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
-        };
-        localStorage.setItem(draftKey, JSON.stringify(draftData));
-        setLastSavedDraftTime(draftData.savedAt);
-      } catch { }
+      const savedAt = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+      const ok = saveDraftToStorage({
+        turnId: currentTurnId,
+        title,
+        content,
+        diaryDate,
+        selectedColor,
+        customColor,
+        selectedPhoto,
+        uploadedPhotoInfo,
+        photoCaption,
+        paperTheme,
+        missionType,
+        customPrompt,
+        customQuizAnswer,
+        customQuizHint,
+        telepathyPrompt,
+        telepathyOptionA,
+        telepathyOptionB,
+        telepathyAnswer,
+        selectedStampId: selectedStamp.id,
+        stampStyle,
+        savedAt,
+      });
+      if (ok) {
+        setLastSavedDraftTime(savedAt);
+      }
     }, 600);
 
     return () => clearTimeout(timer);
-  }, [isOpen, title, content, diaryDate, selectedColor, customColor, selectedPhoto, uploadedPhotoInfo, photoCaption, paperTheme, missionType, customPrompt, customQuizAnswer, customQuizHint, telepathyPrompt, telepathyOptionA, telepathyOptionB, telepathyAnswer, selectedStamp, stampStyle, draftKey, currentTurnId]);
+  }, [isOpen, hasDraftNotice, title, content, diaryDate, selectedColor, customColor, selectedPhoto, uploadedPhotoInfo, photoCaption, paperTheme, missionType, customPrompt, customQuizAnswer, customQuizHint, telepathyPrompt, telepathyOptionA, telepathyOptionB, telepathyAnswer, selectedStamp, stampStyle, currentTurnId, saveDraftToStorage]);
 
   // 임시 저장본 불러와 이어쓰기
   const handleRestoreDraft = () => {
@@ -365,34 +522,32 @@ export default function WriteDiaryModal({
 
   // 모달 닫기 핸들러 (작성 중 내용이 있다면 즉시 임시 저장 동기화)
   const handleCloseModal = () => {
-    if (title.trim() || content.trim()) {
-      try {
-        const draftData = {
-          turnId: currentTurnId,
-          title,
-          content,
-          diaryDate,
-          selectedColor,
-          customColor,
-          selectedPhoto,
-          uploadedPhotoInfo,
-          photoCaption,
-          paperTheme,
-          missionType,
-          customPrompt,
-          customQuizAnswer,
-          customQuizHint,
-          telepathyPrompt,
-          telepathyOptionA,
-          telepathyOptionB,
-          telepathyAnswer,
-          selectedStampId: selectedStamp.id,
-          stampStyle,
-          savedAt: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
-        };
-        localStorage.setItem(draftKey, JSON.stringify(draftData));
-      } catch { }
+    if (!hasDraftNotice && (title.trim() || content.trim())) {
+      saveDraftToStorage({
+        turnId: currentTurnId,
+        title,
+        content,
+        diaryDate,
+        selectedColor,
+        customColor,
+        selectedPhoto,
+        uploadedPhotoInfo,
+        photoCaption,
+        paperTheme,
+        missionType,
+        customPrompt,
+        customQuizAnswer,
+        customQuizHint,
+        telepathyPrompt,
+        telepathyOptionA,
+        telepathyOptionB,
+        telepathyAnswer,
+        selectedStampId: selectedStamp.id,
+        stampStyle,
+        savedAt: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+      });
     }
+    skipUnmountSaveRef.current = true;
     resetForm();
     setHasDraftNotice(false);
     setLastSavedDraftTime(null);
@@ -617,7 +772,7 @@ export default function WriteDiaryModal({
       if (missionType === 'PUZZLE_PHOTO') {
         mission = {
           type: 'PUZZLE_PHOTO',
-          prompt: `${partnerName} 님이 남긴 오늘의 한 컷 조각 퍼즐 맞추기`,
+          prompt: `${currentUserName} 님이 남긴 오늘의 한 컷 조각 퍼즐 맞추기`,
           quizAnswer: null,
           isCustom: false,
           submission: null,
@@ -744,6 +899,7 @@ export default function WriteDiaryModal({
           }
         } catch { }
 
+        skipUnmountSaveRef.current = true;
         resetForm();
         setHasDraftNotice(false);
         setLastSavedDraftTime(null);
@@ -1122,7 +1278,10 @@ export default function WriteDiaryModal({
               required
               maxLength={60}
               value={title}
-              onChange={(e) => setTitle(e.target.value.slice(0, 60))}
+              onChange={(e) => {
+                if (hasDraftNotice) setHasDraftNotice(false);
+                setTitle(e.target.value.slice(0, 60));
+              }}
               placeholder={t('write.titlePlaceholder')}
               className={`w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white/90 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6B1724]/20 focus:border-[#6B1724] font-serif-warm text-base sm:text-sm text-stone-900 ${stampStyle === 'EMOJI_TITLE' ? 'pl-11 sm:pl-12' : ''
                 }`}
@@ -1148,7 +1307,10 @@ export default function WriteDiaryModal({
             rows={6}
             maxLength={1300}
             value={content}
-            onChange={(e) => setContent(e.target.value.slice(0, 1300))}
+            onChange={(e) => {
+              if (hasDraftNotice) setHasDraftNotice(false);
+              setContent(e.target.value.slice(0, 1300));
+            }}
             placeholder={t('write.contentPlaceholder')}
             className={`w-full p-3.5 rounded-xl border focus:outline-none focus:ring-2 font-serif-warm text-base sm:text-sm leading-relaxed resize-none transition-colors ${paperTheme === 'MIDNIGHT'
               ? 'bg-[#181F2B] text-[#F4EDE2] border-[#324058] focus:ring-amber-200/30 placeholder:text-stone-500'

@@ -37,7 +37,7 @@ export default function OpenedLetter({
 }: OpenedLetterProps) {
   const { language, t } = useLanguage();
   const currentUserId = typeof window !== 'undefined' ? getOrCreateUserId() : '';
-  const isAuthor = isDiaryWrittenByMe(diary, userName || '', currentUserId);
+  const isAuthor = isDiaryWrittenByMe(diary, userName || '', currentUserId, partnerName);
 
   // 포스트잇 이모티콘 + 공백 포함 100자 코멘트 반응 상태 (해당 일기만의 독립된 반응 동기화)
   const [currentReaction, setCurrentReaction] = useState<DiaryReaction | null>(() => {
@@ -162,9 +162,10 @@ export default function OpenedLetter({
 
   const handleSaveReaction = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!reactionEmoji.trim() || isSavingReaction) return;
+    if (!diary.isWaxBroken || !reactionEmoji.trim() || isSavingReaction) return;
     // 상대방이 등록한 포스트잇인 경우 수정/덮어쓰기 차단
     if (currentReaction && !isReactionOwner) return;
+    const prevReaction = currentReaction;
     setIsSavingReaction(true);
     const newReaction: DiaryReaction = {
       emoji: reactionEmoji.trim(),
@@ -179,6 +180,18 @@ export default function OpenedLetter({
       setIsReactionModalOpen(false);
       soundEngine.playMissionPassChime();
 
+      let savedOk = true;
+      if (roomCode && diary.diaryId) {
+        const res = await updateDiaryReactionInFirestore(roomCode, diary.diaryId, newReaction);
+        savedOk = res.success;
+      }
+
+      if (!savedOk) {
+        setCurrentReaction(prevReaction);
+        alert(language === 'en' ? 'Failed to save your note. Please try again.' : '포스트잇 저장에 실패했습니다. 네트워크 상태를 확인 후 다시 시도해주세요.');
+        return;
+      }
+
       // "내" 임시 저장본 정상 저장 완료 후 즉시 정리
       try {
         if (postitDraftKey && typeof window !== 'undefined') {
@@ -187,28 +200,38 @@ export default function OpenedLetter({
       } catch {}
       setHasDraftRestored(false);
 
-      // 부모 상태(diary / selectedArchiveDiary) 및 로컬 캐시를 즉시 동기화하여 화면 전환 시 증발 방지
+      // Firestore 저장 성공 후 부모 상태(diary / selectedArchiveDiary) 동기화 및 알림 발송
       void onUpdateDiaryReaction?.(diary.diaryId, newReaction, diary.title);
-
-      if (roomCode && diary.diaryId) {
-        await updateDiaryReactionInFirestore(roomCode, diary.diaryId, newReaction);
-      }
     } catch (err) {
       console.warn('Failed to update diary reaction:', err);
+      setCurrentReaction(prevReaction);
     } finally {
       setIsSavingReaction(false);
     }
   };
 
   const handleRemoveReaction = async () => {
-    if (isSavingReaction) return;
+    if (!diary.isWaxBroken || isSavingReaction) return;
     // 상대방이 등록한 포스트잇인 경우 삭제 차단
     if (currentReaction && !isReactionOwner) return;
+    const prevReaction = currentReaction;
     setIsSavingReaction(true);
     try {
       setCurrentReaction(null);
       setIsReactionModalOpen(false);
       soundEngine.playPaperRustle();
+
+      let removedOk = true;
+      if (roomCode && diary.diaryId) {
+        const res = await updateDiaryReactionInFirestore(roomCode, diary.diaryId, null);
+        removedOk = res.success;
+      }
+
+      if (!removedOk) {
+        setCurrentReaction(prevReaction);
+        alert(language === 'en' ? 'Failed to remove your note. Please try again.' : '포스트잇 삭제에 실패했습니다. 잠시 후 다시 시도해주세요.');
+        return;
+      }
 
       // "내" 임시 저장본도 함께 삭제
       try {
@@ -219,19 +242,17 @@ export default function OpenedLetter({
       setHasDraftRestored(false);
 
       void onUpdateDiaryReaction?.(diary.diaryId, null, diary.title);
-
-      if (roomCode && diary.diaryId) {
-        await updateDiaryReactionInFirestore(roomCode, diary.diaryId, null);
-      }
     } catch (err) {
       console.warn('Failed to remove diary reaction:', err);
+      setCurrentReaction(prevReaction);
     } finally {
       setIsSavingReaction(false);
     }
   };
 
   const handleOpenReactionModal = () => {
-    // 상대방이 등록한 포스트잇인 경우 수정 모달 진입 차단
+    // 아직 개봉되지 않은 편지이거나 상대방이 등록한 포스트잇인 경우 수정 모달 진입 차단
+    if (!diary.isWaxBroken) return;
     if (currentReaction && !isReactionOwner) return;
 
     // 1. "내"가 "이 일기"에 쓰다 만 임시저장본이 있는지 우선 복원 확인
@@ -550,8 +571,8 @@ export default function OpenedLetter({
             </motion.div>
           )}
 
-          {/* 온도 위에 눈에 띄지 않게 조용한 텍스트로 '반응 추가하기+' (내가 쓴 반응일 때만 수정 가능, 상대방 반응이면 버튼 숨김) */}
-          {(!currentReaction || isReactionOwner) && (
+          {/* 온도 위에 눈에 띄지 않게 조용한 텍스트로 '반응 추가하기+' (개봉된 편지 + 내가 쓴 반응일 때만 수정 가능, 상대방 반응이면 버튼 숨김) */}
+          {diary.isWaxBroken && (!currentReaction || isReactionOwner) && (
             <div className="flex justify-end items-center mb-1.5 -mt-2">
               <button
                 type="button"

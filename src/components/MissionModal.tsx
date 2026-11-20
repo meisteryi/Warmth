@@ -83,10 +83,11 @@ export default function MissionModal({
   const [wrongTelepathySide, setWrongTelepathySide] = useState<'A' | 'B' | null>(null);
   const [telepathyCooldownUntil, setTelepathyCooldownUntil] = useState<number>(0);
   const [telepathyRemainingSec, setTelepathyRemainingSec] = useState<number>(0);
-  const [prevOpenMission, setPrevOpenMission] = useState({ isOpen, mission });
+  const missionResetKey = `${diaryId || ''}|${mission.type}|${mission.prompt || ''}|${mission.quizAnswer || ''}|${mission.optionA || ''}|${mission.optionB || ''}`;
+  const [prevOpenMission, setPrevOpenMission] = useState({ isOpen, missionResetKey });
 
-  if (prevOpenMission.isOpen !== isOpen || prevOpenMission.mission !== mission) {
-    setPrevOpenMission({ isOpen, mission });
+  if (prevOpenMission.isOpen !== isOpen || prevOpenMission.missionResetKey !== missionResetKey) {
+    setPrevOpenMission({ isOpen, missionResetKey });
     if (isOpen) {
       setQuizInput('');
       setShowHint(false);

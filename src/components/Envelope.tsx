@@ -83,7 +83,16 @@ export default function Envelope({
           {/* 동그란 우체국 소인 도장 */}
           <div className="relative -mt-2 -mr-2 sm:-mt-3 sm:-mr-3 w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-stone-500/40 flex flex-col items-center justify-center -rotate-12 text-[6px] sm:text-[7px] text-stone-600/70 font-mono">
             <span>WARMTH</span>
-            <span>26.09.27</span>
+            <span suppressHydrationWarning>
+              {(() => {
+                const d = diary.createdAt ? new Date(diary.createdAt) : new Date();
+                if (isNaN(d.getTime())) return '26.01.01';
+                const yy = String(d.getFullYear()).slice(-2);
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                return `${yy}.${mm}.${dd}`;
+              })()}
+            </span>
             <span>SEOUL</span>
           </div>
         </div>

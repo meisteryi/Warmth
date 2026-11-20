@@ -338,28 +338,31 @@ export default function HomePage() {
       return false;
     }
 
+    const myUid = getOrCreateUserId();
+    const isLatestWrittenByMe = Boolean(diary && isDiaryWrittenByMe(diary, userName, myUid, partnerName));
+
     // 만약 현재 최신 일기가 상대방이 작성한 일기라면, 교환일기 특성상 내가 답장을 작성할 차례이므로 쿼터 미사용으로 간주
-    if (diary && diary.authorName !== userName) {
+    if (diary && !isLatestWrittenByMe) {
       return false;
     }
 
     // 1) Firestore roomData의 lastWrittenByUser 확인
-    const myUid = getOrCreateUserId();
     const myLastTime = roomData?.lastWrittenByUser?.[myUid] || roomData?.lastWrittenByUser?.[userName];
     if (myLastTime && isDiaryWrittenInCurrentCycle(myLastTime)) {
       return true;
     }
     // 2) 현재 최신 일기가 내가 작성한 것이고 오늘 주기인 경우
-    if (diary && diary.authorName === userName && isDiaryWrittenInCurrentCycle(diary.createdAt)) {
+    if (diary && isLatestWrittenByMe && isDiaryWrittenInCurrentCycle(diary.createdAt)) {
       return true;
     }
     // 3) 로컬 세션스토리지 확인 (내가 마지막 일기를 작성한 경우에만 적용)
-    const localLast = sessionStore.get(`warmth_last_written_${roomCode}_${userName}`);
+    const targetCode = activeRoomCode || roomCode;
+    const localLast = sessionStore.get(`warmth_last_written_${targetCode}_${userName}`);
     if (localLast && isDiaryWrittenInCurrentCycle(localLast)) {
       return true;
     }
     return false;
-  }, [roomData, diary, userName, roomCode, activeRoomCode]);
+  }, [roomData, diary, userName, partnerName, roomCode, activeRoomCode]);
 
   // 턴 로테이션 판별:
   // 1) 아직 일기가 없는 초기 상태: "코드를 써서 로그인하면, 무조건 방장이 아닌 사람이 편지를 먼저 써야 해."
@@ -372,8 +375,9 @@ export default function HomePage() {
     if (!diary) {
       return userRole === 'PARTNER';
     }
-    return diary.authorName !== userName;
-  }, [diary, userRole, userName, roomCode, activeRoomCode]);
+    const myUid = getOrCreateUserId();
+    return !isDiaryWrittenByMe(diary, userName, myUid, partnerName);
+  }, [diary, userRole, userName, partnerName, roomCode, activeRoomCode]);
 
   const handleOpenWriteModal = (initialTitle?: unknown) => {
     if (uiState === 'VIEW_WRITE') {
@@ -383,9 +387,10 @@ export default function HomePage() {
     }
     const validTitle = typeof initialTitle === 'string' && initialTitle.trim() ? initialTitle.trim() : undefined;
     if (!isMyTurn) {
+      const myUid = getOrCreateUserId();
       if (!diary) {
         showToast(`초대받은 ${partnerName} 님이 첫 번째 편지를 먼저 작성할 차례입니다.`);
-      } else if (diary.authorName === userName && !diary.isWaxBroken) {
+      } else if (isDiaryWrittenByMe(diary, userName, myUid, partnerName) && !diary.isWaxBroken) {
         showToast(`${partnerName} 님이 아직 편지를 읽지 않았습니다. 상대방이 편지를 읽고 답장을 보낸 후에 새 편지를 쓸 수 있습니다.`);
       } else {
         showToast(`지금은 ${partnerName} 님의 답장 차례입니다. 답장이 도착하면 새 편지를 쓸 수 있습니다.`);
@@ -854,12 +859,13 @@ export default function HomePage() {
               setUiState((p) => (p === 'VIEW_WAITING' || p === 'VIEW_EMPTY' ? 'VIEW_HOME' : p));
             }
 
-            // 3) 내가 쓴 편지에 상대방이 이모티콘 마음 반응(포스트잇)을 남겼거나 변경했을 때 실시간 감지
+            // 3) 내가 쓴 편지에 상대방이 이모티콘 마음 반응(포스트잇)을 남겼거나 코멘트를 수정했을 때 실시간 감지
             if (
               prev &&
               prev.diaryId === latestDiary.diaryId &&
               latestDiary.reaction &&
-              prev.reaction?.emoji !== latestDiary.reaction.emoji &&
+              (prev.reaction?.emoji !== latestDiary.reaction.emoji ||
+                (prev.reaction?.comment || '') !== (latestDiary.reaction.comment || '')) &&
               isWrittenByMe
             ) {
               soundEngine.playMissionPassChime();
@@ -1311,15 +1317,17 @@ export default function HomePage() {
 
   // 4. 노크 보내기 처리 (Firestore에 기록하여 상대방에게 실시간 인앱 노크 전송)
   const handleSendKnock = async (message: string) => {
-    const cleanMessage = message.trim() || '오늘의 편지를 기다리고 있어요 ✉️';
+    const cleanMessage = message.trim() || '오늘의 일기를 기다리고 있어요 ✉️';
+    const targetRoomCode = activeRoomCode || roomCode;
+    if (!targetRoomCode) return;
     try {
-      await sendKnockInFirestore(roomCode, userName, cleanMessage);
+      await sendKnockInFirestore(targetRoomCode, userName, cleanMessage);
       showToast(`🔔 ${partnerName} 님에게 은은한 노크를 전했습니다.`);
 
       // 상대방에게 백그라운드 Web Push 발송 (앱이 꺼져 있어도 OS 잠금 화면에 알림 표시)
       try {
         const myUid = getOrCreateUserId();
-        const roomSnap = await getDoc(doc(db, 'rooms', roomCode));
+        const roomSnap = await getDoc(doc(db, 'rooms', targetRoomCode));
         if (roomSnap.exists()) {
           const freshRoom = roomSnap.data() as RoomData;
           const partner = getPartnerMemberInfo(freshRoom, myUid, userName);
@@ -1682,7 +1690,11 @@ export default function HomePage() {
                 const isMine = isDiaryWrittenByMe(selectedDiary, userName, myUid, partnerName);
                 if (!isMine && !selectedDiary.isWaxBroken) {
                   setSelectedArchiveDiary(null);
-                  setUiState(diary?.mission?.isPassed ? 'VIEW_WAX_READY' : 'VIEW_SEALED_LETTER');
+                  if (!diary || diary.diaryId !== selectedDiary.diaryId) {
+                    currentDiaryRef.current = selectedDiary;
+                    setDiary(selectedDiary);
+                  }
+                  setUiState(selectedDiary.mission?.isPassed ? 'VIEW_WAX_READY' : 'VIEW_SEALED_LETTER');
                   forceScrollToTop(mainRef.current);
                   showToast('🔒 아직 개봉하지 않은 편지입니다. 관문을 풀고 실링 왁스를 녹여주세요!');
                   return;
