@@ -1311,8 +1311,9 @@ export default function HomePage() {
 
   // 4. 노크 보내기 처리 (Firestore에 기록하여 상대방에게 실시간 인앱 노크 전송)
   const handleSendKnock = async (message: string) => {
+    const cleanMessage = message.trim() || '오늘의 편지를 기다리고 있어요 ✉️';
     try {
-      await sendKnockInFirestore(roomCode, userName, message);
+      await sendKnockInFirestore(roomCode, userName, cleanMessage);
       showToast(`🔔 ${partnerName} 님에게 은은한 노크를 전했습니다.`);
 
       // 상대방에게 백그라운드 Web Push 발송 (앱이 꺼져 있어도 OS 잠금 화면에 알림 표시)
@@ -1325,8 +1326,8 @@ export default function HomePage() {
           if (partner?.info?.pushSubscription) {
             await sendServerWebPush(
               partner.info.pushSubscription,
-              '🔔 똑똑, 노크가 도착했습니다!',
-              `${userName} 님이 일기장 문을 두드렸어요: "${message}"`,
+              `🔔 ${userName} 님의 노크가 도착했습니다!`,
+              cleanMessage,
               `warmth-knock-${Date.now()}`
             );
           }
@@ -1566,7 +1567,7 @@ export default function HomePage() {
               onOpenWriteModal={handleOpenWriteModal}
               onOpenArchive={() => handleOpenArchive()}
               onOpenMonthlyRecap={(monthKey) => handleOpenArchive('REPORT', monthKey)}
-              onSendKnock={() => handleSendKnock('오늘의 편지를 기다리고 있어요 ✉️')}
+              onSendKnock={handleSendKnock}
               onOpenSealedLetter={() => {
                 if (!diary) return;
                 setSelectedArchiveDiary(null);

@@ -32,6 +32,7 @@ import { updateAnniversaryDateInFirestore, getRoomDiariesFromFirestore, getOrCre
 import { fetchDailyPrompt, getCachedDailyPrompt } from '@/lib/aiClient';
 import { soundEngine } from '@/lib/audio';
 import { useLanguage } from '@/lib/i18n';
+import KnockComposerModal from '@/components/KnockComposerModal';
 
 interface HomeViewProps {
   partnerName: string;
@@ -46,7 +47,7 @@ interface HomeViewProps {
   onOpenWriteModal: (initialTitle?: string) => void;
   onOpenArchive: () => void;
   onOpenMonthlyRecap?: (monthKey: string) => void;
-  onSendKnock: () => void;
+  onSendKnock: (message: string) => Promise<void> | void;
   onOpenSealedLetter: () => void;
   onOpenDiary: () => void;
 }
@@ -124,6 +125,7 @@ export default function HomeView({
 }: HomeViewProps) {
   const { language, t } = useLanguage();
   const [knockCooldown, setKnockCooldown] = useState(false);
+  const [isKnockModalOpen, setIsKnockModalOpen] = useState(false);
   const [dailyPrompt, setDailyPrompt] = useState<string>(() => {
     return getCachedDailyPrompt() || '오늘 하루 중 너에게 가장 먼저 말해주고 싶었던 사소한 순간은?';
   });
@@ -191,8 +193,11 @@ export default function HomeView({
 
   const handleKnock = () => {
     if (knockCooldown) return;
-    soundEngine.playWindChimeKnock();
-    onSendKnock();
+    setIsKnockModalOpen(true);
+  };
+
+  const handleConfirmKnock = async (message: string) => {
+    await onSendKnock(message);
     setKnockCooldown(true);
     setTimeout(() => setKnockCooldown(false), 3000);
   };
@@ -897,6 +902,14 @@ export default function HomeView({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 5. 노크 문구 선택/직접 작성 모달 */}
+      <KnockComposerModal
+        isOpen={isKnockModalOpen}
+        partnerName={partnerName}
+        onClose={() => setIsKnockModalOpen(false)}
+        onSend={handleConfirmKnock}
+      />
     </motion.div>
   );
 }

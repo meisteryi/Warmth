@@ -2,15 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Feather, Bell, Clock, Compass, Send, CheckCircle2, Calendar } from 'lucide-react';
+import { Feather, Bell, Clock, Compass, Send, CheckCircle2, Calendar, PenLine } from 'lucide-react';
 import { soundEngine } from '@/lib/audio';
 import { formatTodayKorean } from '@/lib/dateUtils';
-
-const KNOCK_PRESETS = [
-  '오늘의 편지를 기다리고 있어요 ✉️',
-  '오늘 하루는 어땠어? 네 이야기가 궁금해 ✨',
-  '차 한잔 마시며 편안한 시간에 적어줘 🍵',
-];
+import { KNOCK_PRESETS, MAX_KNOCK_MESSAGE_LENGTH } from '@/components/KnockComposerModal';
 
 interface WaitingLetterProps {
   partnerName: string;
@@ -23,10 +18,14 @@ export default function WaitingLetter({
   onSendKnock,
   onGoHome,
 }: WaitingLetterProps) {
-  const [selectedMessage, setSelectedMessage] = useState(KNOCK_PRESETS[0]);
+  const [selectedMessage, setSelectedMessage] = useState<string>(KNOCK_PRESETS[0]);
+  const [customMessage, setCustomMessage] = useState('');
+  const [isCustomMode, setIsCustomMode] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [justSent, setJustSent] = useState(false);
+
+  const finalMessage = isCustomMode ? customMessage.trim() : selectedMessage;
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -37,13 +36,13 @@ export default function WaitingLetter({
   }, [cooldown]);
 
   const handleKnock = async () => {
-    if (cooldown > 0 || isSending) return;
+    if (cooldown > 0 || isSending || !finalMessage) return;
     setIsSending(true);
     soundEngine.playWindChimeKnock();
 
     try {
       if (onSendKnock) {
-        await onSendKnock(selectedMessage);
+        await onSendKnock(finalMessage);
       }
       setJustSent(true);
       setCooldown(20); // 20초 쿨다운
@@ -121,33 +120,75 @@ export default function WaitingLetter({
             <span>노크 문구 고르기</span>
           </div>
           <div className="space-y-1.5">
-            {KNOCK_PRESETS.map((msg, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => setSelectedMessage(msg)}
-                className={`w-full text-left px-3 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm transition-all flex items-center justify-between font-sans-ui cursor-pointer ${
-                  selectedMessage === msg
-                    ? 'bg-[#6B1724] text-amber-50 font-bold shadow-xs'
-                    : 'bg-white/90 hover:bg-white text-stone-700 border border-stone-200/70 font-medium'
-                }`}
-              >
-                <span className="truncate pr-2">{msg}</span>
-                {selectedMessage === msg && <CheckCircle2 className="w-3.5 h-3.5 text-amber-200 shrink-0" />}
-              </button>
-            ))}
+            {KNOCK_PRESETS.map((msg, i) => {
+              const isSelected = !isCustomMode && selectedMessage === msg;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => {
+                    setSelectedMessage(msg);
+                    setIsCustomMode(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm transition-all flex items-center justify-between font-sans-ui cursor-pointer ${isSelected
+                      ? 'bg-[#6B1724] text-amber-50 font-bold shadow-xs'
+                      : 'bg-white/90 hover:bg-white text-stone-700 border border-stone-200/70 font-medium'
+                    }`}
+                >
+                  <span className="truncate pr-2">{msg}</span>
+                  {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-amber-200 shrink-0" />}
+                </button>
+              );
+            })}
+
+            {/* 직접 작성 칸 */}
+            <div
+              onClick={() => setIsCustomMode(true)}
+              className={`rounded-lg border transition-all px-3 py-2 bg-white ${
+                isCustomMode
+                  ? 'border-[#6B1724] ring-1 ring-[#6B1724]/25 shadow-xs'
+                  : 'border-stone-200/70 hover:border-stone-300'
+              }`}
+            >
+              <div className="flex items-center justify-between text-[11px] font-sans-ui mb-1">
+                <span className={`flex items-center gap-1 font-semibold ${isCustomMode ? 'text-[#6B1724]' : 'text-stone-500'}`}>
+                  <PenLine className="w-3 h-3" />
+                  직접 작성하기
+                </span>
+                <span className="text-[10px] text-stone-400 tabular-nums">
+                  {customMessage.length}/{MAX_KNOCK_MESSAGE_LENGTH}
+                </span>
+              </div>
+              <input
+                type="text"
+                value={customMessage}
+                maxLength={MAX_KNOCK_MESSAGE_LENGTH}
+                onFocus={() => setIsCustomMode(true)}
+                onChange={(e) => {
+                  setCustomMessage(e.target.value);
+                  setIsCustomMode(true);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                    e.preventDefault();
+                    handleKnock();
+                  }
+                }}
+                placeholder="직접 노크 문구를 적어보세요..."
+                className="w-full text-xs sm:text-sm text-stone-800 placeholder:text-stone-400 bg-transparent focus:outline-none font-sans-ui"
+              />
+            </div>
           </div>
         </div>
 
         {/* 노크하기 버튼 */}
         <button
           onClick={handleKnock}
-          disabled={cooldown > 0 || isSending}
-          className={`w-full py-3 sm:py-3.5 rounded-xl active:scale-98 text-sm sm:text-base font-sans-ui font-bold transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer ${
-            cooldown > 0
+          disabled={cooldown > 0 || isSending || !finalMessage}
+          className={`w-full py-3 sm:py-3.5 rounded-xl active:scale-98 text-sm sm:text-base font-sans-ui font-bold transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer ${cooldown > 0 || !finalMessage
               ? 'bg-stone-200 text-stone-500 cursor-not-allowed'
               : 'bg-[#6B1724] hover:bg-[#58131e] text-[#FFFDF9]'
-          }`}
+            }`}
         >
           {cooldown > 0 ? (
             <>
